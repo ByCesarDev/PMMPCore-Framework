@@ -1,403 +1,182 @@
-# 🧠 🧱 PROYECTO: **PMMPCore (Framework tipo PocketMine para Bedrock)**
+# PMMPCore
 
-## 🎯 Objetivo principal
+<div align="center">
 
-Crear un sistema modular para **Minecraft Bedrock Edition** que permita:
+![PMMPCore Logo](https://img.shields.io/badge/PMMPCore-Framework-blue?style=for-the-badge&logo=minecraft)
 
-* Simular plugins estilo **PocketMine-MP**
-* Tener un **Core obligatorio**
-* Instalar plugins de forma sencilla
-* Crear un **ecosistema reutilizable**
-* Permitir monetización (plugins y packs)
+**Framework modular para Minecraft Bedrock Edition**
 
----
+[![Status](https://img.shields.io/badge/Status-Design%20Phase-yellow)](https://github.com/ByCesarDev/PMMPCore)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Minecraft](https://img.shields.io/badge/Minecraft-Bedrock%20Edition-green)](https://www.minecraft.net/es-es/download/bedrock-edition)
 
-# 🔥 CONCEPTO CLAVE
+[Documentación](./ROADMAP.md) · [Reportar Issues](../../issues) · [Discutir](../../discussions)
 
-> No es un addon cualquiera
-> es un **framework modular dentro de Bedrock**
+</div>
 
 ---
 
-# 🧩 ARQUITECTURA GENERAL
+## Overview
 
-```plaintext
-PMMPCore/
- ├── core/
- ├── db/
- ├── api/
- ├── generated/
- │    └── plugins.js        ✅ (runtime real)
- ├── plugins/
- │    ├── EconomyAPI/
- │    ├── PurePerms/
- │    ├── Multiworld/
- │    └── ...
- ├── plugins.json           ❌ (solo builder)
- └── main.js
+PMMPCore es un **framework revolucionario** que lleva la arquitectura de servidores tipo PocketMine-MP al mundo de Minecraft Bedrock Edition. Crea un ecosistema completo de plugins modulares dentro de las limitaciones técnicas de Bedrock, permitiendo desarrollar, instalar y gestionar funcionalidades avanzadas de forma estructurada y profesional.
+
+## ¿Por qué PMMPCore?
+
+### El Problema
+Minecraft Bedrock Edition tiene limitaciones significativas para el desarrollo de mods:
+- No hay acceso al sistema de archivos
+- No existe carga dinámica de plugins
+- Los addons tradicionales son muy limitados
+
+### La Solución
+PMMPCore implementa una arquitectura innovadora que:
+- **Simula un sistema de plugins real** mediante imports generados
+- **Proporciona persistencia de datos** usando DynamicProperties
+- **Crea un ecosistema modular** similar a servidores Java
+- **Permite monetización** de contenido premium
+
+## Características Principales
+
+### Core System
+- **Plugin Registry**: Sistema centralizado para registrar y gestionar plugins
+- **Database Manager**: Persistencia integrada con DynamicProperties
+- **API Global**: Interfaz unificada para todos los componentes
+- **Event Bus**: Comunicación eficiente entre módulos
+- **Scheduler**: Sistema de tareas centralizado
+
+### Plugin Architecture
+- **Modular Design**: Plugins independientes con dependencias claras
+- **Automatic Builder**: Generación de código de carga mediante Node.js
+- **Dependency Management**: Sistema de dependencias y soft-dependencies
+- **Lifecycle Management**: Métodos `onEnable()` y `onDisable()`
+
+### Developer Experience
+- **Command System**: Gestión unificada de comandos (`/plugins`, `/pl`)
+- **Permission Framework**: Base para sistemas de permisos
+- **Economy Integration**: Soporte para sistemas económicos
+- **Multiworld Support**: Gestión de múltiples mundos
+
+## Estado Actual del Proyecto
+
+<div align="center">
+
+```mermaid
+graph TD
+    A[Design Phase] --> B[Core Implementation]
+    B --> C[Plugin Development]
+    C --> D[Beta Testing]
+    D --> E[Release]
+    
+    style A fill:#f1c40f,stroke:#f39c12
+    style B fill:#ecf0f1,stroke:#95a5a6
+    style C fill:#ecf0f1,stroke:#95a5a6
+    style D fill:#ecf0f1,stroke:#95a5a6
+    style E fill:#ecf0f1,stroke:#95a5a6
 ```
 
----
+</div>
 
-# ⚙️ COMPONENTES PRINCIPALES
+**Fase Actual: Diseño Arquitectónico** 
+- Arquitectura completa definida y documentada
+- Especificaciones técnicas detalladas
+- Roadmap de plugins priorizado
 
-## 🔹 1. PMMPCore (el núcleo)
+## Ecosistema de Plugins
 
-Es el sistema base que:
+### Fase 1 - Core Plugins
+- **Multiworld**: Gestión de múltiples mundos
+- **PurePerms**: Sistema de permisos avanzado
+- **CommandManager**: Framework de comandos
+- **PureChat**: Sistema de chat mejorado
 
-* Maneja la base de datos
-* Registra plugins
-* Expone API global
-* Controla ciclo de vida (`onEnable`, `onDisable`)
-* Es dependencia obligatoria
+### Fase 2 - Economy & Utilities
+- **EconomyAPI**: Sistema económico completo
+- **WarpGUI**: Interfaz de teletransporte
+- **Portals**: Sistema de portales
 
----
+### Fase 3 - Advanced Features
+- **SignShop**: Tiendas con carteles
+- **CPlots**: Sistema de parcelas
 
-## 🔹 2. Sistema de Plugins (simulado)
+### Fase 4 - Premium Content
+- **ScoreHub**: Sistema de puntuaciones
+- **WelcomeMessage**: Mensajes de bienvenida
 
-Debido a limitaciones de Bedrock:
+## Arquitectura Técnica
 
-* ❌ No carga plugins dinámicamente
-* ✅ Usa **imports generados automáticamente**
-
----
-
-## 🔹 3. plugins.json (SOLO BUILD)
-
-```json
-{
-  "plugins": [
-    "EconomyAPI",
-    "PurePerms",
-    "Multiworld"
-  ]
-}
+```
+PMMPCore Framework
+    |
+    |-- Core System
+    |   |-- Plugin Registry
+    |   |-- Database Manager
+    |   |-- Event Bus
+    |   |-- Command System
+    |
+    |-- Plugin Ecosystem
+    |   |-- Multiworld
+    |   |-- EconomyAPI
+    |   |-- PurePerms
+    |   |-- + More...
+    |
+    |-- Build System
+        |-- Node.js Builder
+        |-- Auto-generated Imports
+        |-- Dependency Resolution
 ```
 
-👉 Este archivo:
+## Modelo de Negocio
 
-* ❌ NO lo usa el juego
-* ✅ SOLO lo usa el builder
+### Open Source
+- PMMPCore Core (Gratis)
+- Plugins básicos (Gratis)
+- Documentación completa
 
----
+### Premium Content
+- EconomyAPI Pro
+- PlotSystem Advanced
+- AntiCheat System
 
-## 🔹 4. Builder (pieza clave 🔥)
+### Plugin Packs
+- Survival Pack (Completo)
+- RPG Pack (Rol)
+- Prison Pack (Prisión)
 
-Script en Node.js que:
+## Visión a Futuro
 
-1. Lee `plugins.json`
-2. Genera:
+PMMPCore tiene como objetivo convertirse en:
 
-```js
-// generated/plugins.js
-
-import "../plugins/EconomyAPI/main.js";
-import "../plugins/PurePerms/main.js";
-import "../plugins/Multiworld/main.js";
-
-export const pluginList = [
-  "EconomyAPI",
-  "PurePerms",
-  "Multiworld"
-];
-```
-
-👉 Este archivo SÍ lo usa Bedrock
+1. **Estándar de la Industria**: El framework reference para Bedrock Edition
+2. **Ecosistema Vibrante**: Comunidad de desarrolladores y plugins
+3. **Plataforma Comercial**: Oportunidades de monetización legítimas
+4. **Base Educativa**: Recursos para aprender desarrollo de mods
 
 ---
 
-## 🔹 5. Plugin Registry (PMMPCore)
+## Documentación
 
-```js
-class PMMPCore {
-  static plugins = new Map();
+Para ver la arquitectura técnica completa, especificaciones de implementación y detalles del roadmap:
 
-  static registerPlugin(plugin) {
-    this.plugins.set(plugin.name, plugin);
-  }
-
-  static getPlugin(name) {
-    return this.plugins.get(name);
-  }
-
-  static getPlugins() {
-    return Array.from(this.plugins.values());
-  }
-
-  static enableAll() {
-    for (const plugin of this.plugins.values()) {
-      plugin.onEnable?.();
-    }
-  }
-}
-```
+**[Ver Documentación Técnica Completa](./ROADMAP.md)**
 
 ---
 
-## 🔹 6. Carga de plugins
+## Contribución
 
-```js
-import "./generated/plugins.js";
+Actualmente el proyecto está en fase de diseño. Pronto abriremos oportunidades para contribuir en:
 
-PMMPCore.enableAll();
-```
-
-👉 Esto simula un loader real
-
----
-
-## 🔹 7. Plugins
-
-Cada plugin vive en:
-
-```plaintext
-/plugins/Nombre/
-```
-
-Ejemplo:
-
-```js
-PMMPCore.registerPlugin({
-  name: "EconomyAPI",
-  version: "1.0.0",
-
-  onEnable() {
-    console.warn("[EconomyAPI] Enabled");
-  }
-});
-```
+- Implementación del Core
+- Desarrollo de plugins
+- Testing y QA
+- Documentación
 
 ---
 
-# 🗄️ SISTEMA DE DATOS
+<div align="center">
 
-## 🔹 Base: DynamicProperties
+**Built with passion for the Minecraft Bedrock community**
 
-* Guardado dentro del mundo
-* Compatible con cualquier usuario
-* Sin servidores externos
+[![Discord](https://img.shields.io/badge/Discord-Join%20Us-7289DA?logo=discord)](https://discord.gg/your-server)
+[![Twitter](https://img.shields.io/badge/Twitter-Follow-1DA1F2?logo=twitter)](https://twitter.com/your-handle)
 
----
-
-## 🔹 Estrategias
-
-* JSON compacto:
-
-  ```js
-  { m: 500, r: "admin" }
-  ```
-* Namespacing:
-
-  ```
-  core:player:Cesar
-  ```
-* Minimizar uso de espacio
-
----
-
-# 🧠 API DEL CORE
-
-Todos los plugins usan:
-
-```js
-PMMPCore.getPlugin("EconomyAPI")
-
-PMMPCore.db.get(...)
-PMMPCore.db.set(...)
-
-PMMPCore.getPlugins()
-```
-
----
-
-# 🔗 DEPENDENCIAS
-
-Ejemplo conceptual:
-
-```js
-{
-  depend: ["PMMPCore"],
-  softdepend: ["EconomyAPI"]
-}
-```
-
-Validado en `enableAll()`
-
----
-
-# 💬 COMANDO `/plugins` o `/pl`
-
-```js
-import { world } from "@minecraft/server";
-
-world.beforeEvents.chatSend.subscribe((event) => {
-  const msg = event.message.trim();
-
-  if (msg === "/pl" || msg === "/plugins") {
-    event.cancel = true;
-
-    const plugins = PMMPCore.getPlugins();
-
-    const list = plugins
-      .map(p => `§a${p.name} §7v${p.version}`)
-      .join("§r, ");
-
-    event.sender.sendMessage(`§6Plugins (${plugins.length}): ${list}`);
-  }
-});
-```
-
----
-
-## Resultado
-
-```plaintext
-Plugins (3): EconomyAPI v1.0.0, PurePerms v1.2.0, Multiworld v0.9.0
-```
-
----
-
-# 🧱 SISTEMAS DEL CORE
-
-PMMPCore debe incluir o exponer:
-
-* 🗄️ Database Manager
-* 👤 User wrapper (opcional)
-* 🔐 Permisos (o base para PurePerms)
-* 💰 Economía (o integración)
-* 🧾 Command Manager
-* 🔄 Event Bus interno
-* ⚡ Scheduler centralizado
-
----
-
-# 🚀 ROADMAP DE PLUGINS
-
-## 🔹 Fase 1
-
-1. Multiworld
-2. PurePerms
-3. CommandManager
-4. PureChat
-
-## 🔹 Fase 2
-
-5. EconomyAPI
-6. WarpGUI
-7. Portals
-
-## 🔹 Fase 3
-
-8. SignShop
-9. CPlots
-
-## 🔹 Fase 4
-
-10. ScoreHub
-11. WelcomeMessage
-
----
-
-# 💰 MONETIZACIÓN
-
-## Gratis
-
-* PMMPCore
-* plugins básicos
-
-## Premium
-
-* EconomyAPI Pro
-* PlotSystem
-* AntiCheat
-
-## Packs
-
-* Survival Pack
-* RPG Pack
-* Prison Pack
-
----
-
-# ⚠️ LIMITACIONES CLAVE
-
-Debido a Bedrock:
-
-* ❌ No acceso a archivos
-* ❌ No carga dinámica real
-* ❌ No plugins drop-in reales
-
-👉 Solución:
-
-✔ Builder
-✔ imports JS generados
-
----
-
-# 💡 EXPERIENCIA DEL USUARIO
-
-## Modo básico
-
-* instala plugins manualmente
-
-## Modo PRO (ideal)
-
-* selecciona plugins
-* builder genera addon
-* instala
-* listo
-
----
-
-# 🧠 DIFERENCIA CLAVE
-
-No estás haciendo:
-
-❌ un addon común
-
-Estás haciendo:
-
-> 🔥 un sistema modular tipo servidor dentro de Bedrock
-
----
-
-# 🚀 VISIÓN FINAL
-
-Esto puede convertirse en:
-
-* estándar tipo PMMP para Bedrock
-* ecosistema de plugins
-* base para otros devs
-* sistema comercial
-
----
-
-# 💬 RESUMEN FINAL
-
-👉 PMMPCore es:
-
-* el núcleo
-* la base de datos
-* el sistema de plugins
-* la API compartida
-* el runtime completo
-
-👉 Plugins son:
-
-* módulos independientes
-* dependientes del Core
-* cargados vía JS generado
-
-👉 Builder es:
-
-* el puente entre config y ejecución
-
----
-
-Si quieres, el siguiente paso lógico sería:
-
-👉 construir el **PMMPCore base en JS listo para usar**
-o
-👉 hacer el **builder en Node.js automático**
-
-Ahí ya pasas de diseño a ejecución real 🔥
+</div>
