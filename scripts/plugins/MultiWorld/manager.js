@@ -15,6 +15,91 @@ const MAIN_WORLD_CONFIG_KEY = "mainWorldTarget";
 
 // ============== WORLD MANAGER ==============
 export class WorldManager {
+  static _isValidSpawn(spawn) {
+    if (!spawn) return false;
+    if (!Number.isFinite(spawn.x) || !Number.isFinite(spawn.y) || !Number.isFinite(spawn.z)) return false;
+
+    // Bedrock sometimes returns sentinel/invalid values (e.g. y=32767) before spawn is ready.
+    const MIN_Y = -64;
+    const MAX_Y = 320;
+    if (spawn.y < MIN_Y || spawn.y > MAX_Y) return false;
+
+    return true;
+  }
+
+  static _resolveVanillaSpawn(vanilla) {
+    return this._resolveVanillaSpawnWithMeta(vanilla).spawn;
+  }
+
+  static _resolveVanillaSpawnWithMeta(vanilla) {
+    // For overworld, prefer the actual world default spawn instead of a fixed fallback.
+    if (vanilla.id === "minecraft:overworld") {
+      try {
+        const defaultSpawn = mcWorld.getDefaultSpawnLocation?.();
+        if (this._isValidSpawn(defaultSpawn)) {
+          return { spawn: defaultSpawn, source: "world-default-spawn" };
+        }
+      } catch (_) {}
+
+      // If world default spawn is unavailable/invalid, resolve a safe spawn at runtime.
+      try {
+        const overworld = mcWorld.getDimension("minecraft:overworld");
+        const safeSpawn = this._resolveSafeSpawnInDimension(overworld, vanilla.spawn);
+        if (this._isValidSpawn(safeSpawn)) {
+          return { spawn: safeSpawn, source: "safe-scan-fallback" };
+        }
+      } catch (_) {}
+    }
+
+    return { spawn: vanilla.spawn, source: "fallback-config" };
+  }
+
+  static _resolveOverworldSpawnForPlayer(player, fallbackSpawn) {
+    // 1) Player personal spawnpoint when available.
+    try {
+      const playerSpawn = player?.getSpawnPoint?.();
+      if (this._isValidSpawn(playerSpawn)) {
+        return { spawn: playerSpawn, source: "player-spawn-point" };
+      }
+    } catch (_) {}
+
+    // 2) World/global spawn + safe fallback chain.
+    const vanillaOverworld = {
+      id: "minecraft:overworld",
+      spawn: fallbackSpawn ?? { x: 0, y: 64, z: 0 },
+    };
+    return this._resolveVanillaSpawnWithMeta(vanillaOverworld);
+  }
+
+  static _resolveSafeSpawnInDimension(dimension, preferredSpawn) {
+    const fallback = this._isValidSpawn(preferredSpawn) ? preferredSpawn : { x: 0, y: 64, z: 0 };
+    const x = Math.floor(fallback.x);
+    const z = Math.floor(fallback.z);
+
+    // Find the highest non-air/non-fluid block and place player one block above.
+    for (let y = 320; y >= -64; y--) {
+      const block = dimension.getBlock({ x, y, z });
+      if (block === undefined) {
+        // Chunk not ready yet; keep fallback to avoid invalid teleport targets.
+        return fallback;
+      }
+      if (!block) continue;
+
+      const typeId = block.typeId;
+      if (
+        typeId !== "minecraft:air" &&
+        typeId !== "minecraft:cave_air" &&
+        typeId !== "minecraft:void_air" &&
+        typeId !== "minecraft:water" &&
+        typeId !== "minecraft:lava"
+      ) {
+        return { x, y: y + 1, z };
+      }
+    }
+
+    return fallback;
+  }
+
   static getMainWorldTarget() {
     const configured = PMMPCore.db?.getPluginData("MultiWorld", MAIN_WORLD_CONFIG_KEY);
     if (typeof configured !== "string" || !configured.trim()) return MAIN_WORLD_DEFAULT;
@@ -41,7 +126,7 @@ export class WorldManager {
     if (vanilla) {
       return {
         id: vanilla.id,
-        spawn: vanilla.spawn,
+        spawn: this._resolveVanillaSpawn(vanilla),
         label: vanilla.label,
         isCustom: false,
       };
@@ -49,9 +134,10 @@ export class WorldManager {
 
     const custom = this._getWorldByNameInsensitive(target);
     if (custom && custom.id.toLowerCase() !== excluded) {
+      const customSpawn = this._isValidSpawn(custom.spawn) ? custom.spawn : { x: 0, y: 64, z: 0 };
       return {
         id: custom.dimensionId,
-        spawn: custom.spawn,
+        spawn: customSpawn,
         label: custom.id,
         isCustom: true,
         worldName: custom.id,
@@ -61,7 +147,7 @@ export class WorldManager {
     const fallback = resolveVanillaWorld(MAIN_WORLD_DEFAULT);
     return {
       id: fallback.id,
-      spawn: fallback.spawn,
+      spawn: this._resolveVanillaSpawn(fallback),
       label: fallback.label,
       isCustom: false,
       isFallback: true,
@@ -75,12 +161,50 @@ export class WorldManager {
         RuntimeController.activateWorld(destination.worldName);
       }
       system.run(() => {
-        const dimension = mcWorld.getDimension(destination.id);
-        player.teleport(destination.spawn, { dimension });
+        let destinationId = destination.id;
+        let targetSpawn = destination.spawn;
+
+        if (!destination.isCustom && destination.id === "minecraft:overworld") {
+          const resolved = this._resolveOverworldSpawnForPlayer(player, destination.spawn);
+          destinationId = "minecraft:overworld";
+          targetSpawn = resolved.spawn;
+        }
+
+        const dimension = mcWorld.getDimension(destinationId);
+
+        if (destination.isCustom && destination.worldName) {
+          const safeSpawn = this._resolveSafeSpawnInDimension(dimension, destination.spawn);
+          targetSpawn = safeSpawn;
+
+          const worldData = this.getWorld(destination.worldName);
+          if (worldData && (
+            worldData.spawn.x !== safeSpawn.x ||
+            worldData.spawn.y !== safeSpawn.y ||
+            worldData.spawn.z !== safeSpawn.z
+          )) {
+            worldData.spawn = safeSpawn;
+            worldData.lastUsed = Date.now();
+            markWorldDataDirty();
+          }
+        }
+
+        player.teleport(targetSpawn, { dimension });
       });
       return { ok: true, destination };
     } catch (e) {
       return { ok: false, error: e, destination };
+    }
+  }
+
+  static resolveWorldSpawnNow(worldName) {
+    const worldData = this.getWorld(worldName);
+    if (!worldData) return null;
+
+    try {
+      const dimension = mcWorld.getDimension(worldData.dimensionId);
+      return this._resolveSafeSpawnInDimension(dimension, worldData.spawn);
+    } catch (_) {
+      return this._isValidSpawn(worldData.spawn) ? worldData.spawn : { x: 0, y: 64, z: 0 };
     }
   }
 

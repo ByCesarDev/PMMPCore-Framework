@@ -65,6 +65,10 @@ PMMPCore.registerPlugin({
 });
 ```
 
+Note:
+
+- If `depend: ["PMMPCore"]` is declared, PMMPCore treats it as strict and the plugin is blocked until core initialization is valid.
+
 ## 5. Runtime Integration
 
 Add import in `scripts/plugins.js`:
@@ -98,9 +102,94 @@ If `pluginList` exists, also add the plugin name.
 ## 7. Commands: Practical Recommendations
 
 - Use `pmmpcore:` prefix.
+- Bedrock requires command names in `namespace:value` format (e.g. `pmmpcore:mycommand`).
 - Define `mandatoryParameters`/`optionalParameters` correctly.
+- Prefer `CustomCommandParamType.Enum` for stable options (actions, modes, fixed subcommands) to get autocomplete.
 - If the command does heavy work, divide into ticks.
 - Clear and actionable error messages for the player.
+
+### 7.1 Basic command pattern (`help`, `info`, actions)
+
+A practical pattern is to expose one root command and route by subcommand:
+
+- `/pmmpcore:myplugin help`
+- `/pmmpcore:myplugin info`
+- `/pmmpcore:myplugin <action> ...`
+
+Example:
+
+```javascript
+import {
+  Player,
+  CustomCommandStatus,
+  CommandPermissionLevel,
+  CustomCommandParamType,
+} from "@minecraft/server";
+
+function handleHelp(player) {
+  player.sendMessage("=== MyPlugin Help ===");
+  player.sendMessage("/pmmpcore:myplugin help");
+  player.sendMessage("/pmmpcore:myplugin info");
+  player.sendMessage("/pmmpcore:myplugin greet <name>");
+  return { status: CustomCommandStatus.Success };
+}
+
+function handleInfo(player) {
+  player.sendMessage("MyPlugin v1.0.0 - status OK");
+  return { status: CustomCommandStatus.Success };
+}
+
+export function registerMyPluginCommands(event) {
+  event.customCommandRegistry.registerEnum("pmmpcore:myplugin_subcommand", [
+    "help",
+    "info",
+    "greet",
+  ]);
+
+  event.customCommandRegistry.registerCommand(
+    {
+      name: "pmmpcore:myplugin",
+      description: "MyPlugin root command",
+      permissionLevel: CommandPermissionLevel.Any,
+      cheatsRequired: false,
+      mandatoryParameters: [
+        { type: CustomCommandParamType.Enum, name: "pmmpcore:myplugin_subcommand" },
+      ],
+      optionalParameters: [
+        { type: CustomCommandParamType.String, name: "targetName" },
+      ],
+    },
+    (origin, subcommand, targetName) => {
+      const player = origin.initiator ?? origin.sourceEntity;
+      if (!(player instanceof Player)) {
+        return { status: CustomCommandStatus.Failure, message: "Only players can run this command." };
+      }
+
+      switch ((subcommand ?? "help").toLowerCase()) {
+        case "help":
+          return handleHelp(player);
+        case "info":
+          return handleInfo(player);
+        case "greet":
+          if (!targetName) {
+            player.sendMessage("Usage: /pmmpcore:myplugin greet <name>");
+            return { status: CustomCommandStatus.Success };
+          }
+          player.sendMessage(`Hello ${targetName}!`);
+          return { status: CustomCommandStatus.Success };
+        default:
+          return handleHelp(player);
+      }
+    }
+  );
+}
+```
+
+Why this works well:
+
+- single entrypoint makes command UX consistent;
+- enum subcommands provide autocomplete;
+- each subcommand can call a dedicated handler function.
 
 ## 8. Dependencies Between Plugins
 
@@ -148,3 +237,32 @@ if (!economy) {
 - Commands in lowercase.
 - Messages with short plugin prefix (`[MyPlugin]`).
 - Separate logic into modules if the file grows too much.
+
+## 13. Modular Plugin Design (recommended)
+
+Do not keep the full plugin in one giant `main.js`. Prefer modules by responsibility.
+
+Suggested layout:
+
+```text
+scripts/plugins/MyPlugin/
+  main.js
+  commands.js
+  service.js
+  state.js
+  config.js
+```
+
+Suggested responsibilities:
+
+- `main.js`: plugin registration + lifecycle hooks (`onEnable`, `onStartup`, `onDisable`).
+- `commands.js`: command registration and command handlers only.
+- `service.js`: business logic (calculations, rules, operations).
+- `state.js`: runtime shared state (caches, maps, flags).
+- `config.js`: constants/enums/tuning knobs.
+
+Modular rule of thumb:
+
+- command files should call services, not implement full business logic inline;
+- persistence calls should be centralized (service layer) instead of scattered;
+- avoid circular imports between modules.

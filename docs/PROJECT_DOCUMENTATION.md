@@ -35,13 +35,14 @@ Responsible for:
 - Initializing DB.
 - Initializing PMMPCore.
 - Registering global core commands.
-- Executing `enableAll()` and then hooks `onStartup(event)` of each plugin.
+- Executing `enableAll()` and then hooks `onStartup(event)` only for enabled plugins.
 
 ### 3.2 `scripts/PMMPCore.js`
 
 Responsible for:
 
 - Registering plugins (internal `Map`).
+- Tracking plugin status (`enabled` / `blocked`) with reasons.
 - Validating dependencies (`depend`, `softdepend`).
 - Executing plugin lifecycle (`onEnable`/`onDisable`).
 - Exposing DB access (`PMMPCore.db`).
@@ -73,7 +74,7 @@ Expected contract:
 Order:
 
 1. `PMMPCore.enableAll()` calls `onEnable`.
-2. `main.js` iterates plugins and executes `onStartup(event)`.
+2. `main.js` iterates plugins and executes `onStartup(event)` only when `pluginState.enabled === true`.
 3. On shutdown/reload, `PMMPCore.disableAll()` calls `onDisable`.
 
 ## 5. Dependency Model
@@ -82,6 +83,7 @@ Order:
 
 - Mandatory dependency.
 - If missing, the plugin is not enabled.
+- `PMMPCore` is validated as a strict required dependency when declared in `depend`.
 
 ### `softdepend`
 
@@ -98,9 +100,18 @@ Best practices:
 Recommended:
 
 - Namespaced names: `pmmpcore:<command>`.
+- Custom commands must always include namespace (`namespace:value`) in Bedrock.
 - Resolve origin with `origin.initiator ?? origin.sourceEntity`.
 - Validate `instanceof Player` when applicable.
 - For sensitive mutations, execute from `system.run(...)`.
+
+Core command set currently includes:
+
+- `pmmpcore:plugins` (shows loaded plugins and state).
+- `pmmpcore:pl` (short state list).
+- `pmmpcore:pluginstatus <plugin>` (detailed status + reason).
+- `pmmpcore:info`
+- `pmmpcore:pmmphelp`
 
 ## 7. Persistence and Data Schema
 

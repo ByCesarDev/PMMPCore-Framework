@@ -16,6 +16,7 @@ const Color = {
 
 class PMMPCore {
   static plugins = new Map();
+  static pluginStates = new Map();
   static db = null;
   static initialized = false;
 
@@ -31,6 +32,10 @@ class PMMPCore {
     }
 
     this.plugins.set(plugin.name, plugin);
+    this.pluginStates.set(plugin.name, {
+      enabled: false,
+      reason: "Registered",
+    });
     console.log(`${Color.green}[PMMPCore] Plugin ${plugin.name} v${plugin.version || '1.0.0'} registered${Color.reset}`);
     return true;
   }
@@ -43,13 +48,39 @@ class PMMPCore {
     return Array.from(this.plugins.values());
   }
 
+  static getPluginState(name) {
+    return this.pluginStates.get(name) || { enabled: false, reason: "Unknown plugin state" };
+  }
+
+  static getPluginSummaries() {
+    return this.getPlugins().map((plugin) => ({
+      ...plugin,
+      state: this.getPluginState(plugin.name),
+    }));
+  }
+
   static enableAll() {
+    if (!this.initialized || !this.db) {
+      console.error(`${Color.red}[PMMPCore] Core not initialized. Aborting plugin enable phase.${Color.reset}`);
+      for (const plugin of this.plugins.values()) {
+        this.pluginStates.set(plugin.name, {
+          enabled: false,
+          reason: "PMMPCore is not initialized",
+        });
+      }
+      return;
+    }
+
     let enabledCount = 0;
     let errorCount = 0;
 
     for (const plugin of this.plugins.values()) {
       try {
         if (!this.validateDependencies(plugin)) {
+          this.pluginStates.set(plugin.name, {
+            enabled: false,
+            reason: "Dependency validation failed",
+          });
           errorCount++;
           continue;
         }
@@ -57,9 +88,22 @@ class PMMPCore {
         if (plugin.onEnable && typeof plugin.onEnable === 'function') {
           plugin.onEnable();
           enabledCount++;
+          this.pluginStates.set(plugin.name, {
+            enabled: true,
+            reason: "Enabled successfully",
+          });
           console.log(`${Color.green}[PMMPCore] ${plugin.name} enabled${Color.reset}`);
+        } else {
+          this.pluginStates.set(plugin.name, {
+            enabled: true,
+            reason: "No onEnable hook; marked as enabled",
+          });
         }
       } catch (error) {
+        this.pluginStates.set(plugin.name, {
+          enabled: false,
+          reason: `Enable error: ${error.message}`,
+        });
         errorCount++;
         console.error(`${Color.red}[PMMPCore] Error enabling ${plugin.name}: ${error.message}${Color.reset}`);
       }
@@ -76,6 +120,10 @@ class PMMPCore {
         if (plugin.onDisable && typeof plugin.onDisable === 'function') {
           plugin.onDisable();
           disabledCount++;
+          this.pluginStates.set(plugin.name, {
+            enabled: false,
+            reason: "Disabled successfully",
+          });
           console.log(`${Color.yellow}[PMMPCore] ${plugin.name} disabled${Color.reset}`);
         }
       } catch (error) {
@@ -106,6 +154,9 @@ class PMMPCore {
     if (plugin.depend) {
       for (const dep of plugin.depend) {
         if (dep === "PMMPCore") {
+          if (!this.initialized || !this.db) {
+            errors.push(`PMMPCore is required but not initialized`);
+          }
           continue;
         }
         if (!this.plugins.has(dep)) {

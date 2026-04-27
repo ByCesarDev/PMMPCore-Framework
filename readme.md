@@ -59,7 +59,7 @@ PMMPCore implements a framework foundation that:
 
 ### Developer experience
 
-- Core diagnostic commands (`plugins`, `pl`, `info`, `pmmphelp`).
+- Core diagnostic commands (`pmmpcore:plugins`, `pmmpcore:pl`, `pmmpcore:pluginstatus`, `pmmpcore:info`, `pmmpcore:pmmphelp`).
 - Detailed guides for creating plugins and operating modules.
 - Versionable technical documentation within the repo.
 
@@ -78,7 +78,7 @@ PMMPCore implements a framework foundation that:
 scripts/main.js
   -> PMMPCore.initialize(DatabaseManager)
   -> PMMPCore.enableAll()
-  -> plugin.onStartup(event) per plugin
+  -> plugin.onStartup(event) for enabled plugins only
 ```
 
 ```text
@@ -109,6 +109,7 @@ scripts/
 - [x] Types: `normal`, `flat`, `void`, `skyblock`.
 - [x] Batch cleanup and recovery (`purgechunks`).
 - [x] Configurable main world (`setmain`, `main`).
+- [x] Global world spawn control (`setspawn`) and runtime spawn diagnostics (`info`).
 - [~] Generation optimization in `normal`.
 - [ ] Formal profiling by player load.
 

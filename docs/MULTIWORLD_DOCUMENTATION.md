@@ -57,6 +57,12 @@ Root command:
 
 - `/pmmpcore:mw <subcommand> ...`
 
+Autocomplete support:
+
+- `subcommand` is registered as enum (`pmmpcore:mw_subcommand`).
+- world `type` in `create` is registered as enum (`pmmpcore:mw_world_type`).
+- Short alias `/mw` is not registered through `customCommandRegistry` because Bedrock requires namespaced command names.
+
 Subcommands:
 
 - `create <name> [type] [dimension]`
@@ -66,6 +72,7 @@ Subcommands:
 - `purgechunks <name>`
 - `info <name>`
 - `setmain <name>`
+- `setspawn <name>`
 - `main`
 - `help`
 
@@ -74,6 +81,7 @@ Notes:
 - `type` default in `create` is `normal`.
 - `dimension` optional between 1 and 50.
 - `delete` and `purgechunks` only for the world owner.
+- `setspawn` updates the global spawn of a custom world to the player's current location.
 
 ## 6. World Creation Flow
 
@@ -98,6 +106,19 @@ Relevant `WorldData` fields:
 4. Pre-generate spawn according to type.
 5. Player teleport.
 6. Remove temporary ticking area.
+
+Overworld-specific spawn resolution priority:
+
+1. player personal spawnpoint (`player.getSpawnPoint()`), if valid.
+2. world default spawn (`world.getDefaultSpawnLocation()`), if valid.
+3. safe runtime scan (`safe-scan-fallback`) to find valid ground.
+4. static fallback config as last resort.
+
+Custom-world spawn resolution:
+
+- Uses saved `WorldData.spawn` as preferred point.
+- Validates against terrain at runtime and resolves safe ground when needed.
+- If a better safe spawn is found, `WorldData.spawn` is updated and persisted.
 
 ## 8. Procedural Generation
 
@@ -168,6 +189,7 @@ Persisted config by plugin:
 Commands:
 
 - `setmain <name>`: defines main world (vanilla or custom).
+- `setspawn <name>`: sets global spawn for your custom world using your current position.
 - `main`: shows configuration and resolved destination.
 
 Behavior:
@@ -175,6 +197,19 @@ Behavior:
 - First spawn of new player -> redirects to main world.
 - Respawn without personal spawnpoint -> redirects to main world.
 - If configured destination does not exist -> fallback to overworld.
+- Spawn fallback chain is explicit and inspectable in `info`.
+
+## 11.1 Spawn Diagnostics in `info`
+
+`/pmmpcore:mw info <world>` now reports:
+
+- `Spawn (saved)`: spawn stored in world metadata/config.
+- `Spawn (resolved now)`: effective spawn resolved at runtime.
+- `Spawn source` (vanilla worlds): origin of resolved spawn:
+  - `player-spawn-point`
+  - `world-default-spawn`
+  - `safe-scan-fallback`
+  - `fallback-config`
 
 ## 12. Data Persistence
 

@@ -51,12 +51,28 @@ PMMPCore.registerPlugin({
       const shouldRouteToMain = event.initialSpawn || !hasPersonalSpawn;
       if (!shouldRouteToMain) return;
 
-      system.runTimeout(() => {
+      const tryRouteToMain = (attempt = 0) => {
+        // Wait until world metadata is available; otherwise main-world resolution
+        // can fallback incorrectly to overworld spawn.
+        if (!this.worldDataLoaded && attempt < 40) {
+          system.runTimeout(() => tryRouteToMain(attempt + 1), 1);
+          return;
+        }
+
+        if (!this.worldDataLoaded) {
+          try {
+            WorldManager.loadWorldData();
+            this.worldDataLoaded = true;
+          } catch (_) {}
+        }
+
         const moved = WorldManager.teleportPlayerToMainWorld(player);
         if (!moved.ok) {
           player.sendMessage(`${Color.red}[MW] Could not move you to main world: ${moved.error?.message ?? "unknown error"}${Color.reset}`);
         }
-      }, 1);
+      };
+
+      system.runTimeout(() => tryRouteToMain(), 1);
     });
 
     console.log("[MultiWorld] Modular runtime enabled.");
