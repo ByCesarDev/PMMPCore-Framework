@@ -110,6 +110,7 @@ scripts/
 - [x] Batch cleanup and recovery (`purgechunks`).
 - [x] Configurable main world (`setmain`, `main`).
 - [x] Global world spawn control (`setspawn`) and runtime spawn diagnostics (`info`).
+- [x] Reconnect restore for non-main worlds with optional spawn-forced lobby mode.
 - [~] Generation optimization in `normal`.
 - [ ] Formal profiling by player load.
 

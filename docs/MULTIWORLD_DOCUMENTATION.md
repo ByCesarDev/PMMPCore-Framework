@@ -96,6 +96,7 @@ Relevant `WorldData` fields:
 - `id`, `type`, `owner`
 - `dimensionId`, `dimensionNumber`
 - `spawn`
+- `forceSpawnOnJoin` (optional lobby-like behavior)
 - `loaded`, `createdAt`, `lastUsed`
 
 ## 7. Teleport Flow
@@ -106,6 +107,12 @@ Relevant `WorldData` fields:
 4. Pre-generate spawn according to type.
 5. Player teleport.
 6. Remove temporary ticking area.
+
+Join routing behavior:
+
+1. If a valid last known player location exists and belongs to a non-main world, player is restored there.
+2. If that world has `forceSpawnOnJoin = true`, player is sent to that world's spawn instead.
+3. If last location is unavailable/invalid/main world, plugin routes to configured main world.
 
 Overworld-specific spawn resolution priority:
 
@@ -198,6 +205,8 @@ Behavior:
 - Respawn without personal spawnpoint -> redirects to main world.
 - If configured destination does not exist -> fallback to overworld.
 - Spawn fallback chain is explicit and inspectable in `info`.
+- Non-main worlds can restore players to their previous location on reconnect.
+- Worlds flagged with `forceSpawnOnJoin` behave as lobby/spawn-forced worlds.
 
 ## 11.1 Spawn Diagnostics in `info`
 
@@ -224,6 +233,7 @@ Strategy:
 - Dirty flag in memory.
 - Flush on-demand (create/delete/autosave/disable).
 - Complete load at initial worldLoad.
+- Player last location is stored under player data (`multiWorld.lastLocation`).
 
 ## 13. Functional Security
 

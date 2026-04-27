@@ -39,6 +39,13 @@ PMMPCore.registerPlugin({
       }
     }, 200);
 
+    // Persistir ultima ubicacion de jugadores para restaurar en reconexion.
+    system.runInterval(() => {
+      for (const player of world.getAllPlayers()) {
+        WorldManager.savePlayerLastLocation(player);
+      }
+    }, 40);
+
     // En primer ingreso, o respawn sin spawnpoint personal, mover al mundo principal configurado.
     world.afterEvents.playerSpawn.subscribe((event) => {
       const player = event.player;
@@ -65,6 +72,9 @@ PMMPCore.registerPlugin({
             this.worldDataLoaded = true;
           } catch (_) {}
         }
+
+        const restored = WorldManager.teleportPlayerToPreferredJoinLocation(player);
+        if (restored.ok) return;
 
         const moved = WorldManager.teleportPlayerToMainWorld(player);
         if (!moved.ok) {

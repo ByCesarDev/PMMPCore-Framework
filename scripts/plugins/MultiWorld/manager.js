@@ -7,7 +7,7 @@ import {
 import {
   dimensionPool, WORLD_TYPES, FLAT_WORLD_TOP_Y, TOTAL_DIMENSIONS,
   MAX_ACTIVE_WORLDS, INACTIVE_TIMEOUT,
-  resolveVanillaWorld,
+  resolveVanillaWorld, VANILLA_WORLDS,
 } from "./config.js";
 
 const MAIN_WORLD_DEFAULT = "overworld";
@@ -15,6 +15,131 @@ const MAIN_WORLD_CONFIG_KEY = "mainWorldTarget";
 
 // ============== WORLD MANAGER ==============
 export class WorldManager {
+  static _isValidLocation(loc) {
+    return !!loc && Number.isFinite(loc.x) && Number.isFinite(loc.y) && Number.isFinite(loc.z);
+  }
+
+  static _isMainDestination(destination, mainDestination) {
+    if (!destination || !mainDestination) return false;
+    if (destination.id === mainDestination.id) return true;
+    if (destination.worldName && mainDestination.worldName && destination.worldName === mainDestination.worldName) {
+      return true;
+    }
+    return false;
+  }
+
+  static _getDestinationByDimensionId(dimensionId) {
+    const custom = Array.from(worldsData.values()).find((w) => w.dimensionId === dimensionId);
+    if (custom) {
+      return {
+        id: custom.dimensionId,
+        spawn: this._isValidSpawn(custom.spawn) ? custom.spawn : { x: 0, y: 64, z: 0 },
+        label: custom.id,
+        isCustom: true,
+        worldName: custom.id,
+      };
+    }
+
+    const vanilla = Object.values(VANILLA_WORLDS).find((entry) => entry?.id === dimensionId);
+
+    if (vanilla) {
+      return {
+        id: vanilla.id,
+        spawn: this._resolveVanillaSpawn(vanilla),
+        label: vanilla.label,
+        isCustom: false,
+      };
+    }
+
+    return null;
+  }
+
+  static getPlayerLastLocation(playerName) {
+    const playerData = PMMPCore.db?.getPlayerData(playerName);
+    const locationData = playerData?.multiWorld?.lastLocation;
+    if (!locationData) return null;
+    if (!this._isValidLocation(locationData.location)) return null;
+    if (typeof locationData.dimensionId !== "string" || locationData.dimensionId.length === 0) return null;
+    return locationData;
+  }
+
+  static savePlayerLastLocation(player) {
+    if (!PMMPCore.db || !player?.name) return false;
+    const dimensionId = player.dimension?.id;
+    const location = player.location;
+    if (typeof dimensionId !== "string" || !this._isValidLocation(location)) return false;
+
+    const playerData = PMMPCore.db.getPlayerData(player.name);
+    if (!playerData.multiWorld) playerData.multiWorld = {};
+
+    const prev = playerData.multiWorld.lastLocation;
+    const nextLocation = {
+      x: Math.floor(location.x),
+      y: Math.floor(location.y),
+      z: Math.floor(location.z),
+    };
+    if (
+      prev &&
+      prev.dimensionId === dimensionId &&
+      prev.location?.x === nextLocation.x &&
+      prev.location?.y === nextLocation.y &&
+      prev.location?.z === nextLocation.z
+    ) {
+      return true;
+    }
+
+    playerData.multiWorld.lastLocation = {
+      dimensionId,
+      location: nextLocation,
+      updatedAt: Date.now(),
+    };
+    return PMMPCore.db.setPlayerData(player.name, playerData);
+  }
+
+  static teleportPlayerToPreferredJoinLocation(player) {
+    const last = this.getPlayerLastLocation(player.name);
+    if (!last) return { ok: false, reason: "no-last-location" };
+
+    const destination = this._getDestinationByDimensionId(last.dimensionId);
+    if (!destination) return { ok: false, reason: "unknown-dimension" };
+
+    const mainDestination = this.resolveMainWorldDestination();
+    if (this._isMainDestination(destination, mainDestination)) {
+      return { ok: false, reason: "last-location-is-main" };
+    }
+
+    try {
+      if (destination.isCustom && destination.worldName) {
+        RuntimeController.activateWorld(destination.worldName);
+      }
+
+      system.run(() => {
+        const dimension = mcWorld.getDimension(destination.id);
+        let targetLocation = last.location;
+
+        if (destination.isCustom && destination.worldName) {
+          const worldData = this.getWorld(destination.worldName);
+          const forceSpawnOnJoin = !!worldData?.forceSpawnOnJoin;
+          if (forceSpawnOnJoin) {
+            targetLocation = this._resolveSafeSpawnInDimension(dimension, worldData.spawn);
+          } else if (!this._isValidLocation(targetLocation)) {
+            targetLocation = this._resolveSafeSpawnInDimension(dimension, worldData.spawn);
+          }
+        } else if (destination.id === "minecraft:overworld") {
+          if (!this._isValidLocation(targetLocation)) {
+            targetLocation = this._resolveOverworldSpawnForPlayer(player, destination.spawn).spawn;
+          }
+        }
+
+        player.teleport(targetLocation, { dimension });
+      });
+
+      return { ok: true, destination, reason: "restored-last-location" };
+    } catch (error) {
+      return { ok: false, reason: "teleport-failed", error };
+    }
+  }
+
   static _isValidSpawn(spawn) {
     if (!spawn) return false;
     if (!Number.isFinite(spawn.x) || !Number.isFinite(spawn.y) || !Number.isFinite(spawn.z)) return false;
