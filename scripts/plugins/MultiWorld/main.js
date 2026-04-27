@@ -124,6 +124,22 @@ PMMPCore.registerPlugin({
 
     setupCommands(event);
 
+    // Default ore rules (vanilla-like). Can be extended via WorldGenerator.registerOreRule().
+    try {
+      const existing = WorldGenerator.getOreRules();
+      if (!existing.length) {
+        WorldGenerator.registerOreRule({ id: "coal", blockId: "minecraft:coal_ore", minY: -64, maxY: 128, veinsPerChunk: 12, veinSize: 10, seed: 1 });
+        WorldGenerator.registerOreRule({ id: "iron", blockId: "minecraft:iron_ore", minY: -64, maxY: 72, veinsPerChunk: 7, veinSize: 9, seed: 2 });
+        WorldGenerator.registerOreRule({ id: "copper", blockId: "minecraft:copper_ore", minY: -16, maxY: 96, veinsPerChunk: 6, veinSize: 10, seed: 3 });
+        WorldGenerator.registerOreRule({ id: "gold", blockId: "minecraft:gold_ore", minY: -64, maxY: 32, veinsPerChunk: 2, veinSize: 8, seed: 4 });
+        WorldGenerator.registerOreRule({ id: "redstone", blockId: "minecraft:redstone_ore", minY: -64, maxY: 16, veinsPerChunk: 3, veinSize: 8, seed: 5 });
+        WorldGenerator.registerOreRule({ id: "lapis", blockId: "minecraft:lapis_ore", minY: -32, maxY: 64, veinsPerChunk: 1, veinSize: 7, seed: 6 });
+        WorldGenerator.registerOreRule({ id: "diamond", blockId: "minecraft:diamond_ore", minY: -64, maxY: 16, veinsPerChunk: 1, veinSize: 6, seed: 7 });
+      }
+    } catch (e) {
+      console.warn(`[MultiWorld] Ore rules init failed: ${e?.message ?? "unknown error"}`);
+    }
+
     const worldLoadSubscription = world.afterEvents.worldLoad.subscribe(() => {
       if (this.worldDataLoaded) return;
       system.run(() => {

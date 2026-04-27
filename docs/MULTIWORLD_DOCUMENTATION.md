@@ -198,7 +198,10 @@ Main loop:
 
 - `keepmode on`: caller preference to remain in-dimension for delete/purge.
 - `keepmode off`: caller preference to move to main world first.
-- Safety override: if cleanup lock is active, evacuation still happens and lock rules take priority.
+- Behavior during cleanup:
+  - When ON and the caller is inside the target dimension, the caller stays.
+  - Any other players in that same dimension are evacuated to main world before cleanup starts.
+  - World + dimension locks still apply (teleport/create/re-delete/re-purge into that target is blocked).
 
 ### Batch Cleanup Pipeline
 

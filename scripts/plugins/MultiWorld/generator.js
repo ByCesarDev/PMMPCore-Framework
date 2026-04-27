@@ -84,12 +84,118 @@ export class WorldGenerator {
     return Math.max(58, Math.min(86, y));
   }
 
-  static _dirtDepthAt(x, z) {
-    // Vanilla-like variability: mostly 4-6 dirt blocks below grass.
-    const noise = this._valueNoise2D(x * 0.08, z * 0.08, 97);
-    if (noise > 0.72) return 6;
-    if (noise > 0.42) return 5;
-    return 4;
+  static _slopeAt(x, z) {
+    // Cheap slope approximation from height deltas.
+    const h = this._naturalTopYAt(x, z);
+    const hx = this._naturalTopYAt(x + 3, z);
+    const hz = this._naturalTopYAt(x, z + 3);
+    return Math.abs(hx - h) + Math.abs(hz - h);
+  }
+
+  static _soilProfileAt(x, z) {
+    // Goal: vanilla-like variability without discrete fixed depths.
+    // - Flatter areas -> deeper soil
+    // - Steeper slopes -> thinner soil / more exposed stone
+    const broad = this._valueNoise2D(x * 0.015, z * 0.015, 97); // 0..1
+    const detail = this._valueNoise2D(x * 0.09, z * 0.09, 131); // 0..1
+    const slope = this._slopeAt(x, z); // 0+
+    const slopeFactor = Math.max(0, Math.min(1, slope / 8)); // 0..1
+
+    // Continuous depth targets (not just 4/5/6).
+    // Typical vanilla feel: 2..7 with bias toward 3..5.
+    let dirtDepth = 2.5 + broad * 3.2 + detail * 1.6; // ~2.5..7.3
+    dirtDepth = dirtDepth * (1 - 0.55 * slopeFactor); // reduce on slopes
+    dirtDepth = Math.max(2, Math.min(7, dirtDepth));
+
+    // Occasional coarse dirt patches, mostly on flatter areas.
+    const coarseChance = (detail > 0.82 && slopeFactor < 0.25);
+    const useCoarseTop = coarseChance && (this._hash2(x, z, 911) > 0.7);
+
+    return {
+      dirtDepth,
+      topBlock: "minecraft:grass_block",
+      dirtBlock: useCoarseTop ? "minecraft:coarse_dirt" : "minecraft:dirt",
+    };
+  }
+
+  // ============== ORE GENERATION API ==============
+  static _oreRules = [];
+
+  static registerOreRule(rule) {
+    if (!rule || typeof rule !== "object") throw new Error("Ore rule must be an object");
+    if (typeof rule.id !== "string" || !rule.id) throw new Error("Ore rule requires id");
+    if (typeof rule.blockId !== "string" || !rule.blockId) throw new Error("Ore rule requires blockId");
+    const normalized = {
+      id: rule.id,
+      blockId: rule.blockId,
+      minY: Number.isFinite(rule.minY) ? rule.minY : -64,
+      maxY: Number.isFinite(rule.maxY) ? rule.maxY : 64,
+      veinsPerChunk: Number.isFinite(rule.veinsPerChunk) ? rule.veinsPerChunk : 0,
+      veinSize: Number.isFinite(rule.veinSize) ? rule.veinSize : 0,
+      replace: Array.isArray(rule.replace) && rule.replace.length ? rule.replace : ["minecraft:stone"],
+      seed: Number.isFinite(rule.seed) ? rule.seed : 0,
+    };
+    this._oreRules = this._oreRules.filter((r) => r.id !== normalized.id);
+    this._oreRules.push(normalized);
+  }
+
+  static getOreRules() {
+    return Array.from(this._oreRules);
+  }
+
+  static _rand01(x, y, z, seed) {
+    // deterministic pseudo-random 0..1
+    return this._frac(Math.sin(x * 12.9898 + y * 78.233 + z * 37.719 + seed * 11.131) * 43758.5453);
+  }
+
+  static _randomIntInclusive(x, y, z, seed, min, max) {
+    const r = this._rand01(x, y, z, seed);
+    return min + Math.floor(r * (max - min + 1));
+  }
+
+  static _tryPlaceOreBlock(dimension, x, y, z, perm, replaceList) {
+    const b = dimension.getBlock({ x, y, z });
+    if (!b) return false;
+    if (!replaceList.includes(b.typeId)) return false;
+    try {
+      b.setPermutation(perm);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static generateOresForChunk(dimension, chunkX, chunkZ) {
+    if (!this._oreRules.length) return;
+    const originX = chunkX * 16;
+    const originZ = chunkZ * 16;
+
+    for (const rule of this._oreRules) {
+      if (!rule.veinsPerChunk || !rule.veinSize) continue;
+      const perm = BlockPermutation.resolve(rule.blockId);
+
+      for (let v = 0; v < rule.veinsPerChunk; v++) {
+        const seedBase = 20000 + rule.seed + v * 31 + chunkX * 101 + chunkZ * 103;
+        const sx = originX + this._randomIntInclusive(originX, 0, originZ, seedBase + 1, 0, 15);
+        const sz = originZ + this._randomIntInclusive(originX, 0, originZ, seedBase + 2, 0, 15);
+        const sy = this._randomIntInclusive(originX, 0, originZ, seedBase + 3, rule.minY, rule.maxY);
+
+        // Random walk vein, bounded inside chunk footprint (vanilla-ish)
+        let x = sx;
+        let y = sy;
+        let z = sz;
+        for (let i = 0; i < rule.veinSize; i++) {
+          this._tryPlaceOreBlock(dimension, x, y, z, perm, rule.replace);
+          const stepSeed = seedBase + 1000 + i * 7;
+          x += this._randomIntInclusive(x, y, z, stepSeed + 1, -1, 1);
+          y += this._randomIntInclusive(x, y, z, stepSeed + 2, -1, 1);
+          z += this._randomIntInclusive(x, y, z, stepSeed + 3, -1, 1);
+          x = Math.max(originX, Math.min(originX + 15, x));
+          z = Math.max(originZ, Math.min(originZ + 15, z));
+          y = Math.max(rule.minY, Math.min(rule.maxY, y));
+        }
+      }
+    }
   }
 
   static _initChunks(worldName) {
@@ -195,7 +301,6 @@ export class WorldGenerator {
     if (probe === undefined) return false;
 
     const GRASS = "minecraft:grass_block";
-    const DIRT = "minecraft:dirt";
     const STONE = "minecraft:stone";
     const BEDROCK = "minecraft:bedrock";
     const oakLog = BlockPermutation.resolve("minecraft:oak_log");
@@ -206,16 +311,20 @@ export class WorldGenerator {
         const x = originX + lx;
         const z = originZ + lz;
         const topY = this._naturalTopYAt(x, z);
-        const dirtDepth = this._dirtDepthAt(x, z);
-        const dirtStartY = topY - dirtDepth;
+        const soil = this._soilProfileAt(x, z);
+        const dirtDepth = soil.dirtDepth;
+        const dirtStartY = topY - Math.floor(dirtDepth);
         const stoneTopY = dirtStartY - 1;
 
         this._fillColumnRange(dimension, x, z, -64, -64, BEDROCK);
         this._fillColumnRange(dimension, x, z, -63, stoneTopY, STONE);
-        this._fillColumnRange(dimension, x, z, dirtStartY, topY - 1, DIRT);
-        this._fillColumnRange(dimension, x, z, topY, topY, GRASS);
+        this._fillColumnRange(dimension, x, z, dirtStartY, topY - 1, soil.dirtBlock);
+        this._fillColumnRange(dimension, x, z, topY, topY, soil.topBlock ?? GRASS);
       }
     }
+
+    // Minerals/ores (vanilla-like rules). Runs after base terrain, before trees.
+    this.generateOresForChunk(dimension, chunkX, chunkZ);
 
     // Arboles de roble: densidad moderada y separacion simple por grilla.
     for (let lx = 1; lx < 15; lx++) {

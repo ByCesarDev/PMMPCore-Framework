@@ -186,7 +186,10 @@ Aclaración lobby:
 
 - `keepmode on`: preferencia del jugador para quedarse en dimensión durante delete/purge.
 - `keepmode off`: preferencia del jugador para moverse primero al main world.
-- Override de seguridad: con cleanup lock activo, la evacuación igualmente se aplica.
+- Comportamiento durante cleanup:
+  - Con ON y si el ejecutor está dentro de la dimensión objetivo, el ejecutor se queda.
+  - Cualquier otro jugador en esa misma dimensión se evacúa al main world antes de iniciar la limpieza.
+  - Los locks de mundo + dimensión siguen aplicando (se bloquea tp/create/re-delete/re-purge al objetivo).
 
 Pipeline batch:
 

@@ -62,9 +62,10 @@ export class CommandHandlers {
     );
   }
 
-  static _evacuatePlayersFromDimension(dimId, excludedWorldName = null) {
+  static _evacuatePlayersFromDimension(dimId, excludedWorldName = null, allowPlayerNameToStay = null) {
     const playersInDimension = mcWorld.getAllPlayers().filter((p) => p.dimension?.id === dimId);
     for (const targetPlayer of playersInDimension) {
+      if (allowPlayerNameToStay && targetPlayer?.name === allowPlayerNameToStay) continue;
       const tpMain = WorldManager.teleportPlayerToMainWorld(targetPlayer, excludedWorldName);
       if (tpMain.ok) {
         const fallbackText = tpMain.destination?.isFallback
@@ -75,7 +76,9 @@ export class CommandHandlers {
         targetPlayer.sendMessage(`${Color.red}[MW] Warning: could not move you out before cleanup (${tpMain.error?.message ?? "unknown error"}).${Color.reset}`);
       }
     }
-    return playersInDimension.length;
+    return allowPlayerNameToStay
+      ? playersInDimension.filter((p) => p?.name !== allowPlayerNameToStay).length
+      : playersInDimension.length;
   }
 
   static _resolveTrackedChunkKeys(worldName) {
@@ -257,10 +260,11 @@ export class CommandHandlers {
       : cleanupPolicy.fallbackRadius;
 
     const keepMode = this._shouldKeepPlayerInWorld(player, keepPlayerInWorld);
-    if (keepMode && player.dimension.id === dimId) {
-      player.sendMessage(`${Color.yellow}[MW] Keep mode is ignored while cleanup lock is active for this world.${Color.reset}`);
+    const allowStay = keepMode && player.dimension.id === dimId ? player.name : null;
+    if (allowStay) {
+      player.sendMessage(`${Color.yellow}[MW] Keep mode enabled: you will stay in this dimension while delete runs. Other players will be evacuated.${Color.reset}`);
     }
-    const moved = this._evacuatePlayersFromDimension(dimId, worldName);
+    const moved = this._evacuatePlayersFromDimension(dimId, worldName, allowStay);
     if (moved > 0) {
       player.sendMessage(`${Color.aqua}[MW] Cleanup lock enabled for '${worldName}'. Moved ${moved} player(s) out of this dimension.${Color.reset}`);
     }
@@ -490,10 +494,11 @@ export class CommandHandlers {
 
     const dimId = worldData.dimensionId;
     const keepMode = this._shouldKeepPlayerInWorld(player, keepPlayerInWorld);
-    if (keepMode && player.dimension.id === dimId) {
-      player.sendMessage(`${Color.yellow}[MW] Keep mode is ignored while cleanup lock is active for this world.${Color.reset}`);
+    const allowStay = keepMode && player.dimension.id === dimId ? player.name : null;
+    if (allowStay) {
+      player.sendMessage(`${Color.yellow}[MW] Keep mode enabled: you will stay in this dimension while purge runs. Other players will be evacuated.${Color.reset}`);
     }
-    const moved = this._evacuatePlayersFromDimension(dimId, worldName);
+    const moved = this._evacuatePlayersFromDimension(dimId, worldName, allowStay);
     if (moved > 0) {
       player.sendMessage(`${Color.aqua}[MW] Cleanup lock enabled for '${worldName}'. Moved ${moved} player(s) out of this dimension.${Color.reset}`);
     }
