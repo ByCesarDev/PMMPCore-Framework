@@ -1,27 +1,27 @@
-# PMMPCore MultiWorld - Documentacion Detallada
+# PMMPCore MultiWorld - Detailed Documentation
 
-## 1. Alcance
+## 1. Scope
 
-Este documento cubre la arquitectura, comandos, persistencia y comportamiento de `MultiWorld`.
+This document covers the architecture, commands, persistence and behavior of `MultiWorld`.
 
-No cubre (por ahora):
+It does not cover (for now):
 
 - EconomyAPI.
 - PurePerms.
 
-## 2. Objetivo de MultiWorld
+## 2. MultiWorld Objective
 
-Proveer mundos personalizados en dimensiones dedicadas, con:
+To provide custom worlds in dedicated dimensions, with:
 
-- Creacion y eliminacion segura por propietario.
-- Teleport y activacion runtime.
-- Generacion procedural por tipo de mundo.
-- Limpieza de chunks por lotes.
-- Mundo principal configurable para spawn/recuperacion.
+- Safe creation and deletion by owner.
+- Teleport and runtime activation.
+- Procedural generation by world type.
+- Batch chunk cleanup.
+- Configurable main world for spawn/recovery.
 
-## 3. Estructura de modulos
+## 3. Module Structure
 
-Ubicacion:
+Location:
 
 ```text
 scripts/plugins/MultiWorld/
@@ -33,31 +33,31 @@ scripts/plugins/MultiWorld/
   commands.js
 ```
 
-Responsabilidades:
+Responsibilities:
 
-- `main.js`: bootstrap del plugin y loops runtime.
-- `config.js`: constantes y tipos.
-- `state.js`: estado compartido en memoria.
-- `manager.js`: CRUD de mundos, flush/load, control runtime.
-- `generator.js`: generacion y limpieza de chunks.
-- `commands.js`: handlers y registro de comandos.
+- `main.js`: plugin bootstrap and runtime loops.
+- `config.js`: constants and types.
+- `state.js`: shared in-memory state.
+- `manager.js`: world CRUD, flush/load, runtime control.
+- `generator.js`: chunk generation and cleanup.
+- `commands.js`: handlers and command registration.
 
-## 4. Tipos de mundo soportados
+## 4. Supported World Types
 
-Actualmente:
+Currently:
 
-- `normal`: terreno tipo vanilla con relieve y robles.
-- `flat`: terreno plano configurable en altura.
-- `void`: dimension vacia.
-- `skyblock`: isla inicial en forma de L, con arbol y cofre.
+- `normal`: vanilla-type terrain with relief and oaks.
+- `flat`: configurable flat terrain at height.
+- `void`: empty dimension.
+- `skyblock`: initial L-shaped island, with tree and chest.
 
-## 5. Comandos disponibles
+## 5. Available Commands
 
-Comando raiz:
+Root command:
 
 - `/pmmpcore:mw <subcommand> ...`
 
-Subcomandos:
+Subcommands:
 
 - `create <name> [type] [dimension]`
 - `tp <name>`
@@ -69,151 +69,151 @@ Subcomandos:
 - `main`
 - `help`
 
-Notas:
+Notes:
 
-- `type` por defecto en `create` es `normal`.
-- `dimension` opcional entre 1 y 50.
-- `delete` y `purgechunks` solo para el owner del mundo.
+- `type` default in `create` is `normal`.
+- `dimension` optional between 1 and 50.
+- `delete` and `purgechunks` only for the world owner.
 
-## 6. Flujo de creacion de mundo
+## 6. World Creation Flow
 
-1. Validar nombre, tipo y dimension.
-2. Reservar dimension libre en pool.
-3. Crear `WorldData` con metadata inicial.
-4. Marcar estado dirty.
-5. Persistir en flush.
+1. Validate name, type and dimension.
+2. Reserve free dimension in pool.
+3. Create `WorldData` with initial metadata.
+4. Mark state as dirty.
+5. Persist in flush.
 
-Campos relevantes de `WorldData`:
+Relevant `WorldData` fields:
 
 - `id`, `type`, `owner`
 - `dimensionId`, `dimensionNumber`
 - `spawn`
 - `loaded`, `createdAt`, `lastUsed`
 
-## 7. Flujo de teleport
+## 7. Teleport Flow
 
-1. Resolver si destino es vanilla o custom.
-2. Si custom: activar mundo en runtime.
-3. Crear ticking area temporal para entorno inicial.
-4. Pre-generar spawn segun tipo.
-5. Teleport del jugador.
-6. Remover ticking area temporal.
+1. Resolve if destination is vanilla or custom.
+2. If custom: activate world at runtime.
+3. Create temporary ticking area for initial environment.
+4. Pre-generate spawn according to type.
+5. Player teleport.
+6. Remove temporary ticking area.
 
-## 8. Generacion procedural
+## 8. Procedural Generation
 
 ### 8.1 `normal`
 
-- Altura por ruido 2D deterministico.
-- Estratos:
-  - `bedrock` en `-64`
-  - `stone` hasta subsuelo
-  - `dirt` bajo superficie
-  - `grass` en superficie
-- Arboles de roble por probabilidad deterministica y separacion de grilla.
-- Optimizacion aplicada: relleno por rangos verticales con `fillBlocks` y fallback seguro.
+- Height by deterministic 2D noise.
+- Strata:
+  - `bedrock` at `-64`
+  - `stone` until subsoil
+  - `dirt` under surface
+  - `grass` on surface
+- Oak trees by deterministic probability and grid separation.
+- Applied optimization: vertical range filling with `fillBlocks` and safe fallback.
 
 ### 8.2 `flat`
 
-- Base en `FLAT_WORLD_TOP_Y` (actualmente negativa).
-- Capas de stone/dirt/grass y bedrock inferior.
+- Base at `FLAT_WORLD_TOP_Y` (currently negative).
+- Layers of stone/dirt/grass and lower bedrock.
 
 ### 8.3 `void`
 
-- Marca chunk como generado sin construir bloques.
+- Marks chunk as generated without building blocks.
 
 ### 8.4 `skyblock`
 
-- Genera solo chunk central inicial.
-- Isla estilo L.
-- Arbol y cofre inicial.
-- Sin bedrock en base de isla.
+- Generates only initial central chunk.
+- L-style island.
+- Tree and initial chest.
+- No bedrock at island base.
 
-## 9. Generacion continua por jugador
+## 9. Continuous Generation by Player
 
-Loop principal:
+Main loop:
 
-- Se ejecuta con `GENERATION_TICK_RATE`.
-- Detecta jugadores en mundos activos.
-- Genera alrededor del jugador por cercania de chunk.
-- Presupuesto por ciclo: `CHUNKS_PER_TICK`.
+- Executes with `GENERATION_TICK_RATE`.
+- Detects players in active worlds.
+- Generates around player by chunk proximity.
+- Budget per cycle: `CHUNKS_PER_TICK`.
 
-## 10. Borrado de mundos y limpieza de chunks
+## 10. World Deletion and Chunk Cleanup
 
 ### `delete`
 
-- Elimina metadatos de mundo.
-- Limpia chunks en batch sin barrido extra agresivo.
-- Si jugador esta en ese mundo, lo mueve primero al mundo principal.
+- Removes world metadata.
+- Cleans chunks in batch without extra aggressive sweep.
+- If player is in that world, moves them first to main world.
 
 ### `purgechunks`
 
-- No elimina metadatos del mundo.
-- Limpia chunks generados como operacion de recuperacion.
-- Incluye barrido de seguridad extra (configurable por constantes).
+- Does not remove world metadata.
+- Cleans generated chunks as recovery operation.
+- Includes extra safety sweep (configurable by constants).
 
-### Pipeline de limpieza batch
+### Batch Cleanup Pipeline
 
-- Construccion de lista de chunks objetivo (tracked + fallback radial).
-- Procesamiento por lotes (`CLEAR_BATCH_SIZE`).
-- Segmentacion vertical para evitar limites de volumen.
-- Ticking areas temporales por tile.
-- Mensajes de progreso por lotes.
+- Construction of target chunk list (tracked + fallback radial).
+- Batch processing (`CLEAR_BATCH_SIZE`).
+- Vertical segmentation to avoid volume limits.
+- Temporary ticking areas per tile.
+- Progress messages per batch.
 
-## 11. Mundo principal configurable
+## 11. Configurable Main World
 
-Config persistida por plugin:
+Persisted config by plugin:
 
-- `mainWorldTarget` en `plugin:MultiWorld`.
+- `mainWorldTarget` in `plugin:MultiWorld`.
 
-Comandos:
+Commands:
 
-- `setmain <name>`: define mundo principal (vanilla o custom).
-- `main`: muestra configuracion y destino resuelto.
+- `setmain <name>`: defines main world (vanilla or custom).
+- `main`: shows configuration and resolved destination.
 
-Comportamiento:
+Behavior:
 
-- Primer spawn de jugador nuevo -> redirige a main world.
-- Respawn sin spawnpoint personal -> redirige a main world.
-- Si el destino configurado no existe -> fallback a overworld.
+- First spawn of new player -> redirects to main world.
+- Respawn without personal spawnpoint -> redirects to main world.
+- If configured destination does not exist -> fallback to overworld.
 
-## 12. Persistencia de datos
+## 12. Data Persistence
 
-Claves usadas en DB:
+Keys used in DB:
 
-- `mw:index` -> lista de mundos
-- `mw:world:<name>` -> datos del mundo
-- `mw:chunks:<name>` -> chunks generados
+- `mw:index` -> world list
+- `mw:world:<name>` -> world data
+- `mw:chunks:<name>` -> generated chunks
 
-Estrategia:
+Strategy:
 
-- Dirty flag en memoria.
+- Dirty flag in memory.
 - Flush on-demand (create/delete/autosave/disable).
-- Carga completa al worldLoad inicial.
+- Complete load at initial worldLoad.
 
-## 13. Seguridad funcional
+## 13. Functional Security
 
-Controles implementados:
+Implemented controls:
 
-- Ownership en operaciones destructivas.
-- Validacion de tipo/dimension en `create`.
-- Fallbacks de teleport y world resolution.
+- Ownership in destructive operations.
+- Type/dimension validation in `create`.
+- Teleport and world resolution fallbacks.
 
-## 14. Ajustes de rendimiento recomendados
+## 14. Recommended Performance Settings
 
-Si hay lag:
+If there is lag:
 
-- bajar `CHUNKS_PER_TICK`.
-- subir `GENERATION_TICK_RATE`.
-- ajustar radio de generacion.
-- revisar `CLEAR_BATCH_SIZE` si limpieza impacta TPS.
+- lower `CHUNKS_PER_TICK`.
+- increase `GENERATION_TICK_RATE`.
+- adjust generation radius.
+- review `CLEAR_BATCH_SIZE` if cleanup impacts TPS.
 
-Si falta agresividad de limpieza:
+If cleanup aggressiveness is lacking:
 
-- usar `purgechunks`.
-- ajustar radios de seguridad en `config.js`.
+- use `purgechunks`.
+- adjust safety radii in `config.js`.
 
-## 15. Pendientes sugeridos
+## 15. Suggested Pending Items
 
-- Configuracion runtime por comando de parametros de generacion.
-- Perfilador simple por metricas de chunk/min por mundo.
-- Documentar oficialmente strategy de migraciones de `WorldData`.
+- Runtime configuration by command of generation parameters.
+- Simple profiler by chunk/min metrics per world.
+- Officially document `WorldData` migration strategy.

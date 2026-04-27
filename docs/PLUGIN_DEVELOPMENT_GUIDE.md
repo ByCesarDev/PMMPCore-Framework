@@ -1,30 +1,30 @@
-# PMMPCore - Guia para Crear Plugins
+# PMMPCore - Plugin Creation Guide
 
-## 1. Objetivo de esta guia
+## 1. Purpose of this guide
 
-Esta guia explica como crear plugins compatibles con PMMPCore, siguiendo el contrato del core y evitando errores comunes de Bedrock Script API.
+This guide explains how to create plugins compatible with PMMPCore, following the core contract and avoiding common errors of Bedrock Script API.
 
-## 2. Requisitos
+## 2. Requirements
 
-- Conocer JavaScript para Bedrock Script API.
-- Entender comandos custom (`customCommandRegistry`).
-- Respetar el ciclo de vida de plugins de PMMPCore.
+- Knowledge of JavaScript for Bedrock Script API.
+- Understanding of custom commands (`customCommandRegistry`).
+- Respect the PMMPCore plugin lifecycle.
 
-## 3. Estructura minima
+## 3. Minimum Structure
 
-Crear carpeta:
+Create folder:
 
 ```text
 scripts/plugins/MyPlugin/
 ```
 
-Archivo principal:
+Main file:
 
 ```text
 scripts/plugins/MyPlugin/main.js
 ```
 
-## 4. Plantilla base de plugin
+## 4. Basic Plugin Template
 
 ```javascript
 import { PMMPCore } from "../../PMMPCore.js";
@@ -65,86 +65,86 @@ PMMPCore.registerPlugin({
 });
 ```
 
-## 5. Integracion en runtime
+## 5. Runtime Integration
 
-Agregar import en `scripts/plugins.js`:
+Add import in `scripts/plugins.js`:
 
 ```javascript
 import "./plugins/MyPlugin/main.js";
 ```
 
-Si existe `pluginList`, agregar tambien el nombre del plugin.
+If `pluginList` exists, also add the plugin name.
 
-## 6. Uso de base de datos
+## 6. Database Usage
 
-### API general
+### General API
 
 - `PMMPCore.db.get(key)`
 - `PMMPCore.db.set(key, value)`
 - `PMMPCore.db.delete(key)`
 
-### API por plugin
+### Plugin-specific API
 
 - `PMMPCore.db.getPluginData("MyPlugin")`
 - `PMMPCore.db.setPluginData("MyPlugin", { ... })`
 - `PMMPCore.db.setPluginData("MyPlugin", "setting", value)`
 
-### Recomendaciones
+### Recommendations
 
-- Namespacing por plugin en estructuras internas.
-- Guardar en lote cuando sea posible.
-- Evitar escribir cada tick salvo necesidad real.
+- Namespacing by plugin in internal structures.
+- Save in batch when possible.
+- Avoid writing every tick unless real necessity.
 
-## 7. Comandos: recomendaciones practicas
+## 7. Commands: Practical Recommendations
 
-- Usa prefijo `pmmpcore:`.
-- Define `mandatoryParameters`/`optionalParameters` correctamente.
-- Si el comando hace trabajo pesado, dividir en ticks.
-- Mensajes de error claros y accionables para el jugador.
+- Use `pmmpcore:` prefix.
+- Define `mandatoryParameters`/`optionalParameters` correctly.
+- If the command does heavy work, divide into ticks.
+- Clear and actionable error messages for the player.
 
-## 8. Dependencias entre plugins
+## 8. Dependencies Between Plugins
 
-Ejemplo:
+Example:
 
 ```javascript
 depend: ["PMMPCore"],
 softdepend: ["EconomyAPI"]
 ```
 
-Antes de usar API de otro plugin:
+Before using another plugin's API:
 
 ```javascript
 const economy = PMMPCore.getPlugin("EconomyAPI");
 if (!economy) {
-  // fallback o mensaje
+  // fallback or message
 }
 ```
 
-## 9. Buenas practicas de rendimiento
+## 9. Performance Best Practices
 
-- Evitar scans completos del mundo por tick.
-- Limitar loops con presupuestos por ciclo.
-- Cachear resultados de operaciones frecuentes.
-- En generacion de terreno, preferir operaciones por volumen/rango.
+- Avoid complete world scans per tick.
+- Limit loops with per-cycle budgets.
+- Cache results of frequent operations.
+- In terrain generation, prefer operations by volume/range.
 
-## 10. Manejo de errores
+## 10. Error Handling
 
-- En callbacks de eventos/comandos, envolver operaciones riesgosas en `try/catch`.
-- No silenciar errores criticos sin log.
-- Diferenciar warning recuperable de error bloqueante.
+- In event/command callbacks, wrap risky operations in `try/catch`.
+- Do not silence critical errors without logging.
+- Differentiate recoverable warning from blocking error.
 
-## 11. Checklist de salida para un plugin nuevo
+## 11. Exit Checklist for a New Plugin
 
-- [ ] Se registra correctamente en PMMPCore.
-- [ ] No rompe startup si falla una dependencia opcional.
-- [ ] Comandos registrados en `onStartup(event)`.
-- [ ] Datos persistidos con namespace claro.
-- [ ] Logs utiles para depuracion.
-- [ ] Documentacion minima del plugin agregada en `docs/`.
+- [ ] Registers correctly in PMMPCore.
+- [ ] Does not break startup if an optional dependency fails.
+- [ ] Commands registered in `onStartup(event)`.
+- [ ] Data persisted with clear namespace.
+- [ ] Useful logs for debugging.
+- [ ] Minimum plugin documentation added in `docs/`.
 
-## 12. Convenciones sugeridas
+## 12. Suggested Conventions
 
-- Nombres de plugin en PascalCase (`MyPlugin`).
-- Comandos en lowercase.
-- Mensajes con prefijo corto del plugin (`[MyPlugin]`).
-- Separar logica en modulos si el archivo crece demasiado.
+- Plugin names in PascalCase (`MyPlugin`).
+- Commands in lowercase.
+- Messages with short plugin prefix (`[MyPlugin]`).
+- Separate logic into modules if the file grows too much.

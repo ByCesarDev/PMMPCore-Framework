@@ -4,13 +4,13 @@
 
 ![PMMPCore Logo](https://img.shields.io/badge/PMMPCore-Framework-blue?style=for-the-badge&logo=minecraft)
 
-**Framework modular para Minecraft Bedrock Edition**
+**Modular framework for Minecraft Bedrock Edition**
 
-[![Status](https://img.shields.io/badge/Status-Prototype%20Phase-orange)](#estado-actual)
+[![Status](https://img.shields.io/badge/Status-Prototype%20Phase-orange)](#current-status)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Minecraft](https://img.shields.io/badge/Minecraft-Bedrock%20Edition-green)](https://www.minecraft.net/es-es/download/bedrock-edition)
+[![Minecraft](https://img.shields.io/badge/Minecraft-Bedrock%20Edition-green)](https://www.minecraft.net/en-us/download/bedrock-edition)
 
-[Documentación](#documentacion) · [Roadmap](#roadmap-integrado) · [Contribuir](#contribucion)
+[Documentation](#documentation) · [Roadmap](#integrated-roadmap) · [Contribute](#contributing)
 
 </div>
 
@@ -18,67 +18,67 @@
 
 ## Overview
 
-PMMPCore es un framework que traslada el enfoque modular tipo PocketMine al ecosistema de Bedrock, con una arquitectura orientada a plugins, persistencia centralizada y comandos tipados.
+PMMPCore is a framework that brings the PocketMine-style modular approach to the Bedrock ecosystem, with a plugin-oriented architecture, centralized persistence, and typed commands.
 
-Está diseñado para crear servidores/addons complejos de forma mantenible, incluso bajo las limitaciones de la Script API de Bedrock.
+It is designed to create complex servers/addons in a maintainable way, even under the limitations of the Bedrock Script API.
 
-## ¿Por qué PMMPCore?
+## Why PMMPCore?
 
-### El problema
+### The Problem
 
-Minecraft Bedrock tiene restricciones importantes para construir sistemas modulares grandes:
+Minecraft Bedrock has significant restrictions for building large modular systems:
 
-- no hay carga dinámica real de plugins;
-- no existe acceso libre a sistema de archivos en runtime;
-- muchos addons terminan acoplados y difíciles de mantener.
+- no real dynamic plugin loading;
+- no free access to file system at runtime;
+- many addons end up coupled and difficult to maintain.
 
-### La solución
+### The Solution
 
-PMMPCore implementa una base de framework que:
+PMMPCore implements a framework foundation that:
 
-- simula un ecosistema de plugins mediante carga estática controlada;
-- centraliza estado y persistencia con `DatabaseManager` + Dynamic Properties;
-- estandariza el ciclo de vida (`onEnable`, `onStartup`, `onDisable`);
-- unifica la capa de comandos usando `customCommandRegistry`.
+- simulates a plugin ecosystem through controlled static loading;
+- centralizes state and persistence with `DatabaseManager` + Dynamic Properties;
+- standardizes the lifecycle (`onEnable`, `onStartup`, `onDisable`);
+- unifies the command layer using `customCommandRegistry`.
 
-## Características principales
+## Key Features
 
 ### Core system
 
-- Registro de plugins y validación de dependencias.
-- Base de datos compartida para todo el ecosistema.
-- Pipeline de startup único y predecible.
-- API común para plugins (`PMMPCore` + `PMMPCore.db`).
+- Plugin registration and dependency validation.
+- Shared database for the entire ecosystem.
+- Single and predictable startup pipeline.
+- Common API for plugins (`PMMPCore` + `PMMPCore.db`).
 
 ### Plugin architecture
 
-- Plugins desacoplados en `scripts/plugins/<PluginName>/`.
-- Carga central desde `scripts/plugins.js`.
-- Dependencias obligatorias y opcionales (`depend`, `softdepend`).
-- Contrato de lifecycle consistente.
+- Decoupled plugins in `scripts/plugins/<PluginName>/`.
+- Central loading from `scripts/plugins.js`.
+- Mandatory and optional dependencies (`depend`, `softdepend`).
+- Consistent lifecycle contract.
 
 ### Developer experience
 
-- Comandos core de diagnóstico (`plugins`, `pl`, `info`, `pmmphelp`).
-- Guías detalladas para crear plugins y operar módulos.
-- Documentación técnica versionable dentro del repo.
+- Core diagnostic commands (`plugins`, `pl`, `info`, `pmmphelp`).
+- Detailed guides for creating plugins and operating modules.
+- Versionable technical documentation within the repo.
 
-## Estado actual
+## Current Status
 
-- Fase actual: **prototipo funcional en evolución**.
-- Core estable para uso interno y pruebas activas.
-- Plugins activos en este repo:
+- Current phase: **functional prototype in evolution**.
+- Stable core for internal use and active testing.
+- Active plugins in this repo:
   - `MultiWorld`
-  - `EconomyAPI` (en documentación pendiente)
-  - `PurePerms` (en documentación pendiente)
+  - `EconomyAPI` (pending documentation)
+  - `PurePerms` (pending documentation)
 
-## Arquitectura técnica (resumen)
+## Technical Architecture (summary)
 
 ```text
 scripts/main.js
   -> PMMPCore.initialize(DatabaseManager)
   -> PMMPCore.enableAll()
-  -> plugin.onStartup(event) por plugin
+  -> plugin.onStartup(event) per plugin
 ```
 
 ```text
@@ -93,56 +93,56 @@ scripts/
     PurePerms/
 ```
 
-## Roadmap integrado
+## Integrated Roadmap
 
-### Fase 1 - Base estable del framework
+### Phase 1 - Stable framework foundation
 
-- [x] Núcleo PMMPCore funcional.
-- [x] Registro y habilitación centralizada de plugins.
-- [x] Persistencia base con `DatabaseManager`.
-- [x] Comandos base del core.
-- [~] Endurecimiento de validaciones y manejo de errores.
+- [x] Functional PMMPCore core.
+- [x] Centralized plugin registration and enabling.
+- [x] Basic persistence with `DatabaseManager`.
+- [x] Core base commands.
+- [~] Hardening of validations and error handling.
 
-### Fase 2 - MultiWorld robusto
+### Phase 2 - Robust MultiWorld
 
-- [x] CRUD base de mundos (`create`, `tp`, `list`, `info`, `delete`).
-- [x] Tipos: `normal`, `flat`, `void`, `skyblock`.
-- [x] Limpieza batch y recuperación (`purgechunks`).
-- [x] Mundo principal configurable (`setmain`, `main`).
-- [~] Optimización de generación en `normal`.
-- [ ] Perfilado formal por carga de jugadores.
+- [x] Basic world CRUD (`create`, `tp`, `list`, `info`, `delete`).
+- [x] Types: `normal`, `flat`, `void`, `skyblock`.
+- [x] Batch cleanup and recovery (`purgechunks`).
+- [x] Configurable main world (`setmain`, `main`).
+- [~] Generation optimization in `normal`.
+- [ ] Formal profiling by player load.
 
-### Fase 3 - Plataforma de plugins
+### Phase 3 - Plugin platform
 
-- [x] Contrato base para creación de plugins.
-- [x] Guía de desarrollo de plugins.
-- [ ] Scaffolding automático para nuevos plugins.
-- [ ] Suite de testing/regresión de plugins.
+- [x] Base contract for plugin creation.
+- [x] Plugin development guide.
+- [ ] Automatic scaffolding for new plugins.
+- [ ] Plugin testing/regression suite.
 
-### Fase 4 - Release del ecosistema
+### Phase 4 - Ecosystem release
 
-- [ ] Congelar API pública del core.
-- [ ] Publicar `v1.0.0`.
-- [ ] Documentación operativa para despliegue.
-- [ ] Paquetes de plugins por tipo de servidor.
+- [ ] Freeze public core API.
+- [ ] Publish `v1.0.0`.
+- [ ] Operational documentation for deployment.
+- [ ] Plugin packages by server type.
 
-## Documentación
+## Documentation
 
-- Guía general del proyecto: `docs/PROJECT_DOCUMENTATION.md`
-- Guía para crear plugins: `docs/PLUGIN_DEVELOPMENT_GUIDE.md`
-- Documentación de MultiWorld: `docs/MULTIWORLD_DOCUMENTATION.md`
-- Índice de docs: `docs/README.md`
+- General project guide: `docs/PROJECT_DOCUMENTATION.md`
+- Plugin creation guide: `docs/PLUGIN_DEVELOPMENT_GUIDE.md`
+- MultiWorld documentation: `docs/MULTIWORLD_DOCUMENTATION.md`
+- Documentation index: `docs/README.md`
 
-> Nota: la documentación detallada de `EconomyAPI` y `PurePerms` se publicará cuando esas APIs estén estabilizadas.
+> Note: Detailed documentation for `EconomyAPI` and `PurePerms` will be published when those APIs are stabilized.
 
-## Contribución
+## Contributing
 
-Si contribuyes al proyecto:
+If you contribute to the project:
 
-- mantén compatibilidad con la Bedrock Script API usada por el repo;
-- evita romper contratos existentes del core y plugins;
-- documenta cambios funcionales relevantes en `docs/`;
-- prioriza cambios incrementales y verificables.
+- maintain compatibility with the Bedrock Script API used by the repo;
+- avoid breaking existing core and plugin contracts;
+- document relevant functional changes in `docs/`;
+- prioritize incremental and verifiable changes.
 
 ---
 

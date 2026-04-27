@@ -1,114 +1,114 @@
-# PMMPCore - Documentacion del Proyecto
+# PMMPCore - Project Documentation
 
-## 1. Vision general
+## 1. General Overview
 
-PMMPCore es un framework para Minecraft Bedrock que busca estandarizar el desarrollo modular de funcionalidades tipo "plugin", dentro de las limitaciones de la Script API.
+PMMPCore is a framework for Minecraft Bedrock that aims to standardize the modular development of "plugin" type functionalities, within the limitations of the Script API.
 
-Objetivos:
+Objectives:
 
-- Unificar arquitectura y ciclo de vida.
-- Reducir acoplamiento entre modulos.
-- Centralizar persistencia y comandos.
-- Facilitar mantenimiento y escalabilidad.
+- Unify architecture and lifecycle.
+- Reduce coupling between modules.
+- Centralize persistence and commands.
+- Facilitate maintenance and scalability.
 
-## 2. Limitaciones de Bedrock y decisiones de diseno
+## 2. Bedrock Limitations and Design Decisions
 
-### Limitaciones relevantes
+### Relevant Limitations
 
-- No hay carga dinamica de scripts en runtime.
-- El acceso a archivos es limitado/no disponible en entorno de juego.
-- Persistencia principal mediante Dynamic Properties.
+- No dynamic script loading at runtime.
+- File access is limited/unavailable in game environment.
+- Main persistence through Dynamic Properties.
 
-### Decisiones de arquitectura
+### Architecture Decisions
 
-- Carga estatica de plugins desde `scripts/plugins.js`.
-- Registro de plugins en `PMMPCore.registerPlugin(...)`.
-- Startup coordinado desde `scripts/main.js`.
-- Persistencia centralizada via `DatabaseManager`.
+- Static plugin loading from `scripts/plugins.js`.
+- Plugin registration in `PMMPCore.registerPlugin(...)`.
+- Coordinated startup from `scripts/main.js`.
+- Centralized persistence via `DatabaseManager`.
 
-## 3. Componentes del sistema
+## 3. System Components
 
 ### 3.1 `scripts/main.js`
 
-Responsable de:
+Responsible for:
 
-- Inicializar DB.
-- Inicializar PMMPCore.
-- Registrar comandos globales del core.
-- Ejecutar `enableAll()` y luego hooks `onStartup(event)` de cada plugin.
+- Initializing DB.
+- Initializing PMMPCore.
+- Registering global core commands.
+- Executing `enableAll()` and then hooks `onStartup(event)` of each plugin.
 
 ### 3.2 `scripts/PMMPCore.js`
 
-Responsable de:
+Responsible for:
 
-- Registrar plugins (`Map` interna).
-- Validar dependencias (`depend`, `softdepend`).
-- Ejecutar ciclo de vida de plugins (`onEnable`/`onDisable`).
-- Exponer acceso a DB (`PMMPCore.db`).
+- Registering plugins (internal `Map`).
+- Validating dependencies (`depend`, `softdepend`).
+- Executing plugin lifecycle (`onEnable`/`onDisable`).
+- Exposing DB access (`PMMPCore.db`).
 
 ### 3.3 `scripts/DatabaseManager.js`
 
-Responsable de:
+Responsible for:
 
-- Lectura/escritura de datos con namespace `pmmpcore:*`.
-- API generica (`get`, `set`, `delete`, `has`).
-- Helpers de plugin/player.
-- API sharded de MultiWorld (`mw:index`, `mw:world:*`, `mw:chunks:*`).
+- Reading/writing data with namespace `pmmpcore:*`.
+- Generic API (`get`, `set`, `delete`, `has`).
+- Plugin/player helpers.
+- Sharded API of MultiWorld (`mw:index`, `mw:world:*`, `mw:chunks:*`).
 
 ### 3.4 `scripts/plugins.js`
 
-Responsable de:
+Responsible for:
 
-- Importar todos los plugins activos de forma explicita.
-- Definir la "lista oficial" cargada en runtime.
+- Explicitly importing all active plugins.
+- Defining the "official list" loaded at runtime.
 
-## 4. Ciclo de vida de plugins
+## 4. Plugin Lifecycle
 
-Contrato esperado:
+Expected contract:
 
-- `onEnable()`: preparar estado y suscripciones runtime.
-- `onStartup(event)`: registrar comandos/dimensiones/objetos que requieren startup.
-- `onDisable()`: flush/limpieza final.
+- `onEnable()`: prepare state and runtime subscriptions.
+- `onStartup(event)`: register commands/dimensions/objects that require startup.
+- `onDisable()`: final flush/cleanup.
 
-Orden:
+Order:
 
-1. `PMMPCore.enableAll()` llama `onEnable`.
-2. `main.js` recorre plugins y ejecuta `onStartup(event)`.
-3. Al apagar/recargar, `PMMPCore.disableAll()` llama `onDisable`.
+1. `PMMPCore.enableAll()` calls `onEnable`.
+2. `main.js` iterates plugins and executes `onStartup(event)`.
+3. On shutdown/reload, `PMMPCore.disableAll()` calls `onDisable`.
 
-## 5. Modelo de dependencias
+## 5. Dependency Model
 
 ### `depend`
 
-- Dependencia obligatoria.
-- Si falta, el plugin no se habilita.
+- Mandatory dependency.
+- If missing, the plugin is not enabled.
 
 ### `softdepend`
 
-- Dependencia opcional.
-- Si falta, solo genera warning.
+- Optional dependency.
+- If missing, only generates a warning.
 
-Buenas practicas:
+Best practices:
 
-- Mantener `depend: ["PMMPCore"]` en plugins del ecosistema.
-- Verificar plugin opcional antes de usar su API.
+- Maintain `depend: ["PMMPCore"]` in ecosystem plugins.
+- Verify optional plugin before using its API.
 
-## 6. Comandos y seguridad basica
+## 6. Commands and Basic Security
 
-Se recomienda:
+Recommended:
 
-- Nombres namespaced: `pmmpcore:<comando>`.
-- Resolver origen con `origin.initiator ?? origin.sourceEntity`.
-- Validar `instanceof Player` cuando aplica.
-- En mutaciones sensibles, ejecutar desde `system.run(...)`.
+- Namespaced names: `pmmpcore:<command>`.
+- Resolve origin with `origin.initiator ?? origin.sourceEntity`.
+- Validate `instanceof Player` when applicable.
+- For sensitive mutations, execute from `system.run(...)`.
 
-## 7. Persistencia y esquema de datos
+## 7. Persistence and Data Schema
 
 ### Namespace
 
-Todas las claves bajo `pmmpcore:*`.
+All keys under `pmmpcore:*`.
 
-### Ejemplos de claves
+### Key Examples
 
 - `pmmpcore:player:<name>`
 - `pmmpcore:plugin:<pluginName>`
@@ -116,51 +116,51 @@ Todas las claves bajo `pmmpcore:*`.
 - `pmmpcore:mw:world:<worldName>`
 - `pmmpcore:mw:chunks:<worldName>`
 
-### Recomendaciones
+### Recommendations
 
-- Guardar estructuras compactas.
-- Evitar writes innecesarios por tick.
-- Usar flush controlado en operaciones masivas.
+- Save compact structures.
+- Avoid unnecessary writes per tick.
+- Use controlled flush in mass operations.
 
-## 8. Estructura recomendada para nuevos plugins
+## 8. Recommended Structure for New Plugins
 
 ```text
 scripts/plugins/MyPlugin/
   main.js
-  (modulos internos opcionales)
+  (optional internal modules)
 ```
 
-Y registrar en:
+And register in:
 
 - `scripts/plugins.js` (import).
-- `pluginList` (si se usa para listing/diagnostico).
+- `pluginList` (if used for listing/diagnosis).
 
-## 9. Estado actual y alcance de documentacion
+## 9. Current Status and Documentation Scope
 
-Esta documentacion cubre:
+This documentation covers:
 
-- Core PMMPCore.
-- Contrato de plugins.
-- MultiWorld (documentado en archivo dedicado).
+- PMMPCore Core.
+- Plugin contract.
+- MultiWorld (documented in dedicated file).
 
-Pendiente de documentar en detalle:
+Pending detailed documentation:
 
 - EconomyAPI.
 - PurePerms.
 
-## 10. Roadmap operativo resumido
+## 10. Summary Operational Roadmap
 
-### Corto plazo
+### Short term
 
-- Seguir optimizando generacion de MultiWorld tipo `normal`.
-- Endurecer rutas de error y observabilidad.
+- Continue optimizing MultiWorld `normal` type generation.
+- Harden error paths and observability.
 
-### Mediano plazo
+### Medium term
 
-- Scaffolding para plugins nuevos.
-- Tests de regresion de comandos criticos.
+- Scaffolding for new plugins.
+- Regression tests for critical commands.
 
-### Largo plazo
+### Long term
 
-- Version estable del framework.
-- Documentacion completa de todos los plugins base.
+- Stable framework version.
+- Complete documentation of all base plugins.

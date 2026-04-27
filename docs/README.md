@@ -1,22 +1,22 @@
 # PMMPCore Docs
 
-Indice de documentacion oficial del proyecto.
+Index of official project documentation.
 
-## Documentos
+## Documents
 
-- `PROJECT_DOCUMENTATION.md` - arquitectura, runtime, persistencia y roadmap tecnico.
-- `PLUGIN_DEVELOPMENT_GUIDE.md` - guia completa para crear plugins compatibles.
-- `MULTIWORLD_DOCUMENTATION.md` - especificacion funcional y tecnica de MultiWorld.
+- `PROJECT_DOCUMENTATION.md` - architecture, runtime, persistence and technical roadmap.
+- `PLUGIN_DEVELOPMENT_GUIDE.md` - complete guide for creating compatible plugins.
+- `MULTIWORLD_DOCUMENTATION.md` - functional and technical specification of MultiWorld.
 
-## Cobertura actual
+## Current Coverage
 
-Documentado en detalle:
+Documented in detail:
 
-- Core PMMPCore.
-- Desarrollo de plugins.
+- PMMPCore Core.
+- Plugin development.
 - MultiWorld.
 
-Pendiente (proximas versiones):
+Pending (upcoming versions):
 
 - EconomyAPI.
 - PurePerms.
