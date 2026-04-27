@@ -72,8 +72,9 @@ export class CommandHandlers {
     const vanillaWorld = resolveVanillaWorld(worldName);
     if (vanillaWorld) {
       system.run(() => {
+        const resolved = WorldManager._resolveVanillaSpawnWithMeta(vanillaWorld);
         const dim = mcWorld.getDimension(vanillaWorld.id);
-        player.teleport(vanillaWorld.spawn, { dimension: dim });
+        player.teleport(resolved.spawn, { dimension: dim });
         player.sendMessage(`${Color.green}Teleported to ${vanillaWorld.label}!${Color.reset}`);
       });
       return { status: CustomCommandStatus.Success };
@@ -276,6 +277,30 @@ export class CommandHandlers {
       return { status: CustomCommandStatus.Success };
     }
 
+    const vanilla = resolveVanillaWorld(worldName);
+    if (vanilla) {
+      if (player.dimension.id !== vanilla.id) {
+        player.sendMessage(`${Color.red}You must be inside '${vanilla.label}' to set its global spawn${Color.reset}`);
+        return { status: CustomCommandStatus.Success };
+      }
+
+      const newSpawn = {
+        x: Math.floor(player.location.x),
+        y: Math.floor(player.location.y),
+        z: Math.floor(player.location.z),
+      };
+
+      try {
+        WorldManager.setVanillaSpawn(vanilla.id, newSpawn);
+        player.sendMessage(
+          `${Color.green}Global spawn for '${vanilla.label}' updated to ${newSpawn.x}, ${newSpawn.y}, ${newSpawn.z}${Color.reset}`
+        );
+      } catch (e) {
+        player.sendMessage(`${Color.red}Error setting vanilla spawn: ${e.message}${Color.reset}`);
+      }
+      return { status: CustomCommandStatus.Success };
+    }
+
     const worldData = WorldManager.getWorld(worldName);
     if (!worldData) {
       player.sendMessage(`${Color.red}World '${worldName}' does not exist${Color.reset}`);
@@ -304,6 +329,39 @@ export class CommandHandlers {
 
     player.sendMessage(
       `${Color.green}Global spawn for '${worldName}' updated to ${newSpawn.x}, ${newSpawn.y}, ${newSpawn.z}${Color.reset}`
+    );
+    return { status: CustomCommandStatus.Success };
+  }
+
+  static handleSetLobby(player, worldName, mode) {
+    if (!worldName || !mode) {
+      player.sendMessage(`${Color.red}Usage: /pmmpcore:mw setlobby <world> <on|off>${Color.reset}`);
+      return { status: CustomCommandStatus.Success };
+    }
+
+    const worldData = WorldManager.getWorld(worldName);
+    if (!worldData) {
+      player.sendMessage(`${Color.red}World '${worldName}' does not exist (custom worlds only).${Color.reset}`);
+      return { status: CustomCommandStatus.Success };
+    }
+
+    if (worldData.owner !== player.name) {
+      player.sendMessage(`${Color.red}You can only change lobby mode in your own worlds${Color.reset}`);
+      return { status: CustomCommandStatus.Success };
+    }
+
+    const normalized = String(mode).toLowerCase();
+    if (normalized !== "on" && normalized !== "off") {
+      player.sendMessage(`${Color.red}Invalid mode. Use: on or off${Color.reset}`);
+      return { status: CustomCommandStatus.Success };
+    }
+
+    worldData.forceSpawnOnJoin = normalized === "on";
+    worldData.lastUsed = Date.now();
+    requestPersistFlush("setlobby");
+
+    player.sendMessage(
+      `${Color.green}Lobby mode for '${worldData.id}' is now ${worldData.forceSpawnOnJoin ? "ON" : "OFF"}${Color.reset}`
     );
     return { status: CustomCommandStatus.Success };
   }
@@ -374,12 +432,13 @@ export class CommandHandlers {
       const resolvedMeta = WorldManager._resolveVanillaSpawnWithMeta(vanilla);
       const resolvedSpawn = resolvedMeta.spawn;
       const resolvedSource = resolvedMeta.source;
+      const savedSpawn = WorldManager.getVanillaSpawn(vanilla.id, vanilla.spawn);
 
       player.sendMessage(`${Color.bold}=== ${worldName} ===${Color.reset}`);
       player.sendMessage(`${Color.aqua}Type: ${Color.white}vanilla`);
       player.sendMessage(`${Color.aqua}Dimension: ${Color.white}${vanilla.id}`);
       player.sendMessage(
-        `${Color.aqua}Spawn (saved): ${Color.white}${vanilla.spawn.x}, ${vanilla.spawn.y}, ${vanilla.spawn.z}`
+        `${Color.aqua}Spawn (saved): ${Color.white}${savedSpawn.x}, ${savedSpawn.y}, ${savedSpawn.z}`
       );
       player.sendMessage(
         `${Color.aqua}Spawn (resolved now): ${Color.white}${resolvedSpawn.x}, ${resolvedSpawn.y}, ${resolvedSpawn.z}`
@@ -408,6 +467,7 @@ export class CommandHandlers {
     player.sendMessage(`${Color.aqua}Dimension: ${Color.white}${wd.dimensionId}`);
     player.sendMessage(`${Color.aqua}Owner: ${Color.white}${wd.owner}`);
     player.sendMessage(`${Color.aqua}Status: ${status}${Color.reset}`);
+    player.sendMessage(`${Color.aqua}Force spawn on join: ${Color.white}${wd.forceSpawnOnJoin ? "ON" : "OFF"}`);
     player.sendMessage(
       `${Color.aqua}Spawn (saved): ${Color.white}${savedSpawn.x}, ${savedSpawn.y}, ${savedSpawn.z}`
     );
@@ -430,6 +490,7 @@ export class CommandHandlers {
     player.sendMessage(`  ${Color.white}/pmmpcore:mw purgechunks ${Color.yellow}<name>         ${Color.gray}— Batch clear generated chunks`);
     player.sendMessage(`  ${Color.white}/pmmpcore:mw setmain ${Color.yellow}<name>             ${Color.gray}— Set default join world`);
     player.sendMessage(`  ${Color.white}/pmmpcore:mw setspawn ${Color.yellow}<name>           ${Color.gray}— Set global spawn to your current location`);
+    player.sendMessage(`  ${Color.white}/pmmpcore:mw setlobby ${Color.yellow}<name> <on|off>   ${Color.gray}— Force spawn on join for a custom world`);
     player.sendMessage(`  ${Color.white}/pmmpcore:mw main                         ${Color.gray}— Show current main world`);
     player.sendMessage(`  ${Color.white}/pmmpcore:mw info   ${Color.yellow}<name>              ${Color.gray}— Show world details`);
     player.sendMessage(`  ${Color.white}/pmmpcore:mw help                         ${Color.gray}— Show this message`);
@@ -454,13 +515,15 @@ export function setupCommands(event) {
     "purgechunks",
     "setmain",
     "setspawn",
+    "setlobby",
     "main",
     "info",
     "help",
   ]);
   event.customCommandRegistry.registerEnum("pmmpcore:mw_world_type", Object.values(WORLD_TYPES));
+  event.customCommandRegistry.registerEnum("pmmpcore:mw_toggle", ["on", "off"]);
 
-  const mwCommandHandler = (origin, subcommand, name, type, dimension) => {
+  const mwCommandHandler = (origin, subcommand, name, type, dimension, toggle) => {
     const player = origin.initiator ?? origin.sourceEntity;
     if (!player || !(player instanceof Player))
       return { status: CustomCommandStatus.Failure, message: "Only players can use this command." };
@@ -475,6 +538,7 @@ export function setupCommands(event) {
       case "purgechunks": return CommandHandlers.handlePurgeChunks(player, name);
       case "setmain": return CommandHandlers.handleSetMain(player, name);
       case "setspawn": return CommandHandlers.handleSetSpawn(player, name);
+      case "setlobby": return CommandHandlers.handleSetLobby(player, name, toggle ?? type);
       case "main": return CommandHandlers.handleMainInfo(player);
       case "info":   return CommandHandlers.handleInfo(player, name);
       case "help":   return CommandHandlers.handleHelp(player);
@@ -495,6 +559,7 @@ export function setupCommands(event) {
       { type: CustomCommandParamType.String,  name: "name" },
       { type: CustomCommandParamType.Enum,  name: "pmmpcore:mw_world_type" },
       { type: CustomCommandParamType.Integer, name: "dimension" },
+      { type: CustomCommandParamType.Enum, name: "pmmpcore:mw_toggle" },
     ],
   };
 

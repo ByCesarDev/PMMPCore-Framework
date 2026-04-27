@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![PMMPCore Logo](https://img.shields.io/badge/PMMPCore-Framework-blue?style=for-the-badge&logo=minecraft)
+![PMMPCore Logo](images/PMMPCore.png)
 
 **Modular framework for Minecraft Bedrock Edition**
 

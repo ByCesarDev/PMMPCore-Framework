@@ -12,9 +12,30 @@ import {
 
 const MAIN_WORLD_DEFAULT = "overworld";
 const MAIN_WORLD_CONFIG_KEY = "mainWorldTarget";
+const VANILLA_SPAWN_OVERRIDES_KEY = "vanillaSpawnOverrides";
 
 // ============== WORLD MANAGER ==============
 export class WorldManager {
+  static getVanillaSpawn(vanillaId, fallbackSpawn = { x: 0, y: 64, z: 0 }) {
+    const overrides = PMMPCore.db?.getPluginData("MultiWorld", VANILLA_SPAWN_OVERRIDES_KEY) ?? {};
+    const stored = overrides?.[vanillaId];
+    if (this._isValidSpawn(stored)) return stored;
+    return this._isValidSpawn(fallbackSpawn) ? fallbackSpawn : { x: 0, y: 64, z: 0 };
+  }
+
+  static setVanillaSpawn(vanillaId, spawn) {
+    if (!PMMPCore.db) throw new Error("Database is not initialized");
+    if (!this._isValidSpawn(spawn)) throw new Error("Invalid spawn coordinates");
+
+    const overrides = PMMPCore.db.getPluginData("MultiWorld", VANILLA_SPAWN_OVERRIDES_KEY) ?? {};
+    overrides[vanillaId] = {
+      x: Math.floor(spawn.x),
+      y: Math.floor(spawn.y),
+      z: Math.floor(spawn.z),
+    };
+    return PMMPCore.db.setPluginData("MultiWorld", VANILLA_SPAWN_OVERRIDES_KEY, overrides);
+  }
+
   static _isValidLocation(loc) {
     return !!loc && Number.isFinite(loc.x) && Number.isFinite(loc.y) && Number.isFinite(loc.z);
   }
@@ -157,6 +178,16 @@ export class WorldManager {
   }
 
   static _resolveVanillaSpawnWithMeta(vanilla) {
+    const savedSpawn = this.getVanillaSpawn(vanilla.id, vanilla.spawn);
+    const hasOverride = (
+      savedSpawn.x !== vanilla.spawn.x ||
+      savedSpawn.y !== vanilla.spawn.y ||
+      savedSpawn.z !== vanilla.spawn.z
+    );
+    if (hasOverride) {
+      return { spawn: savedSpawn, source: "saved-override" };
+    }
+
     // For overworld, prefer the actual world default spawn instead of a fixed fallback.
     if (vanilla.id === "minecraft:overworld") {
       try {
@@ -169,14 +200,14 @@ export class WorldManager {
       // If world default spawn is unavailable/invalid, resolve a safe spawn at runtime.
       try {
         const overworld = mcWorld.getDimension("minecraft:overworld");
-        const safeSpawn = this._resolveSafeSpawnInDimension(overworld, vanilla.spawn);
+        const safeSpawn = this._resolveSafeSpawnInDimension(overworld, savedSpawn);
         if (this._isValidSpawn(safeSpawn)) {
           return { spawn: safeSpawn, source: "safe-scan-fallback" };
         }
       } catch (_) {}
     }
 
-    return { spawn: vanilla.spawn, source: "fallback-config" };
+    return { spawn: savedSpawn, source: "fallback-config" };
   }
 
   static _resolveOverworldSpawnForPlayer(player, fallbackSpawn) {

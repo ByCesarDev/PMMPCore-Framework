@@ -73,6 +73,7 @@ Subcommands:
 - `info <name>`
 - `setmain <name>`
 - `setspawn <name>`
+- `setlobby <name> <on|off>`
 - `main`
 - `help`
 
@@ -81,7 +82,10 @@ Notes:
 - `type` default in `create` is `normal`.
 - `dimension` optional between 1 and 50.
 - `delete` and `purgechunks` only for the world owner.
-- `setspawn` updates the global spawn of a custom world to the player's current location.
+- `setspawn` updates global spawn using the player's current location.
+- `setspawn` supports custom and vanilla worlds (`overworld`, `nether`, `end`).
+- For vanilla worlds, spawn is stored as a persistent MultiWorld override.
+- `setlobby` applies to custom worlds and toggles `forceSpawnOnJoin`.
 
 ## 6. World Creation Flow
 
@@ -113,6 +117,10 @@ Join routing behavior:
 1. If a valid last known player location exists and belongs to a non-main world, player is restored there.
 2. If that world has `forceSpawnOnJoin = true`, player is sent to that world's spawn instead.
 3. If last location is unavailable/invalid/main world, plugin routes to configured main world.
+
+Lobby-mode clarification:
+
+- When `forceSpawnOnJoin` is enabled (`setlobby <world> on`), reconnect routing prioritizes the world's global spawn over the player's last saved location.
 
 Overworld-specific spawn resolution priority:
 
@@ -196,7 +204,8 @@ Persisted config by plugin:
 Commands:
 
 - `setmain <name>`: defines main world (vanilla or custom).
-- `setspawn <name>`: sets global spawn for your custom world using your current position.
+- `setspawn <name>`: sets global spawn for custom or vanilla world using your current position.
+- `setlobby <name> <on|off>`: enables/disables lobby mode (`forceSpawnOnJoin`) for a custom world.
 - `main`: shows configuration and resolved destination.
 
 Behavior:
@@ -207,6 +216,7 @@ Behavior:
 - Spawn fallback chain is explicit and inspectable in `info`.
 - Non-main worlds can restore players to their previous location on reconnect.
 - Worlds flagged with `forceSpawnOnJoin` behave as lobby/spawn-forced worlds.
+- In lobby mode, reconnect uses world spawn even if a previous location was saved.
 
 ## 11.1 Spawn Diagnostics in `info`
 
@@ -215,6 +225,7 @@ Behavior:
 - `Spawn (saved)`: spawn stored in world metadata/config.
 - `Spawn (resolved now)`: effective spawn resolved at runtime.
 - `Spawn source` (vanilla worlds): origin of resolved spawn:
+  - `saved-override`
   - `player-spawn-point`
   - `world-default-spawn`
   - `safe-scan-fallback`
