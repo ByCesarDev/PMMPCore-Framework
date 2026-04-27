@@ -1,5 +1,7 @@
 # PMMPCore MultiWorld - Detailed Documentation
 
+Language: **English** | [Español](MULTIWORLD_DOCUMENTATION.es.md)
+
 ## 1. Scope
 
 This document covers the architecture, commands, persistence and behavior of `MultiWorld`.
@@ -150,6 +152,87 @@ Custom-world spawn resolution:
   - `grass` on surface
 - Oak trees by deterministic probability and grid separation.
 - Applied optimization: vertical range filling with `fillBlocks` and safe fallback.
+- Generation order (normal worlds):
+  1. base terrain (bedrock/stone/soil/grass)
+  2. ores/minerals (`WorldGenerator` ore rules)
+  3. custom generation hooks (scoped callbacks)
+  4. features (trees)
+
+### 8.1.1 Extending generation (Ores + Hooks API)
+
+MultiWorld exposes a lightweight API via `WorldGenerator` to let other plugins add:
+- **Ore/mineral rules** (including scoping per world/dimension/type)
+- **Custom generation hooks** (callbacks executed per generated chunk, scoped)
+
+The implementation lives in:
+- `scripts/plugins/MultiWorld/generator.js`
+
+#### Ore rules API
+
+Register a rule:
+
+```js
+import { WorldGenerator } from "./plugins/MultiWorld/generator.js";
+
+WorldGenerator.registerOreRule({
+  id: "mythril",
+  blockId: "minecraft:emerald_ore",
+  minY: -32,
+  maxY: 16,
+  veinsPerChunk: 1,
+  veinSize: 4,
+  replace: ["minecraft:stone"],
+  seed: 99,
+  scope: { type: "dimensionId", value: "pmmpcore:multiworld_7" },
+});
+```
+
+Supported `scope` types:
+- `{ type: "dimensionId", value: "<dimension id>" }`
+- `{ type: "worldName", value: "<custom world name>" }`
+- `{ type: "worldType", value: "normal|flat|void|skyblock" }`
+
+Notes:
+- Rules without `scope` apply everywhere the ore generator is invoked (currently normal worlds).
+- Seeds are deterministic per chunk.
+
+#### Generation hooks API
+
+Hooks run after base terrain + ores, and before features (trees). A hook can optionally return an **array of tasks** (functions). When tasks are returned, MultiWorld executes them **sliced across ticks** to reduce watchdog risk.
+
+Register a hook:
+
+```js
+import { BlockPermutation } from "@minecraft/server";
+import { WorldGenerator } from "./plugins/MultiWorld/generator.js";
+
+WorldGenerator.registerGenerationHook({
+  id: "crystals_world7",
+  seed: 123,
+  scope: { type: "dimensionId", value: "pmmpcore:multiworld_7" },
+  onChunkGenerated(ctx) {
+    // ctx: { dimension, chunkX, chunkZ, worldName, dimensionId, worldType, originX, originZ, random() }
+    // Return tasks to run over time (anti-watchdog).
+    const tasks = [];
+    const placeOne = () => {
+      const x = ctx.originX + Math.floor(ctx.random() * 16);
+      const z = ctx.originZ + Math.floor(ctx.random() * 16);
+      const y = -40 + Math.floor(ctx.random() * 30);
+      const b = ctx.dimension.getBlock({ x, y, z });
+      if (b && b.typeId === "minecraft:stone") {
+        b.setPermutation(BlockPermutation.resolve("minecraft:amethyst_block"));
+      }
+    };
+    for (let i = 0; i < 8; i++) tasks.push(placeOne);
+    return tasks;
+  },
+});
+```
+
+Safety guidelines:
+- Keep `onChunkGenerated` fast. Prefer returning tasks instead of doing heavy synchronous loops.
+- Use deterministic randomness (provided as `ctx.random()`).
+
 
 ### 8.2 `flat`
 

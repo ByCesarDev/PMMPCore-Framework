@@ -120,6 +120,96 @@ export class WorldGenerator {
 
   // ============== ORE GENERATION API ==============
   static _oreRules = [];
+  static _generationHooks = [];
+
+  static _matchesScope(scope, ctx) {
+    if (!scope) return true;
+    const type = scope.type;
+    const value = scope.value;
+    if (!type || value === undefined || value === null) return true;
+
+    if (type === "dimensionId") return String(ctx.dimensionId) === String(value);
+    if (type === "worldName") return String(ctx.worldName).toLowerCase() === String(value).toLowerCase();
+    if (type === "worldType") return String(ctx.worldType) === String(value);
+    return true;
+  }
+
+  static registerGenerationHook(hook) {
+    if (!hook || typeof hook !== "object") throw new Error("Generation hook must be an object");
+    if (typeof hook.id !== "string" || !hook.id) throw new Error("Generation hook requires id");
+    if (typeof hook.onChunkGenerated !== "function") throw new Error("Generation hook requires onChunkGenerated(ctx)");
+    const normalized = {
+      id: hook.id,
+      scope: hook.scope ?? null,
+      onChunkGenerated: hook.onChunkGenerated,
+      seed: Number.isFinite(hook.seed) ? hook.seed : 0,
+    };
+    this._generationHooks = this._generationHooks.filter((h) => h.id !== normalized.id);
+    this._generationHooks.push(normalized);
+  }
+
+  static getGenerationHooks() {
+    return Array.from(this._generationHooks).map((h) => ({ id: h.id, scope: h.scope ?? null, seed: h.seed ?? 0 }));
+  }
+
+  static _makeDeterministicRandom(seed) {
+    let x = (seed | 0) || 123456789;
+    // xorshift32
+    return () => {
+      x ^= x << 13;
+      x ^= x >>> 17;
+      x ^= x << 5;
+      // convert to 0..1
+      return ((x >>> 0) % 0xFFFFFFFF) / 0xFFFFFFFF;
+    };
+  }
+
+  static _runTasksSliced(tasks, options = {}) {
+    if (!Array.isArray(tasks) || tasks.length === 0) return;
+    const maxPerTick = Number.isFinite(options.maxPerTick) ? options.maxPerTick : 4;
+    let idx = 0;
+    const runSlice = () => {
+      const end = Math.min(idx + maxPerTick, tasks.length);
+      for (; idx < end; idx++) {
+        try {
+          tasks[idx]?.();
+        } catch (e) {
+          this._debugWarn("Generation hook task failed", { error: e?.message });
+        }
+      }
+      if (idx >= tasks.length) return;
+      system.runTimeout(runSlice, 1);
+    };
+    runSlice();
+  }
+
+  static runGenerationHooksForChunk(ctx) {
+    if (!this._generationHooks.length) return;
+    const scopeCtx = {
+      worldName: ctx.worldName ?? "",
+      dimensionId: ctx.dimensionId ?? "",
+      worldType: ctx.worldType ?? "",
+    };
+
+    for (const hook of this._generationHooks) {
+      if (!this._matchesScope(hook.scope, scopeCtx)) continue;
+      const seed = (hook.seed ?? 0) + (ctx.chunkX * 73471) + (ctx.chunkZ * 91249);
+      const random = this._makeDeterministicRandom(seed);
+      const hookCtx = {
+        ...ctx,
+        random,
+      };
+      try {
+        const result = hook.onChunkGenerated(hookCtx);
+        // If hook returns an array of tasks, execute them sliced over ticks.
+        if (Array.isArray(result) && result.length) {
+          this._runTasksSliced(result, { maxPerTick: 4 });
+        }
+      } catch (e) {
+        this._debugWarn("Generation hook failed", { error: e?.message, hookId: hook.id, scope: hook.scope });
+      }
+    }
+  }
 
   static registerOreRule(rule) {
     if (!rule || typeof rule !== "object") throw new Error("Ore rule must be an object");
@@ -134,6 +224,7 @@ export class WorldGenerator {
       veinSize: Number.isFinite(rule.veinSize) ? rule.veinSize : 0,
       replace: Array.isArray(rule.replace) && rule.replace.length ? rule.replace : ["minecraft:stone"],
       seed: Number.isFinite(rule.seed) ? rule.seed : 0,
+      scope: rule.scope ?? null,
     };
     this._oreRules = this._oreRules.filter((r) => r.id !== normalized.id);
     this._oreRules.push(normalized);
@@ -165,12 +256,18 @@ export class WorldGenerator {
     }
   }
 
-  static generateOresForChunk(dimension, chunkX, chunkZ) {
+  static generateOresForChunk(dimension, chunkX, chunkZ, ctx = {}) {
     if (!this._oreRules.length) return;
     const originX = chunkX * 16;
     const originZ = chunkZ * 16;
+    const scopeCtx = {
+      worldName: ctx.worldName ?? "",
+      dimensionId: ctx.dimensionId ?? dimension?.id ?? "",
+      worldType: ctx.worldType ?? "",
+    };
 
     for (const rule of this._oreRules) {
+      if (!this._matchesScope(rule.scope, scopeCtx)) continue;
       if (!rule.veinsPerChunk || !rule.veinSize) continue;
       const perm = BlockPermutation.resolve(rule.blockId);
 
@@ -323,8 +420,24 @@ export class WorldGenerator {
       }
     }
 
-    // Minerals/ores (vanilla-like rules). Runs after base terrain, before trees.
-    this.generateOresForChunk(dimension, chunkX, chunkZ);
+    // Minerals/ores (vanilla-like rules). Runs after base terrain, before hooks/features.
+    this.generateOresForChunk(dimension, chunkX, chunkZ, {
+      worldName,
+      dimensionId: dimension.id,
+      worldType: WORLD_TYPES.NORMAL,
+    });
+
+    // Custom generation hooks (scoped). Hooks may schedule sliced tasks.
+    this.runGenerationHooksForChunk({
+      dimension,
+      chunkX,
+      chunkZ,
+      worldName,
+      dimensionId: dimension.id,
+      worldType: WORLD_TYPES.NORMAL,
+      originX,
+      originZ,
+    });
 
     // Arboles de roble: densidad moderada y separacion simple por grilla.
     for (let lx = 1; lx < 15; lx++) {

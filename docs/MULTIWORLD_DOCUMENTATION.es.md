@@ -144,6 +144,87 @@ Aclaración lobby:
 - Altura por ruido 2D determinista.
 - Estratos: bedrock, stone, dirt, grass.
 - Árboles de roble con densidad y separación deterministas.
+- Orden de generación (mundos normal):
+  1. terreno base (bedrock/stone/suelo/grass)
+  2. minerales (`WorldGenerator` ore rules)
+  3. hooks custom de generación (callbacks con scope)
+  4. features (árboles)
+
+### 8.1.1 Extender la generación (API de minerales + hooks)
+
+MultiWorld expone una API ligera vía `WorldGenerator` para que otros plugins agreguen:
+- **Reglas de minerales** (con alcance por mundo/dimensión/tipo)
+- **Hooks de generación custom** (callbacks por chunk, con scope)
+
+Implementación en:
+- `scripts/plugins/MultiWorld/generator.js`
+
+#### API de minerales
+
+Registrar una regla:
+
+```js
+import { WorldGenerator } from "./plugins/MultiWorld/generator.js";
+
+WorldGenerator.registerOreRule({
+  id: "mythril",
+  blockId: "minecraft:emerald_ore",
+  minY: -32,
+  maxY: 16,
+  veinsPerChunk: 1,
+  veinSize: 4,
+  replace: ["minecraft:stone"],
+  seed: 99,
+  scope: { type: "dimensionId", value: "pmmpcore:multiworld_7" },
+});
+```
+
+Scopes soportados:
+- `{ type: "dimensionId", value: "<dimension id>" }`
+- `{ type: "worldName", value: "<nombre del mundo custom>" }`
+- `{ type: "worldType", value: "normal|flat|void|skyblock" }`
+
+Notas:
+- Sin `scope`, la regla aplica donde se invoque la generación de minerales (hoy: mundos `normal`).
+- El seed es determinista por chunk.
+
+#### API de hooks de generación
+
+Los hooks corren después del terreno base + minerales, y antes de features (árboles). Un hook puede retornar un **array de tareas** (funciones). Si retorna tareas, MultiWorld las ejecuta **repartidas en ticks** para reducir riesgo de watchdog.
+
+Registrar un hook:
+
+```js
+import { BlockPermutation } from "@minecraft/server";
+import { WorldGenerator } from "./plugins/MultiWorld/generator.js";
+
+WorldGenerator.registerGenerationHook({
+  id: "crystals_world7",
+  seed: 123,
+  scope: { type: "dimensionId", value: "pmmpcore:multiworld_7" },
+  onChunkGenerated(ctx) {
+    // ctx: { dimension, chunkX, chunkZ, worldName, dimensionId, worldType, originX, originZ, random() }
+    // Retorna tareas para ejecutarse en el tiempo (anti-watchdog).
+    const tasks = [];
+    const placeOne = () => {
+      const x = ctx.originX + Math.floor(ctx.random() * 16);
+      const z = ctx.originZ + Math.floor(ctx.random() * 16);
+      const y = -40 + Math.floor(ctx.random() * 30);
+      const b = ctx.dimension.getBlock({ x, y, z });
+      if (b && b.typeId === "minecraft:stone") {
+        b.setPermutation(BlockPermutation.resolve("minecraft:amethyst_block"));
+      }
+    };
+    for (let i = 0; i < 8; i++) tasks.push(placeOne);
+    return tasks;
+  },
+});
+```
+
+Guías de seguridad:
+- Mantén `onChunkGenerated` rápido. Prefiere retornar tareas en vez de loops grandes síncronos.
+- Usa el random determinista provisto (`ctx.random()`).
+
 
 ### `flat`
 

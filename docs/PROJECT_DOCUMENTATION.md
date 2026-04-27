@@ -1,5 +1,7 @@
 # PMMPCore - Project Documentation
 
+Language: **English** | [Español](PROJECT_DOCUMENTATION.es.md)
+
 ## 1. General Overview
 
 PMMPCore is a framework for Minecraft Bedrock that aims to standardize the modular development of "plugin" type functionalities, within the limitations of the Script API.

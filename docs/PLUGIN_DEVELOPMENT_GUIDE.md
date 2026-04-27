@@ -1,5 +1,7 @@
 # PMMPCore - Plugin Creation Guide
 
+Language: **English** | [Español](PLUGIN_DEVELOPMENT_GUIDE.es.md)
+
 ## 1. Purpose of this guide
 
 This guide explains how to create plugins compatible with PMMPCore, following the core contract and avoiding common errors of Bedrock Script API.
