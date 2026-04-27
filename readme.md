@@ -1,5 +1,7 @@
 # PMMPCore
 
+Language: **English** | [Español](README.es.md)
+
 <div align="center">
 
 ![PMMPCore Logo](images/PMMPCore.png)

@@ -1,5 +1,7 @@
 # PMMPCore Docs
 
+Language: **English** | [Español](README.es.md)
+
 Index of official project documentation.
 
 ## Documents
