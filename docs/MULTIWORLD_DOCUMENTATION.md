@@ -70,6 +70,7 @@ Subcommands:
 - `list`
 - `delete <name>`
 - `purgechunks <name>`
+- `keepmode <on|off>`
 - `info <name>`
 - `setmain <name>`
 - `setspawn <name>`
@@ -82,6 +83,8 @@ Notes:
 - `type` default in `create` is `normal`.
 - `dimension` optional between 1 and 50.
 - `delete` and `purgechunks` only for the world owner.
+- `keepmode` is stored per-player and controls whether the caller is kept in-dimension during delete/purge.
+- During active cleanup lock, keepmode is ignored and players are evacuated from target dimension for safety.
 - `setspawn` updates global spawn using the player's current location.
 - `setspawn` supports custom and vanilla worlds (`overworld`, `nether`, `end`).
 - For vanilla worlds, spawn is stored as a persistent MultiWorld override.
@@ -178,14 +181,24 @@ Main loop:
 ### `delete`
 
 - Removes world metadata.
-- Cleans chunks in batch without extra aggressive sweep.
-- If player is in that world, moves them first to main world.
+- Cleans chunks in batch using policy from `resolveCleanupPolicy("delete")`.
+- Uses `tracked + safety sweep` or fallback radial clear, depending on tracking and policy.
+- While cleanup runs, world and dimension are locked; teleport/create/re-delete into that target is blocked.
+- Players in the target dimension are moved out before cleanup starts.
 
 ### `purgechunks`
 
 - Does not remove world metadata.
 - Cleans generated chunks as recovery operation.
-- Includes extra safety sweep (configurable by constants).
+- Uses policy from `resolveCleanupPolicy("purge")` (typically wider than delete).
+- While cleanup runs, world and dimension are locked; teleport/create/re-purge into that target is blocked.
+- Players in the target dimension are moved out before cleanup starts.
+
+### `keepmode`
+
+- `keepmode on`: caller preference to remain in-dimension for delete/purge.
+- `keepmode off`: caller preference to move to main world first.
+- Safety override: if cleanup lock is active, evacuation still happens and lock rules take priority.
 
 ### Batch Cleanup Pipeline
 
@@ -193,7 +206,8 @@ Main loop:
 - Batch processing (`CLEAR_BATCH_SIZE`).
 - Vertical segmentation to avoid volume limits.
 - Temporary ticking areas per tile.
-- Progress messages per batch.
+- Intra-tile micro-slices (`runTimeout`) to avoid watchdog hangs.
+- Progress messages every batch.
 
 ## 11. Configurable Main World
 
@@ -246,6 +260,23 @@ Strategy:
 - Complete load at initial worldLoad.
 - Player last location is stored under player data (`multiWorld.lastLocation`).
 
+### `WorldData` contract (current)
+
+Required fields:
+- `id` (string)
+- `type` (`normal|flat|void|skyblock`)
+- `owner` (string)
+- `dimensionId` (string)
+- `dimensionNumber` (number)
+- `spawn` (`{x,y,z}`)
+- `createdAt` (epoch ms)
+- `lastUsed` (epoch ms)
+- `loaded` (boolean runtime state)
+
+Optional fields:
+- `forceSpawnOnJoin` (boolean): lobby-like mode that forces world spawn on reconnect.
+- `playerData.multiWorld.keepMode` (boolean): per-player cleanup movement preference.
+
 ## 13. Functional Security
 
 Implemented controls:
@@ -267,6 +298,16 @@ If cleanup aggressiveness is lacking:
 
 - use `purgechunks`.
 - adjust safety radii in `config.js`.
+
+### Cleanup profiles and diagnostics
+
+- Cleanup behavior is profile-driven in `config.js` via `resolveCleanupPolicy(mode)`.
+- `delete` now uses tracked chunks plus a short configurable sweep to reduce leftover terrain.
+- `purgechunks` keeps an aggressive recovery sweep.
+- Completion messages include requested vs cleared chunk counts when mismatch is detected.
+- Optional diagnostics:
+  - `MW_DEBUG=true`: structured warnings in generator fallback paths.
+  - `MW_METRICS=true`: periodic logs (`generated_chunks_per_min`, cleanup timing stats).
 
 ## 15. Configuration Constants Reference
 
@@ -297,6 +338,8 @@ If cleanup aggressiveness is lacking:
 | `DELETE_SAFETY_SWEEP` | true | Enable extra safety sweep | More thorough, slower |
 | `DELETE_SAFETY_RADIUS` | 220 chunks | Extra sweep radius | Very thorough cleanup |
 | `DELETE_SAFETY_RADIUS_WHEN_TRACKED` | 40 chunks | Reduced sweep when tracking | Faster when chunks tracked |
+| `MW_DEBUG` | false | Enable structured debug warnings | Better diagnostics, more logs |
+| `MW_METRICS` | false | Enable periodic metrics logs | Visibility into generation/cleanup rate |
 
 ### 15.4 World Type Constants
 
@@ -361,6 +404,11 @@ GENERATION_TICK_RATE = 5;      // Default: 10
 ### 17.3 Cleanup Taking Too Long
 - **Cause**: Large `CLEAR_RADIUS` or small `CLEAR_BATCH_SIZE`
 - **Solution**: Increase `CLEAR_BATCH_SIZE` or use `purgechunks` command
+
+### 17.5 Dimension Locked During Cleanup
+- **Cause**: `delete` or `purgechunks` is currently running for a world/dimension
+- **Expected behavior**: `tp/create/delete/purge` targeting that locked dimension is denied until cleanup finishes
+- **Solution**: Wait for cleanup completion message, then retry
 
 ### 17.4 Memory Issues
 - **Cause**: Too many active worlds

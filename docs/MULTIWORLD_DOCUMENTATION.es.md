@@ -68,6 +68,7 @@ Subcomandos:
 - `list`
 - `delete <name>`
 - `purgechunks <name>`
+- `keepmode <on|off>`
 - `info <name>`
 - `setmain <name>`
 - `setspawn <name>`
@@ -80,6 +81,8 @@ Notas:
 - `type` por defecto en `create`: `normal`.
 - `dimension` opcional entre 1 y 50.
 - `delete` y `purgechunks`: solo owner del mundo.
+- `keepmode` se guarda por jugador y define si el ejecutor intenta quedarse en dimensión durante delete/purge.
+- Con cleanup lock activo, `keepmode` se ignora y se evacua a los jugadores de la dimensión objetivo por seguridad.
 - `setspawn` funciona para custom y vanilla (`overworld`, `nether`, `end`).
 - En vanilla, `setspawn` guarda override persistente de MultiWorld.
 - `setlobby` aplica solo a mundos custom (`forceSpawnOnJoin`).
@@ -166,14 +169,24 @@ Aclaración lobby:
 ### `delete`
 
 - Elimina metadata del mundo.
-- Limpia chunks en batch (sin barrido extra agresivo).
-- Si el jugador está dentro, lo mueve antes al main world.
+- Limpia chunks en batch con política de `resolveCleanupPolicy("delete")`.
+- Usa `tracked + safety sweep` o fallback radial, según tracking y política.
+- Durante limpieza, mundo y dimensión quedan bloqueados; se rechazan tp/create/re-delete hacia ese objetivo.
+- Antes de limpiar, se mueve a los jugadores fuera de la dimensión objetivo.
 
 ### `purgechunks`
 
 - Mantiene metadata del mundo.
 - Limpia chunks generados como operación de recuperación.
-- Incluye barrido de seguridad configurable.
+- Usa política de `resolveCleanupPolicy("purge")` (normalmente más amplia que delete).
+- Durante limpieza, mundo y dimensión quedan bloqueados; se rechazan tp/create/re-purge hacia ese objetivo.
+- Antes de limpiar, se mueve a los jugadores fuera de la dimensión objetivo.
+
+### `keepmode`
+
+- `keepmode on`: preferencia del jugador para quedarse en dimensión durante delete/purge.
+- `keepmode off`: preferencia del jugador para moverse primero al main world.
+- Override de seguridad: con cleanup lock activo, la evacuación igualmente se aplica.
 
 Pipeline batch:
 
@@ -181,7 +194,8 @@ Pipeline batch:
 - Procesamiento por lotes (`CLEAR_BATCH_SIZE`).
 - Segmentación vertical.
 - Ticking areas temporales.
-- Mensajes de progreso.
+- Micro-lotes por tile (`runTimeout`) para evitar watchdog hangs.
+- Mensajes de progreso por batch.
 
 ## 11. Mundo principal configurable
 
@@ -232,6 +246,23 @@ Estrategia:
 - Load completo en primer `worldLoad`.
 - Última ubicación por jugador en `playerData.multiWorld.lastLocation`.
 
+### Contrato actual de `WorldData`
+
+Campos requeridos:
+- `id` (string)
+- `type` (`normal|flat|void|skyblock`)
+- `owner` (string)
+- `dimensionId` (string)
+- `dimensionNumber` (number)
+- `spawn` (`{x,y,z}`)
+- `createdAt` (epoch ms)
+- `lastUsed` (epoch ms)
+- `loaded` (boolean de runtime)
+
+Campos opcionales:
+- `forceSpawnOnJoin` (boolean): modo lobby que fuerza spawn global al reconectar.
+- `playerData.multiWorld.keepMode` (boolean): preferencia por jugador para movimiento durante cleanup.
+
 ## 13. Seguridad funcional
 
 - Validación de ownership en operaciones destructivas.
@@ -251,6 +282,25 @@ Si falta agresividad en limpieza:
 
 - usar `purgechunks`;
 - ajustar radios de seguridad en `config.js`.
+
+### Perfiles de limpieza y diagnósticos
+
+- La limpieza ahora se resuelve por perfil con `resolveCleanupPolicy(mode)` en `config.js`.
+- `delete` usa chunks trackeados + barrido corto configurable para reducir residuos.
+- `purgechunks` mantiene barrido amplio de recuperación.
+- Mensajes de cierre reportan diferencias entre chunks solicitados y limpiados cuando existan.
+- Diagnóstico opcional:
+  - `MW_DEBUG=true`: warnings estructurados en fallbacks del generador.
+  - `MW_METRICS=true`: métricas periódicas (`generated_chunks_per_min`, tiempos de limpieza).
+
+## 15. Locks de limpieza (world + dimensión)
+
+- Al iniciar `delete`/`purgechunks`, se aplican locks por `worldName` y `dimensionId`.
+- Mientras el lock está activo:
+  - no se permite `tp` al mundo/dimensión objetivo,
+  - no se permite relanzar `delete`/`purge` sobre ese mundo,
+  - `create` no reutiliza dimensiones lockeadas.
+- Al finalizar (o si falla el arranque), los locks se liberan automáticamente.
 
 ## 15. Pendientes sugeridos
 
