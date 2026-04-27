@@ -268,7 +268,105 @@ If cleanup aggressiveness is lacking:
 - use `purgechunks`.
 - adjust safety radii in `config.js`.
 
-## 15. Suggested Pending Items
+## 15. Configuration Constants Reference
+
+### 15.1 World Management Constants
+
+| Constant | Value | Purpose | Impact |
+|----------|-------|---------|--------|
+| `MAX_ACTIVE_WORLDS` | 10 | Maximum simultaneous active worlds | Memory usage & server performance |
+| `INACTIVE_TIMEOUT` | 300000ms (5 min) | Time before inactive worlds unload | Resource management |
+| `TOTAL_DIMENSIONS` | 50 | Total available dimensions | World creation limits |
+
+### 15.2 Generation Performance Constants
+
+| Constant | Value | Purpose | Tuning Notes |
+|----------|-------|---------|--------------|
+| `GENERATION_RADIUS` | 10 chunks | Generation radius around players | Higher = more chunks per player |
+| `CHUNKS_PER_TICK` | 6 | Chunk budget per player/cycle | Lower = less lag, slower generation |
+| `GENERATION_TICK_RATE` | 10 ticks (~0.5s) | Generation frequency | Higher = less frequent, more spread load |
+
+### 15.3 Cleanup & Deletion Constants
+
+| Constant | Value | Purpose | Performance Impact |
+|----------|-------|---------|-------------------|
+| `CLEAR_RADIUS` | 150 chunks | Deletion radius from spawn | Larger = more thorough cleanup |
+| `CLEAR_BATCH_SIZE` | 450 columns | Blocks per deletion batch | Higher = faster cleanup, more lag |
+| `CLEAR_TICKS_PER_BATCH` | 1 tick | Delay between batches | 1 = maximum speed |
+| `CLEAR_BATCHES_PER_CYCLE` | 2 batches | Batches per cleanup cycle | Higher = faster cleanup |
+| `DELETE_SAFETY_SWEEP` | true | Enable extra safety sweep | More thorough, slower |
+| `DELETE_SAFETY_RADIUS` | 220 chunks | Extra sweep radius | Very thorough cleanup |
+| `DELETE_SAFETY_RADIUS_WHEN_TRACKED` | 40 chunks | Reduced sweep when tracking | Faster when chunks tracked |
+
+### 15.4 World Type Constants
+
+| Constant | Value | Purpose |
+|----------|-------|---------|
+| `FLAT_WORLD_TOP_Y` | -53 | Grass level for flat worlds |
+| `WORLD_TYPES.NORMAL` | "normal" | Vanilla-style terrain |
+| `WORLD_TYPES.FLAT` | "flat" | Flat terrain |
+| `WORLD_TYPES.VOID` | "void" | Empty dimension |
+| `WORLD_TYPES.SKYBLOCK` | "skyblock" | Island-style world |
+
+## 16. Performance Tuning Guide
+
+### 16.1 For Laggy Servers
+
+Reduce generation load:
+```javascript
+// Lower chunk generation per cycle
+CHUNKS_PER_TICK = 3;           // Default: 6
+GENERATION_TICK_RATE = 20;      // Default: 10
+GENERATION_RADIUS = 6;         // Default: 10
+```
+
+### 16.2 For Fast Cleanup
+
+Increase deletion speed:
+```javascript
+// Faster but more intensive cleanup
+CLEAR_BATCH_SIZE = 600;        // Default: 450
+CLEAR_BATCHES_PER_CYCLE = 3;   // Default: 2
+```
+
+### 16.3 For Memory-Constrained Servers
+
+Reduce active worlds:
+```javascript
+MAX_ACTIVE_WORLDS = 5;         // Default: 10
+INACTIVE_TIMEOUT = 180000;     // 3 minutes (Default: 5 min)
+```
+
+### 16.4 For High-Performance Servers
+
+Increase capacity:
+```javascript
+// More simultaneous worlds
+MAX_ACTIVE_WORLDS = 15;        // Default: 10
+// Faster generation
+CHUNKS_PER_TICK = 10;          // Default: 6
+GENERATION_TICK_RATE = 5;      // Default: 10
+```
+
+## 17. Troubleshooting Common Issues
+
+### 17.1 "No available dimensions" Error
+- **Cause**: All 50 dimensions are in use
+- **Solution**: Delete unused worlds or increase `TOTAL_DIMENSIONS`
+
+### 17.2 Generation Too Slow
+- **Cause**: `CHUNKS_PER_TICK` too low or many players
+- **Solution**: Increase `CHUNKS_PER_TICK` or decrease `GENERATION_TICK_RATE`
+
+### 17.3 Cleanup Taking Too Long
+- **Cause**: Large `CLEAR_RADIUS` or small `CLEAR_BATCH_SIZE`
+- **Solution**: Increase `CLEAR_BATCH_SIZE` or use `purgechunks` command
+
+### 17.4 Memory Issues
+- **Cause**: Too many active worlds
+- **Solution**: Reduce `MAX_ACTIVE_WORLDS` or decrease `INACTIVE_TIMEOUT`
+
+## 18. Suggested Pending Items
 
 - Runtime configuration by command of generation parameters.
 - Simple profiler by chunk/min metrics per world.
