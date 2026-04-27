@@ -3,6 +3,7 @@ import { PMMPCore } from "../../PMMPCore.js";
 import {
   worldsData, activeWorlds, lastActivity, generatedChunks,
   markWorldDataDirty, clearDirtyFlag, isWorldDataDirty,
+  indexWorldDimension, unindexWorldDimension, rebuildDimensionIndex, getDimensionCleanupLock,
 } from "./state.js";
 import {
   dimensionPool, WORLD_TYPES, FLAT_WORLD_TOP_Y, TOTAL_DIMENSIONS,
@@ -210,6 +211,10 @@ export class WorldManager {
     return { spawn: savedSpawn, source: "fallback-config" };
   }
 
+  static getResolvedVanillaSpawn(vanilla) {
+    return this._resolveVanillaSpawnWithMeta(vanilla);
+  }
+
   static _resolveOverworldSpawnForPlayer(player, fallbackSpawn) {
     // 1) Player personal spawnpoint when available.
     try {
@@ -375,8 +380,11 @@ export class WorldManager {
       targetDimension = dimensionPool.find((d) => d.number === dimensionNumber);
       if (!targetDimension) throw new Error(`Dimension ${dimensionNumber} not found`);
       if (targetDimension.used) throw new Error(`Dimension ${dimensionNumber} is already in use`);
+      if (getDimensionCleanupLock(targetDimension.id)) {
+        throw new Error(`Dimension ${dimensionNumber} is currently locked by cleanup`);
+      }
     } else {
-      targetDimension = dimensionPool.find((d) => !d.used);
+      targetDimension = dimensionPool.find((d) => !d.used && !getDimensionCleanupLock(d.id));
       if (!targetDimension) throw new Error(`No available dimensions. All ${TOTAL_DIMENSIONS} are in use`);
     }
 
@@ -400,6 +408,7 @@ export class WorldManager {
     };
 
     worldsData.set(name, worldData);
+    indexWorldDimension(worldData);
     targetDimension.used = true;
     markWorldDataDirty();
     console.log(`[MultiWorld] Created world '${name}' (${type}) in dimension ${targetDimension.number}`);
@@ -414,6 +423,7 @@ export class WorldManager {
     if (dim) dim.used = false;
 
     activeWorlds.delete(name);
+    unindexWorldDimension(worldData);
     worldsData.delete(name);
     lastActivity.delete(name);
     generatedChunks.delete(name);
@@ -473,6 +483,7 @@ export class WorldManager {
       const chunks = PMMPCore.db.getChunks(name);
       generatedChunks.set(name, new Set(Array.isArray(chunks) ? chunks : []));
     }
+    rebuildDimensionIndex();
     console.log(`[MultiWorld] Loaded ${worldsData.size} worlds.`);
   }
 }

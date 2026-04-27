@@ -6,19 +6,76 @@ import {
   VANILLA_WORLDS,
   resolveVanillaWorld,
   CLEAR_RADIUS,
-  DELETE_SAFETY_SWEEP,
-  DELETE_SAFETY_RADIUS,
+  DELETE_SAFETY_SWEEP, resolveCleanupPolicy,
   DELETE_SAFETY_RADIUS_WHEN_TRACKED,
 } from "./config.js";
-import { worldsData, generatedChunks } from "./state.js";
+import {
+  worldsData,
+  generatedChunks,
+  lockWorldCleanup,
+  unlockWorldCleanup,
+  getCleanupLock,
+  lockDimensionCleanup,
+  unlockDimensionCleanup,
+  getDimensionCleanupLock,
+} from "./state.js";
 import { WorldManager, RuntimeController, requestPersistFlush } from "./manager.js";
 import { WorldGenerator } from "./generator.js";
 
 // ============== COMMAND HANDLERS ==============
 export class CommandHandlers {
+  static _getKeepMode(playerName) {
+    const playerData = PMMPCore.db?.getPlayerData(playerName) ?? {};
+    return !!playerData?.multiWorld?.keepMode;
+  }
+
+  static _setKeepMode(playerName, enabled) {
+    if (!PMMPCore.db) throw new Error("Database is not initialized");
+    const playerData = PMMPCore.db.getPlayerData(playerName) ?? {};
+    if (!playerData.multiWorld) playerData.multiWorld = {};
+    playerData.multiWorld.keepMode = !!enabled;
+    return PMMPCore.db.setPlayerData(playerName, playerData);
+  }
+
+  static _shouldKeepPlayerInWorld(player, explicitKeepValue = null) {
+    if (typeof explicitKeepValue === "boolean") return explicitKeepValue;
+    return this._getKeepMode(player.name);
+  }
+
   static _resolveCustomWorldByNameInsensitive(name) {
     const normalized = name.toLowerCase();
     return WorldManager.getAllWorlds().find((wd) => wd.id.toLowerCase() === normalized) ?? null;
+  }
+
+  static _sendCleanupLockedMessage(player, worldName, lock) {
+    const mode = lock?.mode ?? "cleanup";
+    player.sendMessage(
+      `${Color.red}[MW] World '${worldName}' is currently locked (${mode} in progress). Try again when cleanup finishes.${Color.reset}`
+    );
+  }
+
+  static _sendDimensionCleanupLockedMessage(player, dimensionId, lock) {
+    const mode = lock?.mode ?? "cleanup";
+    const ownerWorld = lock?.worldName ? ` by world '${lock.worldName}'` : "";
+    player.sendMessage(
+      `${Color.red}[MW] Dimension '${dimensionId}' is currently locked (${mode}${ownerWorld}). Try again when cleanup finishes.${Color.reset}`
+    );
+  }
+
+  static _evacuatePlayersFromDimension(dimId, excludedWorldName = null) {
+    const playersInDimension = mcWorld.getAllPlayers().filter((p) => p.dimension?.id === dimId);
+    for (const targetPlayer of playersInDimension) {
+      const tpMain = WorldManager.teleportPlayerToMainWorld(targetPlayer, excludedWorldName);
+      if (tpMain.ok) {
+        const fallbackText = tpMain.destination?.isFallback
+          ? ` ${Color.gray}(configured main world unavailable, using fallback)`
+          : "";
+        targetPlayer.sendMessage(`${Color.aqua}[MW] World cleanup lock active. Moving you to main world: ${tpMain.destination.label}.${fallbackText}${Color.reset}`);
+      } else {
+        targetPlayer.sendMessage(`${Color.red}[MW] Warning: could not move you out before cleanup (${tpMain.error?.message ?? "unknown error"}).${Color.reset}`);
+      }
+    }
+    return playersInDimension.length;
   }
 
   static _resolveTrackedChunkKeys(worldName) {
@@ -35,7 +92,7 @@ export class CommandHandlers {
 
   static handleCreate(player, worldName, worldType, dimensionNumber = undefined) {
     if (!worldName) {
-      player.sendMessage(`${Color.red}Usage: /mw create <name> [type] [dimension]${Color.reset}`);
+      player.sendMessage(`${Color.red}Usage: /pmmpcore:mw create <name> [type] [dimension]${Color.reset}`);
       player.sendMessage(`${Color.yellow}Types: normal (default), flat, void, skyblock — Dimensions: 1-50 (optional)${Color.reset}`);
       return { status: CustomCommandStatus.Success };
     }
@@ -56,7 +113,7 @@ export class CommandHandlers {
       const wd = WorldManager.createWorld(worldName, type, player.name, dim);
       requestPersistFlush("create");
       player.sendMessage(`${Color.green}World '${worldName}' created! Dimension: ${wd.dimensionId}${Color.reset}`);
-      player.sendMessage(`${Color.aqua}Use /mw tp ${worldName} to teleport${Color.reset}`);
+      player.sendMessage(`${Color.aqua}Use /pmmpcore:mw tp ${worldName} to teleport${Color.reset}`);
     } catch (e) {
       player.sendMessage(`${Color.red}Error: ${e.message}${Color.reset}`);
     }
@@ -65,14 +122,14 @@ export class CommandHandlers {
 
   static handleTeleport(player, worldName) {
     if (!worldName) {
-      player.sendMessage(`${Color.red}Usage: /mw tp <world>${Color.reset}`);
+      player.sendMessage(`${Color.red}Usage: /pmmpcore:mw tp <world>${Color.reset}`);
       return { status: CustomCommandStatus.Success };
     }
 
     const vanillaWorld = resolveVanillaWorld(worldName);
     if (vanillaWorld) {
       system.run(() => {
-        const resolved = WorldManager._resolveVanillaSpawnWithMeta(vanillaWorld);
+        const resolved = WorldManager.getResolvedVanillaSpawn(vanillaWorld);
         const dim = mcWorld.getDimension(vanillaWorld.id);
         player.teleport(resolved.spawn, { dimension: dim });
         player.sendMessage(`${Color.green}Teleported to ${vanillaWorld.label}!${Color.reset}`);
@@ -83,6 +140,11 @@ export class CommandHandlers {
     const worldData = WorldManager.getWorld(worldName);
     if (!worldData) {
       player.sendMessage(`${Color.red}World '${worldName}' does not exist${Color.reset}`);
+      return { status: CustomCommandStatus.Success };
+    }
+    const lock = getCleanupLock(worldName);
+    if (lock) {
+      this._sendCleanupLockedMessage(player, worldName, lock);
       return { status: CustomCommandStatus.Success };
     }
 
@@ -154,9 +216,9 @@ export class CommandHandlers {
     return { status: CustomCommandStatus.Success };
   }
 
-  static handleDelete(player, worldName) {
+  static handleDelete(player, worldName, keepPlayerInWorld = null) {
     if (!worldName) {
-      player.sendMessage(`${Color.red}Usage: /mw delete <world>${Color.reset}`);
+      player.sendMessage(`${Color.red}Usage: /pmmpcore:mw delete <world>${Color.reset}`);
       return { status: CustomCommandStatus.Success };
     }
 
@@ -169,68 +231,102 @@ export class CommandHandlers {
       player.sendMessage(`${Color.red}You can only delete your own worlds${Color.reset}`);
       return { status: CustomCommandStatus.Success };
     }
+    const existingLock = getCleanupLock(worldName);
+    if (existingLock) {
+      this._sendCleanupLockedMessage(player, worldName, existingLock);
+      return { status: CustomCommandStatus.Success };
+    }
+    const dimensionLock = getDimensionCleanupLock(worldData.dimensionId);
+    if (dimensionLock) {
+      this._sendDimensionCleanupLockedMessage(player, worldData.dimensionId, dimensionLock);
+      return { status: CustomCommandStatus.Success };
+    }
 
     const dimId     = worldData.dimensionId;
-    const includeSafetySweep = false;
+    const cleanupPolicy = resolveCleanupPolicy("delete");
     const spawnChunk = {
       x: Math.floor(worldData.spawn.x / 16),
       z: Math.floor(worldData.spawn.z / 16),
     };
     const trackedChunkKeys = this._resolveTrackedChunkKeys(worldName);
+    const trackedSweepCols = cleanupPolicy.includeSafetySweep && cleanupPolicy.safetySweepEnabled
+      ? Math.pow(cleanupPolicy.trackedExtraRadius * 2 + 1, 2)
+      : 0;
+    const fallbackRadius = cleanupPolicy.includeSafetySweep && cleanupPolicy.safetySweepEnabled
+      ? Math.max(cleanupPolicy.fallbackRadius, cleanupPolicy.safetyRadius ?? 0)
+      : cleanupPolicy.fallbackRadius;
 
-    if (player.dimension.id === dimId) {
-      const tpMain = WorldManager.teleportPlayerToMainWorld(player, worldName);
-      if (tpMain.ok) {
-        const fallbackText = tpMain.destination?.isFallback
-          ? ` ${Color.gray}(configured main world unavailable, using fallback)`
-          : "";
-        player.sendMessage(`${Color.aqua}[MW] Moving you to main world: ${tpMain.destination.label}.${fallbackText}${Color.reset}`);
-      } else {
-        player.sendMessage(`${Color.red}[MW] Warning: could not teleport to main world before delete (${tpMain.error?.message ?? "unknown error"}).${Color.reset}`);
-      }
+    const keepMode = this._shouldKeepPlayerInWorld(player, keepPlayerInWorld);
+    if (keepMode && player.dimension.id === dimId) {
+      player.sendMessage(`${Color.yellow}[MW] Keep mode is ignored while cleanup lock is active for this world.${Color.reset}`);
+    }
+    const moved = this._evacuatePlayersFromDimension(dimId, worldName);
+    if (moved > 0) {
+      player.sendMessage(`${Color.aqua}[MW] Cleanup lock enabled for '${worldName}'. Moved ${moved} player(s) out of this dimension.${Color.reset}`);
     }
 
     try {
+      lockWorldCleanup(worldName, "delete");
+      lockDimensionCleanup(dimId, "delete", worldName);
       WorldManager.deleteWorld(worldName);
       requestPersistFlush("delete");
     } catch (e) {
+      unlockWorldCleanup(worldName);
+      unlockDimensionCleanup(dimId);
       player.sendMessage(`${Color.red}Error: ${e.message}${Color.reset}`);
       return { status: CustomCommandStatus.Success };
     }
 
     if (trackedChunkKeys.length > 0) {
-      const estimated = trackedChunkKeys.length;
+      const estimated = trackedChunkKeys.length + trackedSweepCols;
       player.sendMessage(
         `${Color.yellow}[MW] Deleting '${worldName}'... tracked mode, estimated ~${estimated.toLocaleString()} chunks.${Color.reset}`
       );
-      player.sendMessage(
-        `${Color.yellow}[MW] Tracked chunks found: ${trackedChunkKeys.length}. No extra sweep in normal delete mode.${Color.reset}`
-      );
+      if (trackedSweepCols > 0) {
+        player.sendMessage(
+          `${Color.yellow}[MW] Tracked chunks found: ${trackedChunkKeys.length}. Strategy: tracked + safety sweep (~${trackedSweepCols.toLocaleString()} extra, radius ${cleanupPolicy.trackedExtraRadius}).${Color.reset}`
+        );
+      } else {
+        player.sendMessage(
+          `${Color.yellow}[MW] Tracked chunks found: ${trackedChunkKeys.length}. Strategy: tracked only (no safety sweep).${Color.reset}`
+        );
+      }
     } else {
-      const fallbackRadius = CLEAR_RADIUS;
       const totalCols = Math.pow(fallbackRadius * 2 + 1, 2);
       player.sendMessage(
         `${Color.yellow}[MW] Deleting '${worldName}'... fallback mode, estimated ~${totalCols.toLocaleString()} chunks.${Color.reset}`
       );
       player.sendMessage(
-        `${Color.yellow}[MW] No tracked chunks found. Using normal fallback radius clear (~${totalCols.toLocaleString()}).${Color.reset}`
+        `${Color.yellow}[MW] No tracked chunks found. Strategy: fallback radius clear (~${totalCols.toLocaleString()}, radius ${fallbackRadius}).${Color.reset}`
       );
     }
 
-    WorldGenerator.clearGeneratedChunksAsync(worldName, dimId, spawnChunk, player, (count) => {
-      system.run(() => {
-        player.sendMessage(
-          `${Color.green}World '${worldName}' deleted! Cleared ${count} chunk columns.${Color.reset}`
-        );
-      });
-    }, trackedChunkKeys, includeSafetySweep);
+    try {
+      WorldGenerator.clearGeneratedChunksAsync(worldName, dimId, spawnChunk, player, (result) => {
+        system.run(() => {
+          unlockWorldCleanup(worldName);
+          unlockDimensionCleanup(dimId);
+          const mismatchNote = result.clearedChunks !== result.requestedChunks
+            ? `${Color.yellow} (requested ${result.requestedChunks.toLocaleString()})`
+            : "";
+          player.sendMessage(
+            `${Color.green}World '${worldName}' deleted! Cleared ${result.clearedChunks.toLocaleString()} chunk columns${mismatchNote}.${Color.reset}`
+          );
+        });
+      }, trackedChunkKeys, { ...cleanupPolicy, mode: "delete" });
+    } catch (e) {
+      unlockWorldCleanup(worldName);
+      unlockDimensionCleanup(dimId);
+      player.sendMessage(`${Color.red}[MW] Cleanup failed to start: ${e.message}${Color.reset}`);
+      return { status: CustomCommandStatus.Success };
+    }
 
     return { status: CustomCommandStatus.Success };
   }
 
   static handleSetMain(player, worldName) {
     if (!worldName) {
-      player.sendMessage(`${Color.red}Usage: /mw setmain <world>${Color.reset}`);
+      player.sendMessage(`${Color.red}Usage: /pmmpcore:mw setmain <world>${Color.reset}`);
       player.sendMessage(`${Color.yellow}Examples: overworld, nether, end, myCustomWorld${Color.reset}`);
       return { status: CustomCommandStatus.Success };
     }
@@ -242,7 +338,7 @@ export class CommandHandlers {
     } else {
       const custom = this._resolveCustomWorldByNameInsensitive(worldName);
       if (!custom) {
-        player.sendMessage(`${Color.red}World '${worldName}' does not exist. Use /mw list first.${Color.reset}`);
+        player.sendMessage(`${Color.red}World '${worldName}' does not exist. Use /pmmpcore:mw list first.${Color.reset}`);
         return { status: CustomCommandStatus.Success };
       }
       targetName = custom.id;
@@ -366,9 +462,9 @@ export class CommandHandlers {
     return { status: CustomCommandStatus.Success };
   }
 
-  static handlePurgeChunks(player, worldName) {
+  static handlePurgeChunks(player, worldName, keepPlayerInWorld = null) {
     if (!worldName) {
-      player.sendMessage(`${Color.red}Usage: /mw purgechunks <world>${Color.reset}`);
+      player.sendMessage(`${Color.red}Usage: /pmmpcore:mw purgechunks <world>${Color.reset}`);
       return { status: CustomCommandStatus.Success };
     }
 
@@ -381,55 +477,95 @@ export class CommandHandlers {
       player.sendMessage(`${Color.red}You can only purge chunks in your own worlds${Color.reset}`);
       return { status: CustomCommandStatus.Success };
     }
+    const existingLock = getCleanupLock(worldName);
+    if (existingLock) {
+      this._sendCleanupLockedMessage(player, worldName, existingLock);
+      return { status: CustomCommandStatus.Success };
+    }
+    const dimensionLock = getDimensionCleanupLock(worldData.dimensionId);
+    if (dimensionLock) {
+      this._sendDimensionCleanupLockedMessage(player, worldData.dimensionId, dimensionLock);
+      return { status: CustomCommandStatus.Success };
+    }
 
     const dimId = worldData.dimensionId;
-    const includeSafetySweep = true;
+    const keepMode = this._shouldKeepPlayerInWorld(player, keepPlayerInWorld);
+    if (keepMode && player.dimension.id === dimId) {
+      player.sendMessage(`${Color.yellow}[MW] Keep mode is ignored while cleanup lock is active for this world.${Color.reset}`);
+    }
+    const moved = this._evacuatePlayersFromDimension(dimId, worldName);
+    if (moved > 0) {
+      player.sendMessage(`${Color.aqua}[MW] Cleanup lock enabled for '${worldName}'. Moved ${moved} player(s) out of this dimension.${Color.reset}`);
+    }
+
+    const cleanupPolicy = resolveCleanupPolicy("purge");
     const spawnChunk = {
       x: Math.floor(worldData.spawn.x / 16),
       z: Math.floor(worldData.spawn.z / 16),
     };
     const trackedChunkKeys = this._resolveTrackedChunkKeys(worldName);
+    const trackedSweepCols = cleanupPolicy.includeSafetySweep && cleanupPolicy.safetySweepEnabled
+      ? Math.pow(cleanupPolicy.trackedExtraRadius * 2 + 1, 2)
+      : 0;
+    const fallbackRadius = cleanupPolicy.includeSafetySweep && cleanupPolicy.safetySweepEnabled
+      ? Math.max(cleanupPolicy.fallbackRadius, cleanupPolicy.safetyRadius ?? 0)
+      : cleanupPolicy.fallbackRadius;
 
     if (trackedChunkKeys.length > 0) {
-      const trackedSweepCols = Math.pow(DELETE_SAFETY_RADIUS_WHEN_TRACKED * 2 + 1, 2);
-      const estimated = trackedChunkKeys.length + (DELETE_SAFETY_SWEEP ? trackedSweepCols : 0);
+      const estimated = trackedChunkKeys.length + trackedSweepCols;
       player.sendMessage(
         `${Color.yellow}[MW] Purging chunks in '${worldName}'... tracked mode, estimated ~${estimated.toLocaleString()} chunks.${Color.reset}`
       );
-      player.sendMessage(
-        `${Color.yellow}[MW] Tracked chunks found: ${trackedChunkKeys.length}. Using fast tracked sweep (~${trackedSweepCols.toLocaleString()} extra).${Color.reset}`
-      );
+      if (trackedSweepCols > 0) {
+        player.sendMessage(
+          `${Color.yellow}[MW] Tracked chunks found: ${trackedChunkKeys.length}. Strategy: tracked + safety sweep (~${trackedSweepCols.toLocaleString()} extra, radius ${cleanupPolicy.trackedExtraRadius}).${Color.reset}`
+        );
+      } else {
+        player.sendMessage(
+          `${Color.yellow}[MW] Tracked chunks found: ${trackedChunkKeys.length}. Strategy: tracked only (no safety sweep).${Color.reset}`
+        );
+      }
     } else {
-      const fallbackRadius = DELETE_SAFETY_SWEEP ? Math.max(CLEAR_RADIUS, DELETE_SAFETY_RADIUS) : CLEAR_RADIUS;
       const totalCols = Math.pow(fallbackRadius * 2 + 1, 2);
       player.sendMessage(
         `${Color.yellow}[MW] Purging chunks in '${worldName}'... fallback mode, estimated ~${totalCols.toLocaleString()} chunks.${Color.reset}`
       );
       player.sendMessage(
-        `${Color.yellow}[MW] No tracked chunks found. Using fallback radius clear (~${totalCols.toLocaleString()}).${Color.reset}`
+        `${Color.yellow}[MW] No tracked chunks found. Strategy: fallback radius clear (~${totalCols.toLocaleString()}, radius ${fallbackRadius}).${Color.reset}`
       );
     }
 
-    WorldGenerator.clearGeneratedChunksAsync(worldName, dimId, spawnChunk, player, (count) => {
-      system.run(() => {
-        player.sendMessage(
-          `${Color.green}Chunk purge completed for '${worldName}'! Cleared ${count} chunk columns.${Color.reset}`
-        );
-      });
-    }, trackedChunkKeys, includeSafetySweep);
+    lockWorldCleanup(worldName, "purge");
+    lockDimensionCleanup(dimId, "purge", worldName);
+    try {
+      WorldGenerator.clearGeneratedChunksAsync(worldName, dimId, spawnChunk, player, (result) => {
+        system.run(() => {
+          unlockWorldCleanup(worldName);
+          unlockDimensionCleanup(dimId);
+          player.sendMessage(
+            `${Color.green}Chunk purge completed for '${worldName}'! Cleared ${result.clearedChunks.toLocaleString()} chunk columns.${Color.reset}`
+          );
+        });
+      }, trackedChunkKeys, { ...cleanupPolicy, mode: "purge" });
+    } catch (e) {
+      unlockWorldCleanup(worldName);
+      unlockDimensionCleanup(dimId);
+      player.sendMessage(`${Color.red}[MW] Purge failed to start: ${e.message}${Color.reset}`);
+      return { status: CustomCommandStatus.Success };
+    }
 
     return { status: CustomCommandStatus.Success };
   }
 
   static handleInfo(player, worldName) {
     if (!worldName) {
-      player.sendMessage(`${Color.red}Usage: /mw info <world>${Color.reset}`);
+      player.sendMessage(`${Color.red}Usage: /pmmpcore:mw info <world>${Color.reset}`);
       return { status: CustomCommandStatus.Success };
     }
 
     const vanilla = resolveVanillaWorld(worldName);
     if (vanilla) {
-      const resolvedMeta = WorldManager._resolveVanillaSpawnWithMeta(vanilla);
+      const resolvedMeta = WorldManager.getResolvedVanillaSpawn(vanilla);
       const resolvedSpawn = resolvedMeta.spawn;
       const resolvedSource = resolvedMeta.source;
       const savedSpawn = WorldManager.getVanillaSpawn(vanilla.id, vanilla.spawn);
@@ -488,12 +624,15 @@ export class CommandHandlers {
     player.sendMessage(`  ${Color.white}/pmmpcore:mw list                         ${Color.gray}— List all worlds`);
     player.sendMessage(`  ${Color.white}/pmmpcore:mw delete ${Color.yellow}<name>              ${Color.gray}— Delete your world`);
     player.sendMessage(`  ${Color.white}/pmmpcore:mw purgechunks ${Color.yellow}<name>         ${Color.gray}— Batch clear generated chunks`);
+    player.sendMessage(`  ${Color.white}/pmmpcore:mw keepmode ${Color.yellow}<on|off>          ${Color.gray}— Stay in world during delete/purge`);
     player.sendMessage(`  ${Color.white}/pmmpcore:mw setmain ${Color.yellow}<name>             ${Color.gray}— Set default join world`);
     player.sendMessage(`  ${Color.white}/pmmpcore:mw setspawn ${Color.yellow}<name>           ${Color.gray}— Set global spawn to your current location`);
     player.sendMessage(`  ${Color.white}/pmmpcore:mw setlobby ${Color.yellow}<name> <on|off>   ${Color.gray}— Force spawn on join for a custom world`);
     player.sendMessage(`  ${Color.white}/pmmpcore:mw main                         ${Color.gray}— Show current main world`);
     player.sendMessage(`  ${Color.white}/pmmpcore:mw info   ${Color.yellow}<name>              ${Color.gray}— Show world details`);
     player.sendMessage(`  ${Color.white}/pmmpcore:mw help                         ${Color.gray}— Show this message`);
+    const keepState = this._getKeepMode(player.name) ? "ON" : "OFF";
+    player.sendMessage(`${Color.aqua}Keep mode (you): ${Color.white}${keepState}${Color.reset}`);
     player.sendMessage(`${Color.aqua}World types:${Color.reset}`);
     player.sendMessage(`  ${Color.green}normal   ${Color.gray}— Vanilla-like terrain with oak trees`);
     player.sendMessage(`  ${Color.green}flat     ${Color.gray}— Flat world (grass, dirt, bedrock)`);
@@ -501,6 +640,35 @@ export class CommandHandlers {
     player.sendMessage(`  ${Color.green}skyblock ${Color.gray}— Floating island`);
     player.sendMessage(`${Color.yellow}Examples: ${Color.white}/pmmpcore:mw create myWorld ${Color.gray}(defaults to normal)`);
     player.sendMessage(`${Color.yellow}          ${Color.white}/pmmpcore:mw create myWorld flat`);
+    return { status: CustomCommandStatus.Success };
+  }
+
+  static handleKeepMode(player, mode) {
+    if (!mode) {
+      const keepState = this._getKeepMode(player.name) ? "ON" : "OFF";
+      player.sendMessage(`${Color.aqua}Keep mode is currently ${Color.white}${keepState}${Color.reset}`);
+      player.sendMessage(`${Color.yellow}Usage: /pmmpcore:mw keepmode <on|off>${Color.reset}`);
+      return { status: CustomCommandStatus.Success };
+    }
+
+    const normalized = String(mode).toLowerCase();
+    if (normalized !== "on" && normalized !== "off") {
+      player.sendMessage(`${Color.red}Invalid mode. Use: on or off${Color.reset}`);
+      return { status: CustomCommandStatus.Success };
+    }
+
+    try {
+      this._setKeepMode(player.name, normalized === "on");
+      player.sendMessage(
+        `${Color.green}Keep mode is now ${normalized === "on" ? "ON" : "OFF"} for your account.${Color.reset}`
+      );
+      player.sendMessage(
+        `${Color.aqua}When ON, /pmmpcore:mw delete and /pmmpcore:mw purgechunks will not move you to main world.${Color.reset}`
+      );
+    } catch (e) {
+      player.sendMessage(`${Color.red}Error updating keep mode: ${e.message}${Color.reset}`);
+    }
+
     return { status: CustomCommandStatus.Success };
   }
 }
@@ -513,6 +681,7 @@ export function setupCommands(event) {
     "list",
     "delete",
     "purgechunks",
+    "keepmode",
     "setmain",
     "setspawn",
     "setlobby",
@@ -536,6 +705,7 @@ export function setupCommands(event) {
       case "list":   return CommandHandlers.handleList(player);
       case "delete": return CommandHandlers.handleDelete(player, name);
       case "purgechunks": return CommandHandlers.handlePurgeChunks(player, name);
+      case "keepmode": return CommandHandlers.handleKeepMode(player, toggle ?? type ?? name);
       case "setmain": return CommandHandlers.handleSetMain(player, name);
       case "setspawn": return CommandHandlers.handleSetSpawn(player, name);
       case "setlobby": return CommandHandlers.handleSetLobby(player, name, toggle ?? type);
@@ -543,7 +713,7 @@ export function setupCommands(event) {
       case "info":   return CommandHandlers.handleInfo(player, name);
       case "help":   return CommandHandlers.handleHelp(player);
       default:
-        player.sendMessage(`${Color.red}Unknown subcommand. Use /mw help${Color.reset}`);
+        player.sendMessage(`${Color.red}Unknown subcommand. Use /pmmpcore:mw help${Color.reset}`);
         return { status: CustomCommandStatus.Success };
     }
   };

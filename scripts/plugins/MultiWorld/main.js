@@ -1,7 +1,7 @@
 import { world, system } from "@minecraft/server";
 import { PMMPCore, Color } from "../../PMMPCore.js";
-import { dimensionPool, GENERATION_TICK_RATE } from "./config.js";
-import { worldsData, isWorldDataDirty } from "./state.js";
+import { dimensionPool, GENERATION_TICK_RATE, MW_METRICS } from "./config.js";
+import { isWorldDataDirty, getWorldNameByDimensionId, generatedChunks } from "./state.js";
 import { WorldManager, RuntimeController, requestPersistFlush } from "./manager.js";
 import { WorldGenerator } from "./generator.js";
 import { setupCommands } from "./commands.js";
@@ -15,39 +15,65 @@ PMMPCore.registerPlugin({
 
   onEnable() {
     console.log("[MultiWorld] Enabling modular runtime...");
+    if (this._isRuntimeRunning) {
+      console.log("[MultiWorld] Runtime already enabled, skipping duplicate setup.");
+      return;
+    }
+
+    this._isRuntimeRunning = true;
+    this._intervalIds = [];
+    this._subscriptions = [];
     this.worldDataLoaded = false;
 
     // Generacion continua alrededor del jugador en mundos activos.
-    system.runInterval(() => {
+    const generationIntervalId = system.runInterval(() => {
       RuntimeController.cleanupInactiveWorlds();
 
       for (const player of world.getAllPlayers()) {
-        const playerWorld = Array.from(worldsData.values()).find(
-          (w) => w.loaded && player.dimension.id === w.dimensionId
-        );
+        const worldName = getWorldNameByDimensionId(player.dimension.id);
+        const playerWorld = worldName ? WorldManager.getWorld(worldName) : null;
+        if (playerWorld && !playerWorld.loaded) continue;
         if (!playerWorld) continue;
 
         RuntimeController.updateActivity(playerWorld.id);
         WorldGenerator.generateAroundPlayer(player, playerWorld.id);
       }
     }, GENERATION_TICK_RATE);
+    this._intervalIds.push(generationIntervalId);
 
     // Persistencia periodica.
-    system.runInterval(() => {
+    const autosaveIntervalId = system.runInterval(() => {
       if (isWorldDataDirty()) {
         requestPersistFlush("autosave");
       }
     }, 200);
+    this._intervalIds.push(autosaveIntervalId);
 
     // Persistir ultima ubicacion de jugadores para restaurar en reconexion.
-    system.runInterval(() => {
+    const locationSaveIntervalId = system.runInterval(() => {
       for (const player of world.getAllPlayers()) {
         WorldManager.savePlayerLastLocation(player);
       }
     }, 40);
+    this._intervalIds.push(locationSaveIntervalId);
+
+    if (MW_METRICS) {
+      this._metricsState = { lastChunkCount: 0, lastSampleAt: Date.now() };
+      const metricsIntervalId = system.runInterval(() => {
+        const now = Date.now();
+        const currentChunkCount = Array.from(generatedChunks.values()).reduce((acc, set) => acc + set.size, 0);
+        const deltaChunks = Math.max(0, currentChunkCount - this._metricsState.lastChunkCount);
+        const elapsedMin = Math.max((now - this._metricsState.lastSampleAt) / 60000, 1 / 60000);
+        const chunksPerMin = Math.floor(deltaChunks / elapsedMin);
+        console.log(`[MultiWorld][metrics] generated_chunks_per_min=${chunksPerMin} total_tracked_chunks=${currentChunkCount}`);
+        this._metricsState.lastChunkCount = currentChunkCount;
+        this._metricsState.lastSampleAt = now;
+      }, 1200);
+      this._intervalIds.push(metricsIntervalId);
+    }
 
     // En primer ingreso, o respawn sin spawnpoint personal, mover al mundo principal configurado.
-    world.afterEvents.playerSpawn.subscribe((event) => {
+    const playerSpawnSubscription = world.afterEvents.playerSpawn.subscribe((event) => {
       const player = event.player;
       let hasPersonalSpawn = false;
       try {
@@ -84,6 +110,7 @@ PMMPCore.registerPlugin({
 
       system.runTimeout(() => tryRouteToMain(), 1);
     });
+    this._subscriptions.push(playerSpawnSubscription);
 
     console.log("[MultiWorld] Modular runtime enabled.");
   },
@@ -97,7 +124,7 @@ PMMPCore.registerPlugin({
 
     setupCommands(event);
 
-    world.afterEvents.worldLoad.subscribe(() => {
+    const worldLoadSubscription = world.afterEvents.worldLoad.subscribe(() => {
       if (this.worldDataLoaded) return;
       system.run(() => {
         WorldManager.loadWorldData();
@@ -105,9 +132,30 @@ PMMPCore.registerPlugin({
         console.log("[MultiWorld] World data loaded.");
       });
     });
+    this._subscriptions.push(worldLoadSubscription);
   },
 
   onDisable() {
+    if (Array.isArray(this._intervalIds)) {
+      for (const intervalId of this._intervalIds) {
+        try {
+          system.clearRun(intervalId);
+        } catch (_) {}
+      }
+    }
+    this._intervalIds = [];
+
+    if (Array.isArray(this._subscriptions)) {
+      for (const subscription of this._subscriptions) {
+        try {
+          subscription?.unsubscribe?.();
+        } catch (_) {}
+      }
+    }
+    this._subscriptions = [];
+    this._metricsState = null;
+    this._isRuntimeRunning = false;
+
     requestPersistFlush("disable");
     if (isWorldDataDirty()) {
       const saved = WorldManager.flushWorldData();
@@ -121,14 +169,15 @@ PMMPCore.registerPlugin({
   getHelp() {
     return [
       `${Color.aqua}MultiWorld Commands:${Color.reset}`,
-      `${Color.white}/mw create <name> <type> [dimension] ${Color.gray}- Create a new world`,
-      `${Color.white}/mw tp <world> ${Color.gray}- Teleport to a world`,
-      `${Color.white}/mw list ${Color.gray}- List all worlds`,
-      `${Color.white}/mw delete <world> ${Color.gray}- Delete your world`,
-      `${Color.white}/mw purgechunks <world> ${Color.gray}- Batch clear generated chunks`,
-      `${Color.white}/mw setmain <world> ${Color.gray}- Set default join world`,
-      `${Color.white}/mw main ${Color.gray}- Show current main world`,
-      `${Color.white}/mw info <world> ${Color.gray}- Show world information`,
+      `${Color.white}/pmmpcore:mw create <name> <type> [dimension] ${Color.gray}- Create a new world`,
+      `${Color.white}/pmmpcore:mw tp <world> ${Color.gray}- Teleport to a world`,
+      `${Color.white}/pmmpcore:mw list ${Color.gray}- List all worlds`,
+      `${Color.white}/pmmpcore:mw delete <world> ${Color.gray}- Delete your world`,
+      `${Color.white}/pmmpcore:mw purgechunks <world> ${Color.gray}- Batch clear generated chunks`,
+      `${Color.white}/pmmpcore:mw keepmode <on|off> ${Color.gray}- Stay in world during delete/purge`,
+      `${Color.white}/pmmpcore:mw setmain <world> ${Color.gray}- Set default join world`,
+      `${Color.white}/pmmpcore:mw main ${Color.gray}- Show current main world`,
+      `${Color.white}/pmmpcore:mw info <world> ${Color.gray}- Show world information`,
     ];
   },
 });

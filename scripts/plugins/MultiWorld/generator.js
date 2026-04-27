@@ -5,11 +5,20 @@ import { WorldManager } from "./manager.js";
 import {
   WORLD_TYPES, FLAT_WORLD_TOP_Y, GENERATION_RADIUS, CHUNKS_PER_TICK,
   CLEAR_RADIUS, CLEAR_BATCH_SIZE, CLEAR_TICKS_PER_BATCH, DELETE_SAFETY_SWEEP, DELETE_SAFETY_RADIUS,
-  DELETE_SAFETY_RADIUS_WHEN_TRACKED, CLEAR_BATCHES_PER_CYCLE,
+  DELETE_SAFETY_RADIUS_WHEN_TRACKED, CLEAR_BATCHES_PER_CYCLE, MW_DEBUG, MW_METRICS,
 } from "./config.js";
 
 // ============== WORLD GENERATOR ==============
 export class WorldGenerator {
+  static _debugWarn(message, context = null) {
+    if (!MW_DEBUG) return;
+    if (context) {
+      console.warn(`[MultiWorld][debug] ${message}`, context);
+      return;
+    }
+    console.warn(`[MultiWorld][debug] ${message}`);
+  }
+
   static _fillColumnRange(dimension, x, z, yFrom, yTo, blockId) {
     if (yTo < yFrom) return true;
     try {
@@ -75,6 +84,14 @@ export class WorldGenerator {
     return Math.max(58, Math.min(86, y));
   }
 
+  static _dirtDepthAt(x, z) {
+    // Vanilla-like variability: mostly 4-6 dirt blocks below grass.
+    const noise = this._valueNoise2D(x * 0.08, z * 0.08, 97);
+    if (noise > 0.72) return 6;
+    if (noise > 0.42) return 5;
+    return 4;
+  }
+
   static _initChunks(worldName) {
     if (!generatedChunks.has(worldName)) generatedChunks.set(worldName, new Set());
   }
@@ -132,7 +149,15 @@ export class WorldGenerator {
               try {
                 block.setPermutation(blockType);
               } catch (e) {
-                // Ignorar errores de setBlock
+                this._debugWarn("Failed to set block permutation in flat generation", {
+                  error: e?.message,
+                  worldName,
+                  chunkX,
+                  chunkZ,
+                  x: worldX,
+                  y: blockY,
+                  z: worldZ,
+                });
               }
             }
 
@@ -181,10 +206,13 @@ export class WorldGenerator {
         const x = originX + lx;
         const z = originZ + lz;
         const topY = this._naturalTopYAt(x, z);
+        const dirtDepth = this._dirtDepthAt(x, z);
+        const dirtStartY = topY - dirtDepth;
+        const stoneTopY = dirtStartY - 1;
 
         this._fillColumnRange(dimension, x, z, -64, -64, BEDROCK);
-        this._fillColumnRange(dimension, x, z, -63, topY - 4, STONE);
-        this._fillColumnRange(dimension, x, z, topY - 3, topY - 1, DIRT);
+        this._fillColumnRange(dimension, x, z, -63, stoneTopY, STONE);
+        this._fillColumnRange(dimension, x, z, dirtStartY, topY - 1, DIRT);
         this._fillColumnRange(dimension, x, z, topY, topY, GRASS);
       }
     }
@@ -205,7 +233,9 @@ export class WorldGenerator {
 
         const trunkHeight = 4 + Math.floor(this._hash2(x, z, 719) * 2);
         for (let h = 1; h <= trunkHeight; h++) {
-          try { dimension.getBlock({ x, y: groundY + h, z })?.setPermutation(oakLog); } catch (_) {}
+          try { dimension.getBlock({ x, y: groundY + h, z })?.setPermutation(oakLog); } catch (error) {
+            this._debugWarn("Failed to place oak log", { error: error?.message, worldName, chunkX, chunkZ, x, y: groundY + h, z });
+          }
         }
 
         const leafCenterY = groundY + trunkHeight;
@@ -218,7 +248,9 @@ export class WorldGenerator {
               if (dx + dz + dy > 4) continue;
               const lb = dimension.getBlock({ x: ax, y: ay, z: az });
               if (lb?.typeId === "minecraft:air") {
-                try { lb.setPermutation(oakLeaves); } catch (_) {}
+                try { lb.setPermutation(oakLeaves); } catch (error) {
+                  this._debugWarn("Failed to place oak leaves", { error: error?.message, worldName, chunkX, chunkZ, x: ax, y: ay, z: az });
+                }
               }
             }
           }
@@ -283,7 +315,9 @@ export class WorldGenerator {
       for (let h = 0; h < 4; h++) {
         try {
           dimension.getBlock({ x: treeX, y: topY + 1 + h, z: treeZ })?.setPermutation(oakLog);
-        } catch (_) {}
+        } catch (error) {
+          this._debugWarn("Failed to place skyblock trunk", { error: error?.message, worldName, x: treeX, y: topY + 1 + h, z: treeZ });
+        }
       }
 
       for (let x = treeX - 2; x <= treeX + 2; x++) {
@@ -296,7 +330,9 @@ export class WorldGenerator {
             if (dist > 2.35) continue;
             const lb = dimension.getBlock({ x, y, z });
             if (lb?.typeId === "minecraft:air") {
-              try { lb.setPermutation(leaves); } catch (_) {}
+              try { lb.setPermutation(leaves); } catch (error) {
+                this._debugWarn("Failed to place skyblock leaves", { error: error?.message, worldName, x, y, z });
+              }
             }
           }
         }
@@ -368,11 +404,12 @@ export class WorldGenerator {
     player,
     onDone,
     trackedChunkKeys = null,
-    includeSafetySweep = false
+    options = {}
   ) {
     const dimension = mcWorld.getDimension(dimensionId);
     const CLEAR_TILE_SIZE_CHUNKS = 15; // 15x15 = 225 chunks (mas rapido y bajo limite de 300)
-    const PROGRESS_MESSAGE_EVERY_BATCHES = 5;
+    const PROGRESS_MESSAGE_EVERY_BATCHES = 1;
+    const CHUNKS_PER_SLICE = 6; // anti-watchdog: corta trabajo pesado en micro-lotes
 
     const Y_SEGMENTS = [
       { from: -64, to:  35 },
@@ -401,12 +438,20 @@ export class WorldGenerator {
     }
 
     const { x: cx0, z: cz0 } = spawnChunk;
-    const shouldSweep = includeSafetySweep && DELETE_SAFETY_SWEEP;
-    const extraRadius = shouldSweep ? DELETE_SAFETY_RADIUS : 0;
-    const extraRadiusWhenTracked = shouldSweep ? DELETE_SAFETY_RADIUS_WHEN_TRACKED : 0;
+    const includeSafetySweep = options.includeSafetySweep ?? false;
+    const safetySweepEnabled = options.safetySweepEnabled ?? DELETE_SAFETY_SWEEP;
+    const configuredFallbackRadius = Number.isFinite(options.fallbackRadius) ? options.fallbackRadius : CLEAR_RADIUS;
+    const configuredTrackedExtraRadius = Number.isFinite(options.trackedExtraRadius)
+      ? options.trackedExtraRadius
+      : DELETE_SAFETY_RADIUS_WHEN_TRACKED;
+    const shouldSweep = includeSafetySweep && safetySweepEnabled;
+    const extraRadius = shouldSweep
+      ? (Number.isFinite(options.safetyRadius) ? options.safetyRadius : DELETE_SAFETY_RADIUS)
+      : 0;
+    const extraRadiusWhenTracked = shouldSweep ? configuredTrackedExtraRadius : 0;
     const fallbackRadius = trackedChunkKeys?.length
       ? extraRadiusWhenTracked
-      : Math.max(CLEAR_RADIUS, extraRadius);
+      : Math.max(configuredFallbackRadius, extraRadius);
     for (let r = 0; r <= fallbackRadius; r++) {
       if (r === 0) { pushChunk(cx0, cz0); continue; }
       for (let i = -r; i <= r; i++) {
@@ -424,6 +469,20 @@ export class WorldGenerator {
     let index = 0, batchNum = 0, tickCount = 0;
     let batchInProgress = false;
     const startedAt = Date.now();
+    if (totalChunks === 0) {
+      const result = {
+        requestedChunks: 0,
+        clearedChunks: 0,
+        elapsedMs: 0,
+        mode: options.mode ?? "unknown",
+        usedTracked: Array.isArray(trackedChunkKeys) && trackedChunkKeys.length > 0,
+      };
+      if (MW_METRICS || MW_DEBUG) {
+        console.log(`[MultiWorld] Cleanup metrics`, result);
+      }
+      onDone(result);
+      return;
+    }
 
     const startNextBatch = () => {
       if (index >= totalChunks) return false;
@@ -432,34 +491,52 @@ export class WorldGenerator {
       const batchEnd = Math.min(index + CLEAR_BATCH_SIZE, totalChunks);
       const batch = todo.slice(index, batchEnd);
 
-      const clearAreaColumns = (fromX, fromZ, toX, toZ) => {
-        const startCX = Math.floor(fromX / 16);
-        const endCX = Math.floor(toX / 16);
-        const startCZ = Math.floor(fromZ / 16);
-        const endCZ = Math.floor(toZ / 16);
-
-        // Limpiar por chunk evita limites de volumen del comando fill.
-        for (let cx = startCX; cx <= endCX; cx++) {
-          for (let cz = startCZ; cz <= endCZ; cz++) {
-            const x0 = cx * 16;
-            const z0 = cz * 16;
-            const x1 = x0 + 15;
-            const z1 = z0 + 15;
-            for (const seg of Y_SEGMENTS) {
-              try {
-                dimension.runCommand(`fill ${x0} ${seg.from} ${z0} ${x1} ${seg.to} ${z1} air`);
-              } catch (_) {
-                try {
-                  dimension.fillBlocks(
-                    { x: x0, y: seg.from, z: z0 },
-                    { x: x1, y: seg.to, z: z1 },
-                    "minecraft:air"
-                  );
-                } catch (_e) {}
-              }
-            }
+      const clearChunkColumns = (cx, cz) => {
+        const x0 = cx * 16;
+        const z0 = cz * 16;
+        const x1 = x0 + 15;
+        const z1 = z0 + 15;
+        for (const seg of Y_SEGMENTS) {
+          try {
+            dimension.runCommand(`fill ${x0} ${seg.from} ${z0} ${x1} ${seg.to} ${z1} air`);
+          } catch (_) {
+            try {
+              dimension.fillBlocks(
+                { x: x0, y: seg.from, z: z0 },
+                { x: x1, y: seg.to, z: z1 },
+                "minecraft:air"
+              );
+            } catch (_e) {}
           }
         }
+      };
+
+      const buildTileChunkList = (tile) => {
+        const tileChunks = [];
+        for (let cx = tile.minCX; cx <= tile.maxCX; cx++) {
+          for (let cz = tile.minCZ; cz <= tile.maxCZ; cz++) {
+            tileChunks.push({ cx, cz });
+          }
+        }
+        return tileChunks;
+      };
+
+      const clearTileChunksAsync = (tile, done) => {
+        const tileChunks = buildTileChunkList(tile);
+        let tileCursor = 0;
+        const runSlice = () => {
+          const end = Math.min(tileCursor + CHUNKS_PER_SLICE, tileChunks.length);
+          for (; tileCursor < end; tileCursor++) {
+            const { cx, cz } = tileChunks[tileCursor];
+            clearChunkColumns(cx, cz);
+          }
+          if (tileCursor >= tileChunks.length) {
+            done();
+            return;
+          }
+          system.runTimeout(runSlice, 1);
+        };
+        runSlice();
       };
 
       const tiles = new Map();
@@ -494,7 +571,18 @@ export class WorldGenerator {
             system.clearRun(intervalId);
             generatedChunks.delete(worldName);
             markWorldDataDirty();
-            onDone(totalChunks);
+            const elapsedMs = Date.now() - startedAt;
+            const result = {
+              requestedChunks: totalChunks,
+              clearedChunks: totalChunks,
+              elapsedMs,
+              mode: options.mode ?? "unknown",
+              usedTracked: Array.isArray(trackedChunkKeys) && trackedChunkKeys.length > 0,
+            };
+            if (MW_METRICS || MW_DEBUG) {
+              console.log(`[MultiWorld] Cleanup metrics`, result);
+            }
+            onDone(result);
           }
           batchInProgress = false;
           return;
@@ -516,16 +604,25 @@ export class WorldGenerator {
         mcWorld.tickingAreaManager
           .createTickingArea(areaId, { dimension, from, to })
           .then(() => {
-            clearAreaColumns(fromX, fromZ, toX, toZ);
-            if (mcWorld.tickingAreaManager.hasTickingArea(areaId)) {
-              mcWorld.tickingAreaManager.removeTickingArea(areaId);
-            }
-            processTileSequentially(tileIndex + 1);
+            clearTileChunksAsync(tile, () => {
+              if (mcWorld.tickingAreaManager.hasTickingArea(areaId)) {
+                mcWorld.tickingAreaManager.removeTickingArea(areaId);
+              }
+              processTileSequentially(tileIndex + 1);
+            });
           })
-          .catch(() => {
+          .catch((error) => {
             // Fallback: intenta limpiar aun sin ticking area y continua.
-            clearAreaColumns(fromX, fromZ, toX, toZ);
-            processTileSequentially(tileIndex + 1);
+            this._debugWarn("Ticking area creation failed, fallback clear", {
+              error: error?.message,
+              worldName,
+              batchNum,
+              tileIndex,
+              areaId,
+            });
+            clearTileChunksAsync(tile, () => {
+              processTileSequentially(tileIndex + 1);
+            });
           });
       };
 

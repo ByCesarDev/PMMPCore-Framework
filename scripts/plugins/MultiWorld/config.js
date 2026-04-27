@@ -14,6 +14,35 @@ export const DELETE_SAFETY_RADIUS   = 220;      // miles de chunks extra (lineal
 export const DELETE_SAFETY_RADIUS_WHEN_TRACKED = 40; // sweep corto cuando ya hay tracking (rapido)
 export const FLAT_WORLD_TOP_Y       = -53;      // Cesped en -53, bedrock queda en -64
 export const TOTAL_DIMENSIONS       = 50;
+export const MW_DEBUG               = true;
+export const MW_METRICS             = true;
+
+export const CLEANUP_PROFILES = {
+  safe: {
+    delete: { includeSafetySweep: true, safetySweepEnabled: true, fallbackRadius: 170, trackedExtraRadius: 48 },
+    purge:  { includeSafetySweep: true, safetySweepEnabled: true, fallbackRadius: 240, trackedExtraRadius: 72 },
+  },
+  balanced: {
+    delete: { includeSafetySweep: true, safetySweepEnabled: true, fallbackRadius: CLEAR_RADIUS, trackedExtraRadius: DELETE_SAFETY_RADIUS_WHEN_TRACKED },
+    purge:  { includeSafetySweep: true, safetySweepEnabled: true, fallbackRadius: Math.max(CLEAR_RADIUS, DELETE_SAFETY_RADIUS), trackedExtraRadius: DELETE_SAFETY_RADIUS_WHEN_TRACKED },
+  },
+  aggressive: {
+    delete: { includeSafetySweep: true, safetySweepEnabled: true, fallbackRadius: Math.max(CLEAR_RADIUS, DELETE_SAFETY_RADIUS), trackedExtraRadius: DELETE_SAFETY_RADIUS_WHEN_TRACKED },
+    purge:  { includeSafetySweep: true, safetySweepEnabled: true, fallbackRadius: Math.max(CLEAR_RADIUS, DELETE_SAFETY_RADIUS), trackedExtraRadius: Math.max(DELETE_SAFETY_RADIUS_WHEN_TRACKED, 96) },
+  },
+};
+export const CLEANUP_PROFILE = "balanced";
+
+export function resolveCleanupPolicy(mode = "delete") {
+  const profile = CLEANUP_PROFILES[CLEANUP_PROFILE] ?? CLEANUP_PROFILES.balanced;
+  const profileMode = profile[mode] ?? profile.delete;
+  return {
+    includeSafetySweep: !!profileMode.includeSafetySweep,
+    safetySweepEnabled: !!profileMode.safetySweepEnabled,
+    fallbackRadius: Number.isFinite(profileMode.fallbackRadius) ? profileMode.fallbackRadius : CLEAR_RADIUS,
+    trackedExtraRadius: Number.isFinite(profileMode.trackedExtraRadius) ? profileMode.trackedExtraRadius : DELETE_SAFETY_RADIUS_WHEN_TRACKED,
+  };
+}
 
 export const WORLD_TYPES = {
   NORMAL:   "normal",
