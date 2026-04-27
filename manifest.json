@@ -1,0 +1,30 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "PMMPCore-Framework",
+    "description": "PMMPCore modular framework for Minecraft Bedrock with plugin ecosystem and MultiWorld runtime.",
+    "uuid": "8305684c-579c-4af2-ba62-7ab7e6126c16",
+    "version": [1, 0, 0],
+    "min_engine_version": [1, 26, 10]
+  },
+  "modules": [
+    {
+      "description": "PMMPCore framework scripts",
+      "language": "javascript",
+      "type": "script",
+      "uuid": "d1f31dfa-e65b-42f0-8bdf-a2a8819a3f4a",
+      "version": [1, 0, 0],
+      "entry": "scripts/main.js"
+    }
+  ],
+  "dependencies": [
+    {
+      "module_name": "@minecraft/server",
+      "version": "beta"
+    },
+    {
+      "module_name": "@minecraft/server-ui",
+      "version": "2.0.0"
+    }
+  ]
+}
