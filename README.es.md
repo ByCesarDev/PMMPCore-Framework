@@ -38,10 +38,24 @@ Está diseñado para crear servidores/addons complejos de forma mantenible, incl
 ## Estado actual
 
 - Fase actual: **prototipo funcional en evolución**.
-- Plugins activos en este repositorio:
-  - `MultiWorld`
-  - `EconomyAPI` (documentación pendiente)
-  - `PurePerms` (documentación pendiente)
+
+### Estado de plugins
+
+| Plugin | Estado |
+| --- | --- |
+| MultiWorld | 🔄 Process |
+| EconomyAPI | 📋 Planned |
+| ScoreHub | 📋 Planned |
+| WelcomeMessage | 📋 Planned |
+| Portals | 📋 Planned |
+| WarpGUI | 📋 Planned |
+| MineSystem | 📋 Planned |
+| CPlots | 📋 Planned |
+| SignShop | 📋 Planned |
+| PurePerms | ✅ Complete |
+| Slapper | 📋 Planned |
+| PlaceholderAPI | 📋 Planned |
+| essentialsTP | 📋 Planned |
 
 ## Hoja de ruta integrada
 

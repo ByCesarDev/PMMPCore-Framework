@@ -69,10 +69,24 @@ PMMPCore implements a framework foundation that:
 
 - Current phase: **functional prototype in evolution**.
 - Stable core for internal use and active testing.
-- Active plugins in this repo:
-  - `MultiWorld`
-  - `EconomyAPI` (pending documentation)
-  - `PurePerms` (pending documentation)
+
+### Plugin Status
+
+| Plugin | Status |
+| --- | --- |
+| MultiWorld | 🔄 Process |
+| EconomyAPI | 📋 Planned |
+| ScoreHub | 📋 Planned |
+| WelcomeMessage | 📋 Planned |
+| Portals | 📋 Planned |
+| WarpGUI | 📋 Planned |
+| MineSystem | 📋 Planned |
+| CPlots | 📋 Planned |
+| SignShop | 📋 Planned |
+| PurePerms | ✅ Complete |
+| Slapper | 📋 Planned |
+| PlaceholderAPI | 📋 Planned |
+| essentialsTP | 📋 Planned |
 
 ## Technical Architecture (summary)
 
@@ -135,9 +149,8 @@ scripts/
 - General project guide: `docs/PROJECT_DOCUMENTATION.md`
 - Plugin creation guide: `docs/PLUGIN_DEVELOPMENT_GUIDE.md`
 - MultiWorld documentation: `docs/MULTIWORLD_DOCUMENTATION.md`
+- PurePerms documentation: `docs/PUREPERMS_DOCUMENTATION.md`
 - Documentation index: `docs/README.md`
-
-> Note: Detailed documentation for `EconomyAPI` and `PurePerms` will be published when those APIs are stabilized.
 
 ## Contributing
 
