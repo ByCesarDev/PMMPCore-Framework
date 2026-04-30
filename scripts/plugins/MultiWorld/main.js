@@ -6,6 +6,23 @@ import { WorldManager, RuntimeController, requestPersistFlush } from "./manager.
 import { WorldGenerator } from "./generator.js";
 import { setupCommands } from "./commands.js";
 
+const MW_PERMISSION_SEED = {
+  Admin: [
+    "pperms.command.mw.help",
+    "pperms.command.mw.list",
+    "pperms.command.mw.info",
+    "pperms.command.mw.main",
+    "pperms.command.mw.tp",
+    "pperms.command.mw.setspawn",
+    "pperms.command.mw.setlobby",
+    "pperms.command.mw.keepmode",
+    "pperms.command.mw.create",
+    "pperms.command.mw.delete",
+    "pperms.command.mw.purgechunks",
+    "pperms.command.mw.setmain",
+  ],
+};
+
 console.log("[MultiWorld] Loading modular MultiWorld plugin...");
 
 PMMPCore.registerPlugin({
@@ -123,6 +140,7 @@ PMMPCore.registerPlugin({
     }
 
     setupCommands(event);
+    this._mwPermissionsSeeded = false;
 
     // Default ore rules (vanilla-like). Can be extended via WorldGenerator.registerOreRule().
     try {
@@ -150,6 +168,55 @@ PMMPCore.registerPlugin({
       });
     });
     this._subscriptions.push(worldLoadSubscription);
+
+    const permissionSeedSubscription = world.afterEvents.worldLoad.subscribe(() => {
+      if (this._mwPermissionsSeeded) return;
+      system.run(() => {
+        if (this._mwPermissionsSeeded) return;
+        this.seedPurePermsPermissions();
+        this._mwPermissionsSeeded = true;
+      });
+    });
+    this._subscriptions.push(permissionSeedSubscription);
+  },
+
+  seedPurePermsPermissions() {
+    const purePerms = PMMPCore.getPlugin("PurePerms");
+    const service = purePerms?.service;
+    if (!service) {
+      console.log("[MultiWorld] PurePerms not available, skipping permission seed.");
+      return;
+    }
+
+    let added = 0;
+    for (const [groupName, nodes] of Object.entries(MW_PERMISSION_SEED)) {
+      let existing = [];
+      try {
+        existing = service.getGroupInfo(groupName)?.permissions ?? [];
+      } catch (_) {
+        continue;
+      }
+
+      const existingNormalized = new Set(
+        existing
+          .filter((perm) => typeof perm === "string")
+          .map((perm) => perm.trim().replace(/^-/, "").toLowerCase())
+      );
+
+      for (const node of nodes) {
+        if (existingNormalized.has(node.toLowerCase())) continue;
+        try {
+          service.setGroupPermission(groupName, node, null, true);
+          added++;
+        } catch (_) {}
+      }
+    }
+
+    if (added > 0) {
+      console.log(`[MultiWorld] Seeded ${added} default PurePerms node(s).`);
+    } else {
+      console.log("[MultiWorld] Permission seed already up to date.");
+    }
   },
 
   onDisable() {

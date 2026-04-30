@@ -22,8 +22,42 @@ import {
 import { WorldManager, RuntimeController, requestPersistFlush } from "./manager.js";
 import { WorldGenerator } from "./generator.js";
 
+const MW_PERMISSION_NODES = {
+  create: "pperms.command.mw.create",
+  tp: "pperms.command.mw.tp",
+  list: "pperms.command.mw.list",
+  delete: "pperms.command.mw.delete",
+  purgechunks: "pperms.command.mw.purgechunks",
+  keepmode: "pperms.command.mw.keepmode",
+  setmain: "pperms.command.mw.setmain",
+  setspawn: "pperms.command.mw.setspawn",
+  setlobby: "pperms.command.mw.setlobby",
+  main: "pperms.command.mw.main",
+  info: "pperms.command.mw.info",
+  help: "pperms.command.mw.help",
+};
+
 // ============== COMMAND HANDLERS ==============
 export class CommandHandlers {
+  static _getPurePermsService() {
+    const plugin = PMMPCore.getPlugin("PurePerms");
+    return plugin?.service ?? null;
+  }
+
+  static _hasMWPermission(player, node) {
+    const purePerms = this._getPurePermsService();
+    if (!purePerms || typeof purePerms.hasPermission !== "function") {
+      return true;
+    }
+    return !!purePerms.hasPermission(player.name, node, player.dimension?.id ?? null, player);
+  }
+
+  static _guardMWPermission(player, node) {
+    if (this._hasMWPermission(player, node)) return true;
+    player.sendMessage(`${Color.red}[MW] You do not have permission: ${node}${Color.reset}`);
+    return false;
+  }
+
   static _getKeepMode(playerName) {
     const playerData = PMMPCore.db?.getPlayerData(playerName) ?? {};
     return !!playerData?.multiWorld?.keepMode;
@@ -702,9 +736,13 @@ export function setupCommands(event) {
     if (!player || !(player instanceof Player))
       return { status: CustomCommandStatus.Failure, message: "Only players can use this command." };
 
-    if (!subcommand) return CommandHandlers.handleHelp(player);
+    const requestedSubcommand = (subcommand ?? "help").toLowerCase();
+    const permissionNode = MW_PERMISSION_NODES[requestedSubcommand] ?? MW_PERMISSION_NODES.help;
+    if (!CommandHandlers._guardMWPermission(player, permissionNode)) {
+      return { status: CustomCommandStatus.Success };
+    }
 
-    switch (subcommand.toLowerCase()) {
+    switch (requestedSubcommand) {
       case "create": return CommandHandlers.handleCreate(player, name, type, dimension);
       case "tp":     return CommandHandlers.handleTeleport(player, name);
       case "list":   return CommandHandlers.handleList(player);

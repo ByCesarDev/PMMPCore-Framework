@@ -43,6 +43,8 @@ Está diseñado para crear servidores/addons complejos de forma mantenible, incl
 
 | Plugin | Estado |
 | --- | --- |
+| PurePerms | ✅ Complete |
+| PureChat | 📋 Planned |
 | MultiWorld | 🔄 Process |
 | EconomyAPI | 📋 Planned |
 | ScoreHub | 📋 Planned |
@@ -52,7 +54,6 @@ Está diseñado para crear servidores/addons complejos de forma mantenible, incl
 | MineSystem | 📋 Planned |
 | CPlots | 📋 Planned |
 | SignShop | 📋 Planned |
-| PurePerms | ✅ Complete |
 | Slapper | 📋 Planned |
 | PlaceholderAPI | 📋 Planned |
 | essentialsTP | 📋 Planned |

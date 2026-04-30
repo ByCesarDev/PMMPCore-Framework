@@ -74,6 +74,8 @@ PMMPCore implements a framework foundation that:
 
 | Plugin | Status |
 | --- | --- |
+| PurePerms | ✅ Complete |
+| PureChat | 📋 Planned |
 | MultiWorld | 🔄 Process |
 | EconomyAPI | 📋 Planned |
 | ScoreHub | 📋 Planned |
@@ -83,7 +85,6 @@ PMMPCore implements a framework foundation that:
 | MineSystem | 📋 Planned |
 | CPlots | 📋 Planned |
 | SignShop | 📋 Planned |
-| PurePerms | ✅ Complete |
 | Slapper | 📋 Planned |
 | PlaceholderAPI | 📋 Planned |
 | essentialsTP | 📋 Planned |

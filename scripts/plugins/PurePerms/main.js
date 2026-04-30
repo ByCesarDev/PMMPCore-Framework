@@ -1,5 +1,5 @@
 import { PMMPCore, Color } from "../../PMMPCore.js";
-import { world } from "@minecraft/server";
+import { world, system } from "@minecraft/server";
 import { registerPurePermsCommands } from "./commands.js";
 import { PurePermsService } from "./service.js";
 
@@ -12,8 +12,24 @@ PMMPCore.registerPlugin({
 
   onEnable() {
     this.service = new PurePermsService();
-    this.service.initialize();
     this._subscriptions = [];
+    this._initialized = false;
+
+    const worldLoadSub = world.afterEvents.worldLoad.subscribe(() => {
+      if (this._initialized) return;
+      system.run(() => {
+        if (this._initialized) return;
+        try {
+          this.service.initialize();
+          this._initialized = true;
+          console.log("[PurePerms] Data initialized after world load.");
+        } catch (error) {
+          console.warn(`[PurePerms] Failed delayed initialization: ${error?.message ?? "unknown error"}`);
+        }
+      });
+    });
+    this._subscriptions.push(worldLoadSub);
+
     const spawnSub = world.afterEvents.playerSpawn.subscribe((event) => {
       try {
         const changed = this.service.syncNativeOperatorGroup(event.player);

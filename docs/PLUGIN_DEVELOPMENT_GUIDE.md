@@ -193,7 +193,94 @@ Why this works well:
 - enum subcommands provide autocomplete;
 - each subcommand can call a dedicated handler function.
 
-## 8. Dependencies Between Plugins
+## 8. Permissions Integration with PurePerms
+
+If your plugin exposes commands or administrative actions, define explicit permission nodes and validate them through PurePerms.
+
+Recommended rules:
+
+- publish permission nodes per feature/subcommand;
+- keep node names predictable;
+- do not hardcode permission defaults into PurePerms core config if the nodes belong to another plugin;
+- if needed, seed safe defaults from the plugin that owns the feature.
+
+### 8.1 Recommended node naming
+
+Use plugin-scoped nodes:
+
+- `pperms.command.myplugin.help`
+- `pperms.command.myplugin.info`
+- `pperms.command.myplugin.create`
+- `pperms.command.myplugin.delete`
+
+This keeps permissions organized and avoids collisions.
+
+### 8.2 Command-side permission guard
+
+Recommended pattern:
+
+```javascript
+function getPurePermsService() {
+  const plugin = PMMPCore.getPlugin("PurePerms");
+  return plugin?.service ?? null;
+}
+
+function guardPermission(player, node) {
+  const purePerms = getPurePermsService();
+  if (!purePerms) return true; // fallback policy if PurePerms is absent
+  const allowed = purePerms.hasPermission(player.name, node, player.dimension?.id ?? null, player);
+  if (!allowed) {
+    player.sendMessage(`[MyPlugin] You do not have permission: ${node}`);
+  }
+  return allowed;
+}
+```
+
+Then before each action:
+
+```javascript
+if (!guardPermission(player, "pperms.command.myplugin.create")) {
+  return { status: CustomCommandStatus.Success };
+}
+```
+
+### 8.3 Permission seed owned by the plugin
+
+If your plugin needs sensible out-of-the-box permissions, prefer a plugin-owned permission seed instead of editing PurePerms defaults directly.
+
+Why:
+
+- PurePerms stays generic;
+- each plugin owns its own nodes;
+- defaults are added only when missing;
+- administrators can still customize ranks manually.
+
+Example idea:
+
+```javascript
+const MYPLUGIN_PERMISSION_SEED = {
+  Guest: ["pperms.command.myplugin.help", "pperms.command.myplugin.info"],
+  Admin: ["pperms.command.myplugin.create", "pperms.command.myplugin.delete"],
+};
+```
+
+At startup, the plugin can:
+
+1. detect whether PurePerms is loaded;
+2. read existing group permissions;
+3. add only missing nodes;
+4. avoid overwriting manual admin choices.
+
+### 8.4 Idempotent seeding rules
+
+A good permission seed should be:
+
+- **idempotent**: running it multiple times changes nothing after the first successful pass;
+- **non-destructive**: do not delete or overwrite existing permissions automatically;
+- **scoped**: seed only nodes owned by your plugin;
+- **optional**: if PurePerms is missing, skip seeding gracefully.
+
+## 9. Dependencies Between Plugins
 
 Example:
 
@@ -211,36 +298,37 @@ if (!economy) {
 }
 ```
 
-## 9. Performance Best Practices
+## 10. Performance Best Practices
 
 - Avoid complete world scans per tick.
 - Limit loops with per-cycle budgets.
 - Cache results of frequent operations.
 - In terrain generation, prefer operations by volume/range.
 
-## 10. Error Handling
+## 11. Error Handling
 
 - In event/command callbacks, wrap risky operations in `try/catch`.
 - Do not silence critical errors without logging.
 - Differentiate recoverable warning from blocking error.
 
-## 11. Exit Checklist for a New Plugin
+## 12. Exit Checklist for a New Plugin
 
 - [ ] Registers correctly in PMMPCore.
 - [ ] Does not break startup if an optional dependency fails.
 - [ ] Commands registered in `onStartup(event)`.
+- [ ] Permission nodes documented and validated if the plugin has protected actions.
 - [ ] Data persisted with clear namespace.
 - [ ] Useful logs for debugging.
 - [ ] Minimum plugin documentation added in `docs/`.
 
-## 12. Suggested Conventions
+## 13. Suggested Conventions
 
 - Plugin names in PascalCase (`MyPlugin`).
 - Commands in lowercase.
 - Messages with short plugin prefix (`[MyPlugin]`).
 - Separate logic into modules if the file grows too much.
 
-## 13. Modular Plugin Design (recommended)
+## 14. Modular Plugin Design (recommended)
 
 Do not keep the full plugin in one giant `main.js`. Prefer modules by responsibility.
 
