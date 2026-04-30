@@ -42,6 +42,55 @@ Responsabilidades:
 - `generator.js`: generación y limpieza de chunks.
 - `commands.js`: handlers y registro de comandos.
 
+## 3.1 Referencia de configuración (`scripts/plugins/MultiWorld/config.js`)
+
+MultiWorld se configura editando constantes en `scripts/plugins/MultiWorld/config.js`.
+
+### Capacidad y actividad
+
+- `MAX_ACTIVE_WORLDS`: máximo de mundos custom activos a la vez.
+- `INACTIVE_TIMEOUT`: tiempo (ms) tras el cual un mundo inactivo puede descargarse.
+- `TOTAL_DIMENSIONS`: tamaño del pool de dimensiones personalizadas (default 50).
+
+### Ritmo de generación y rendimiento
+
+- `GENERATION_RADIUS`: radio (en chunks) alrededor del jugador para trabajo de generación.
+- `CHUNKS_PER_TICK`: presupuesto de generación por jugador/ciclo (más alto = más rápido, más riesgo de lag).
+- `GENERATION_TICK_RATE`: cada cuántos ticks corre la generación. Default 10 (\(\approx\) 0.5s).
+
+### Política de limpieza / borrado
+
+- `CLEAR_RADIUS`: radio base de limpieza (en chunks) desde el spawn al purgar.
+- `CLEAR_BATCH_SIZE`: columnas por lote en borrado/purga.
+- `CLEAR_TICKS_PER_BATCH`: ticks entre lotes (1 = más rápido).
+- `CLEAR_BATCHES_PER_CYCLE`: cuántos lotes lanzar por ciclo.
+
+### Safety sweep (recomendado)
+
+MultiWorld puede hacer un “barrido de seguridad” adicional más allá de los chunks trackeados para reducir el riesgo de dejar terreno huérfano:
+
+- `DELETE_SAFETY_SWEEP`: switch principal del safety sweep.
+- `DELETE_SAFETY_RADIUS`: radio de barrido fallback (en chunks). Aviso: valores grandes implican áreas enormes.
+- `DELETE_SAFETY_RADIUS_WHEN_TRACKED`: barrido corto cuando ya hay tracking (más rápido).
+
+### Perfiles de limpieza
+
+`CLEANUP_PROFILES` define perfiles y `CLEANUP_PROFILE` elige el perfil activo.
+
+- `CLEANUP_PROFILE`: `"safe" | "balanced" | "aggressive"`
+- `resolveCleanupPolicy(mode)`: devuelve la política concreta para `"delete"` o `"purge"`.
+
+### Debug y métricas
+
+- `MW_DEBUG`: logging extra.
+- `MW_METRICS`: métricas de loops de generación/limpieza.
+
+### Tipos de mundo y mundos vanilla
+
+- `WORLD_TYPES`: `"normal" | "flat" | "void" | "skyblock"` (usado por `/pmmpcore:mw create`).
+- `VANILLA_WORLDS`: aliases y labels para `overworld`, `nether`, `end`.
+- `resolveVanillaWorld(name)`: resuelve aliases como `ow` → overworld.
+
 ## 4. Tipos de mundo
 
 - `normal`: terreno estilo vanilla con relieve y robles.
@@ -391,4 +440,104 @@ Si falta agresividad en limpieza:
 - Configuración runtime de parámetros de generación.
 - Perfilador simple de chunks/min por mundo.
 - Estrategia documentada de migración de `WorldData`.
+
+---
+
+## 16. Instalación y habilitación (paso a paso)
+
+1. Asegura la carpeta `MultiWorld` en `scripts/plugins/MultiWorld/`.
+2. Confirma import en `scripts/plugins.js`:
+   - `import "./plugins/MultiWorld/main.js";`
+3. Inicia mundo y verifica logs:
+   - `Loading modular MultiWorld plugin...`
+4. Ejecuta comandos de humo:
+   - `/pmmpcore:mw help`
+   - `/pmmpcore:mw list`
+   - `/pmmpcore:diag`
+
+Si todo responde, MultiWorld está correctamente conectado.
+
+## 17. Inicio rápido (primeros 5 minutos)
+
+1. Crear mundo:
+   - `/pmmpcore:mw create demo normal`
+2. Teleport:
+   - `/pmmpcore:mw tp demo`
+3. Inspección runtime:
+   - `/pmmpcore:mw info demo`
+4. Definir main world (opcional):
+   - `/pmmpcore:mw setmain demo`
+5. Probar limpieza en entorno de prueba:
+   - `/pmmpcore:mw purgechunks demo`
+
+## 18. Integración con lifecycle (qué hace y cuándo)
+
+- `onEnable()`
+  - Registra estado interno, hooks de migración y referencias de servicio.
+- `onStartup(event)`
+  - Registra comandos y enums.
+- `onWorldReady()`
+  - Ejecuta carga segura de datos, hidratación de índice de mundos y comportamiento de seed de permisos.
+- `onDisable()`
+  - Hace flush de estado pendiente y limpia tareas/intervalos.
+
+Por qué importa: el acceso a mundo se difiere a fases seguras para evitar fallos de early execution.
+
+## 19. Modelo operativo de permisos
+
+MultiWorld aplica controles de ownership y rol en handlers:
+
+- Acciones destructivas (`delete`, `purgechunks`) restringidas por owner.
+- Operaciones de mundo principal/spawn deben tratarse como admin-level.
+- Si tu servidor exige nodos externos, agrega guards en `commands.js` con naming consistente.
+
+Nombres sugeridos (si extiendes):
+
+- `pperms.command.multiworld.create`
+- `pperms.command.multiworld.tp`
+- `pperms.command.multiworld.delete`
+- `pperms.command.multiworld.purge`
+- `pperms.command.multiworld.setmain`
+
+## 20. Notas de migración y compatibilidad
+
+Al evolucionar `WorldData`:
+
+1. Añadir campos nuevos primero como opcionales.
+2. Backfill de defaults en carga/migración.
+3. Mantener lectura de campos legacy por al menos un ciclo de transición.
+4. Persistir objeto normalizado solo después de transformar compatibilidad.
+
+Así evitas que mundos viejos fallen tras actualizar.
+
+## 21. FAQ
+
+### ¿Por qué no existe alias `/mw`?
+
+Bedrock exige comandos custom en formato `namespace:value`; se usa `/pmmpcore:mw`.
+
+### ¿Puedo subir capacidad más allá de 50 mundos?
+
+Sí, elevando `TOTAL_DIMENSIONS`, pero validando memoria/rendimiento.
+
+### ¿Por qué cleanup dice que está lockeado?
+
+Hay una operación `delete`/`purgechunks` en curso para ese mundo/dimensión.
+
+### ¿Por qué lobby mode ignora ubicación previa?
+
+Con `forceSpawnOnJoin=true`, se prioriza intencionalmente spawn global del mundo.
+
+### ¿Qué debo tunear primero si hay lag?
+
+Primero `CHUNKS_PER_TICK`, luego `GENERATION_TICK_RATE`, luego radios.
+
+## 22. Checklist de release (MultiWorld)
+
+- [ ] Registro de comandos correcto tras reinicio.
+- [ ] Flujo create/tp/list/info funciona en targets custom y vanilla.
+- [ ] Routing de spawn correcto en modo normal y lobby.
+- [ ] Locks de limpieza se activan y liberan correctamente.
+- [ ] No aparecen errores de DB en early execution.
+- [ ] La data de mundos persiste correctamente tras reinicio.
 

@@ -44,6 +44,55 @@ Responsibilities:
 - `generator.js`: chunk generation and cleanup.
 - `commands.js`: handlers and command registration.
 
+## 3.1 Configuration reference (`scripts/plugins/MultiWorld/config.js`)
+
+MultiWorld is configured by editing constants in `scripts/plugins/MultiWorld/config.js`.
+
+### Capacity and activity
+
+- `MAX_ACTIVE_WORLDS`: max number of custom worlds kept active at once.
+- `INACTIVE_TIMEOUT`: time (ms) after which an inactive world can be unloaded.
+- `TOTAL_DIMENSIONS`: size of the custom dimension pool (default 50).
+
+### Generation pacing and performance
+
+- `GENERATION_RADIUS`: radius (in chunks) around the player to consider for generation work.
+- `CHUNKS_PER_TICK`: generation budget per player/cycle (higher = faster generation, more lag risk).
+- `GENERATION_TICK_RATE`: how often generation runs (ticks). Default 10 (\(\approx\) 0.5s).
+
+### Cleanup / deletion policy
+
+- `CLEAR_RADIUS`: base cleanup radius (in chunks) around spawn when purging.
+- `CLEAR_BATCH_SIZE`: number of columns per batch when deleting/purging chunks.
+- `CLEAR_TICKS_PER_BATCH`: ticks between cleanup batches (1 = fastest).
+- `CLEAR_BATCHES_PER_CYCLE`: number of batches launched per cleanup cycle.
+
+### Safety sweep (recommended)
+
+MultiWorld can perform an additional “safety sweep” beyond tracked chunks to reduce the risk of leaving orphan terrain:
+
+- `DELETE_SAFETY_SWEEP`: master switch for safety sweep behavior.
+- `DELETE_SAFETY_RADIUS`: fallback sweep radius (in chunks). Warning: large values imply large areas.
+- `DELETE_SAFETY_RADIUS_WHEN_TRACKED`: smaller sweep when tracked chunks already exist (faster).
+
+### Cleanup profiles
+
+`CLEANUP_PROFILES` defines tuning profiles and `CLEANUP_PROFILE` selects which profile is active.
+
+- `CLEANUP_PROFILE`: `"safe" | "balanced" | "aggressive"`
+- `resolveCleanupPolicy(mode)`: returns the concrete policy for `"delete"` or `"purge"`.
+
+### Debug and metrics
+
+- `MW_DEBUG`: extra debug logging.
+- `MW_METRICS`: metrics logging for generation/cleanup loops.
+
+### World types and vanilla worlds
+
+- `WORLD_TYPES`: `"normal" | "flat" | "void" | "skyblock"` (used by `/pmmpcore:mw create`).
+- `VANILLA_WORLDS`: alias and label mapping for `overworld`, `nether`, `end`.
+- `resolveVanillaWorld(name)`: resolves aliases like `ow` → overworld.
+
 ## 4. Supported World Types
 
 Currently:
@@ -505,3 +554,103 @@ GENERATION_TICK_RATE = 5;      // Default: 10
 - Runtime configuration by command of generation parameters.
 - Simple profiler by chunk/min metrics per world.
 - Officially document `WorldData` migration strategy.
+
+---
+
+## 19. Installation and Enablement (Step-by-step)
+
+1. Ensure `MultiWorld` folder exists at `scripts/plugins/MultiWorld/`.
+2. Confirm import in `scripts/plugins.js`:
+   - `import "./plugins/MultiWorld/main.js";`
+3. Start world and confirm load logs:
+   - `Loading modular MultiWorld plugin...`
+4. Run smoke commands:
+   - `/pmmpcore:mw help`
+   - `/pmmpcore:mw list`
+   - `/pmmpcore:diag`
+
+If these succeed, MultiWorld is wired correctly.
+
+## 20. Quickstart (First 5 minutes)
+
+1. Create world:
+   - `/pmmpcore:mw create demo normal`
+2. Teleport:
+   - `/pmmpcore:mw tp demo`
+3. Inspect runtime info:
+   - `/pmmpcore:mw info demo`
+4. Set as main world (optional):
+   - `/pmmpcore:mw setmain demo`
+5. Test cleanup in a non-production test world:
+   - `/pmmpcore:mw purgechunks demo`
+
+## 21. Lifecycle Integration (What MultiWorld does and when)
+
+- `onEnable()`
+  - Registers internal state, migration hooks, service references.
+- `onStartup(event)`
+  - Registers commands and command enums.
+- `onWorldReady()`
+  - Runs migration-safe data load, world index hydration, permission seed behavior.
+- `onDisable()`
+  - Flushes pending world state and clears runtime intervals/tasks.
+
+Why this matters: world access is deferred to world-ready-safe phases, avoiding early-execution failures.
+
+## 22. Operational Permission Model
+
+MultiWorld applies ownership and role-style controls in command handlers:
+
+- Destructive actions (`delete`, `purgechunks`) are owner-restricted.
+- Main-world and spawn-changing operations should be treated as admin-level actions.
+- If your server enforces external permission nodes, add command guards consistently in `commands.js` (recommended plugin-scoped nodes).
+
+Recommended node naming (if extending):
+
+- `pperms.command.multiworld.create`
+- `pperms.command.multiworld.tp`
+- `pperms.command.multiworld.delete`
+- `pperms.command.multiworld.purge`
+- `pperms.command.multiworld.setmain`
+
+## 23. Migration and Compatibility Notes
+
+When evolving `WorldData` structure:
+
+1. Add new fields as optional first.
+2. Backfill defaults during load or migration phase.
+3. Keep old fields readable for at least one transition cycle.
+4. Persist normalized objects only after compatibility transforms.
+
+This prevents old worlds from failing hard after updates.
+
+## 24. FAQ
+
+### Why does `/mw` alias not exist?
+
+Bedrock custom commands require `namespace:value`; MultiWorld uses `/pmmpcore:mw`.
+
+### Can I increase world capacity beyond 50?
+
+Yes by increasing `TOTAL_DIMENSIONS`, but test memory/performance carefully.
+
+### Why is my cleanup blocked with lock messages?
+
+A `delete`/`purgechunks` operation is still in progress for that target world/dimension.
+
+### Why does lobby mode ignore last player location?
+
+`forceSpawnOnJoin=true` intentionally prioritizes global world spawn over last saved location.
+
+### Which should I tune first for lag?
+
+Start with `CHUNKS_PER_TICK`, then `GENERATION_TICK_RATE`, then generation/cleanup radii.
+
+## 25. Release Checklist (MultiWorld)
+
+- [ ] Command registration works after restart.
+- [ ] Create/tp/list/info flows work for custom and vanilla targets.
+- [ ] Spawn routing behaves correctly in normal and lobby mode.
+- [ ] Cleanup locks engage and release correctly.
+- [ ] No early-execution DB errors appear in logs.
+- [ ] World data persists correctly across restart.

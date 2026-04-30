@@ -39,17 +39,12 @@ const MW_PERMISSION_NODES = {
 
 // ============== COMMAND HANDLERS ==============
 export class CommandHandlers {
-  static _getPurePermsService() {
-    const plugin = PMMPCore.getPlugin("PurePerms");
-    return plugin?.service ?? null;
-  }
-
   static _hasMWPermission(player, node) {
-    const purePerms = this._getPurePermsService();
-    if (!purePerms || typeof purePerms.hasPermission !== "function") {
+    const perms = PMMPCore.getPermissionService?.() ?? null;
+    if (!perms || typeof perms.has !== "function") {
       return true;
     }
-    return !!purePerms.hasPermission(player.name, node, player.dimension?.id ?? null, player);
+    return !!perms.has(player.name, node, player.dimension?.id ?? null, player);
   }
 
   static _guardMWPermission(player, node) {

@@ -41,6 +41,8 @@ PMMPCore.registerPlugin({
     this._intervalIds = [];
     this._subscriptions = [];
     this.worldDataLoaded = false;
+    this._mwPermissionsSeeded = false;
+    PMMPCore.getMigrationService()?.register("MultiWorld", 1, () => {});
 
     // Generacion continua alrededor del jugador en mundos activos.
     const generationIntervalId = system.runInterval(() => {
@@ -140,7 +142,6 @@ PMMPCore.registerPlugin({
     }
 
     setupCommands(event);
-    this._mwPermissionsSeeded = false;
 
     // Default ore rules (vanilla-like). Can be extended via WorldGenerator.registerOreRule().
     try {
@@ -159,64 +160,63 @@ PMMPCore.registerPlugin({
       console.warn(`[MultiWorld] Ore rules init failed: ${e?.message ?? "unknown error"}`);
     }
 
-    const worldLoadSubscription = world.afterEvents.worldLoad.subscribe(() => {
-      if (this.worldDataLoaded) return;
-      system.run(() => {
+  },
+
+  onWorldReady() {
+    try {
+      PMMPCore.getMigrationService()?.run("MultiWorld");
+    } catch (e) {
+      console.warn(`[MultiWorld] Migration runner failed: ${e?.message ?? "unknown error"}`);
+    }
+
+    if (!this.worldDataLoaded) {
+      try {
         WorldManager.loadWorldData();
         this.worldDataLoaded = true;
         console.log("[MultiWorld] World data loaded.");
-      });
-    });
-    this._subscriptions.push(worldLoadSubscription);
-
-    const permissionSeedSubscription = world.afterEvents.worldLoad.subscribe(() => {
-      if (this._mwPermissionsSeeded) return;
-      system.run(() => {
-        if (this._mwPermissionsSeeded) return;
-        this.seedPurePermsPermissions();
-        this._mwPermissionsSeeded = true;
-      });
-    });
-    this._subscriptions.push(permissionSeedSubscription);
-  },
-
-  seedPurePermsPermissions() {
-    const purePerms = PMMPCore.getPlugin("PurePerms");
-    const service = purePerms?.service;
-    if (!service) {
-      console.log("[MultiWorld] PurePerms not available, skipping permission seed.");
-      return;
+      } catch (e) {
+        console.warn(`[MultiWorld] World data load failed: ${e?.message ?? "unknown error"}`);
+      }
     }
 
+    if (!this._mwPermissionsSeeded) {
+      try {
+        this.seedPermissions();
+      } finally {
+        this._mwPermissionsSeeded = true;
+      }
+    }
+  },
+
+  seedPermissions() {
+    const perms = PMMPCore.getPermissionService?.() ?? null;
+    if (!perms || typeof perms.getGroupInfo !== "function" || typeof perms.setGroupPermission !== "function") {
+      console.log("[MultiWorld] PermissionService not ready, skipping permission seed.");
+      return;
+    }
     let added = 0;
     for (const [groupName, nodes] of Object.entries(MW_PERMISSION_SEED)) {
       let existing = [];
       try {
-        existing = service.getGroupInfo(groupName)?.permissions ?? [];
+        existing = perms.getGroupInfo(groupName)?.permissions ?? [];
       } catch (_) {
         continue;
       }
-
       const existingNormalized = new Set(
         existing
           .filter((perm) => typeof perm === "string")
           .map((perm) => perm.trim().replace(/^-/, "").toLowerCase())
       );
-
       for (const node of nodes) {
         if (existingNormalized.has(node.toLowerCase())) continue;
         try {
-          service.setGroupPermission(groupName, node, null, true);
+          perms.setGroupPermission(groupName, node, null, true);
           added++;
         } catch (_) {}
       }
     }
-
-    if (added > 0) {
-      console.log(`[MultiWorld] Seeded ${added} default PurePerms node(s).`);
-    } else {
-      console.log("[MultiWorld] Permission seed already up to date.");
-    }
+    if (added > 0) console.log(`[MultiWorld] Seeded ${added} default permission node(s).`);
+    else console.log("[MultiWorld] Permission seed already up to date.");
   },
 
   onDisable() {

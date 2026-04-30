@@ -1,6 +1,14 @@
 import { world, system, Player, CustomCommandStatus, CommandPermissionLevel } from "@minecraft/server";
 import { PMMPDataProvider } from "./PMMPDataProvider.js";
 import { RelationalEngine } from "./db/RelationalEngine.js";
+import { MigrationService } from "./db/MigrationService.js";
+import { ServiceRegistry } from "./core/ServiceRegistry.js";
+import { EventBus } from "./core/events/EventBus.js";
+import { CommandBus } from "./core/commands/CommandBus.js";
+import { TaskScheduler } from "./core/scheduler/TaskScheduler.js";
+import { TickCoordinator } from "./core/TickCoordinator.js";
+import { ObservabilityService } from "./core/observability/ObservabilityService.js";
+import { PurePermsPermissionService } from "./core/permissions/PurePermsPermissionService.js";
 
 const Color = {
   red: "\xA7c",
@@ -21,6 +29,19 @@ class PMMPCore {
   static pluginStates = new Map();
   static db = null;
   static initialized = false;
+  static services = null;
+  static apiVersion = "1.0.0";
+  static apiSurface = Object.freeze({
+    db: "stable",
+    dataProvider: "stable",
+    relationalEngine: "experimental",
+    eventBus: "experimental",
+    commandBus: "experimental",
+    scheduler: "experimental",
+    permissionService: "stable",
+    migrationService: "experimental",
+    observability: "internal",
+  });
 
   static registerPlugin(plugin) {
     if (!plugin.name) {
@@ -87,6 +108,7 @@ class PMMPCore {
           continue;
         }
 
+        plugin.context = this.getPluginContext(plugin.name, plugin.version || "1.0.0");
         if (plugin.onEnable && typeof plugin.onEnable === 'function') {
           plugin.onEnable();
           enabledCount++;
@@ -94,12 +116,14 @@ class PMMPCore {
             enabled: true,
             reason: "Enabled successfully",
           });
+          this.emit("plugin.enabled", { pluginName: plugin.name, version: plugin.version || "1.0.0" });
           console.log(`${Color.green}[PMMPCore] ${plugin.name} enabled${Color.reset}`);
         } else {
           this.pluginStates.set(plugin.name, {
             enabled: true,
             reason: "No onEnable hook; marked as enabled",
           });
+          this.emit("plugin.enabled", { pluginName: plugin.name, version: plugin.version || "1.0.0" });
         }
       } catch (error) {
         this.pluginStates.set(plugin.name, {
@@ -126,6 +150,7 @@ class PMMPCore {
             enabled: false,
             reason: "Disabled successfully",
           });
+          this.emit("plugin.disabled", { pluginName: plugin.name });
           console.log(`${Color.yellow}[PMMPCore] ${plugin.name} disabled${Color.reset}`);
         }
       } catch (error) {
@@ -143,6 +168,15 @@ class PMMPCore {
     }
 
     this.db = databaseManager;
+    this.services = new ServiceRegistry();
+    const observability = this.services.register("observability", new ObservabilityService(), { stability: "internal" });
+    const eventBus = this.services.register("eventBus", new EventBus(observability), { stability: "experimental" });
+    const commandBus = this.services.register("commandBus", new CommandBus(observability), { stability: "experimental" });
+    const scheduler = this.services.register("scheduler", new TaskScheduler(observability), { stability: "experimental" });
+    this.services.register("permissionService", new PurePermsPermissionService(), { stability: "stable" });
+    this.services.register("migrationService", new MigrationService(databaseManager, observability), { stability: "experimental" });
+    this.services.register("tickCoordinator", new TickCoordinator({ scheduler, observability, db: databaseManager }), { stability: "internal" });
+    this.services.register("storage", databaseManager, { stability: "stable" });
     this.initialized = true;
     console.log(`${Color.green}[PMMPCore] Core system initialized${Color.reset}`);
   }
@@ -158,7 +192,76 @@ class PMMPCore {
     if (!this.db) {
       throw new Error("PMMPCore is not initialized");
     }
-    return new RelationalEngine(this.db);
+    const engine = new RelationalEngine(this.db);
+    const observability = this.services?.get("observability");
+    engine.setQueryObserver?.((sample) => {
+      observability?.recordQuery?.(sample.durationMs, sample.mode, sample.rowCount);
+    });
+    return engine;
+  }
+
+  static getServiceRegistry() {
+    return this.services;
+  }
+
+  static getEventBus() {
+    return this.services?.get("eventBus") ?? null;
+  }
+
+  static getCommandBus() {
+    return this.services?.get("commandBus") ?? null;
+  }
+
+  static getScheduler() {
+    return this.services?.get("scheduler") ?? null;
+  }
+
+  static getTickCoordinator() {
+    return this.services?.get("tickCoordinator") ?? null;
+  }
+
+  static getPermissionService() {
+    return this.services?.get("permissionService") ?? null;
+  }
+
+  static getMigrationService() {
+    return this.services?.get("migrationService") ?? null;
+  }
+
+  static getLogger(scope = "core") {
+    return this.services?.get("observability")?.getLogger(scope) ?? console;
+  }
+
+  static getApiMetadata() {
+    return {
+      version: this.apiVersion,
+      surface: this.apiSurface,
+      services: this.services?.summary?.() ?? [],
+    };
+  }
+
+  static getPluginContext(pluginName, version = "1.0.0", apiStability = "stable") {
+    return {
+      pluginName,
+      version,
+      apiStability,
+      getLogger: () => this.getLogger(pluginName),
+      getEventBus: () => this.getEventBus(),
+      getCommandBus: () => this.getCommandBus(),
+      getScheduler: () => this.getScheduler(),
+      getPermissionService: () => this.getPermissionService(),
+      getDataProvider: () => this.getDataProvider(),
+      createRelationalEngine: () => this.createRelationalEngine(),
+      getStorage: () => this.db,
+    };
+  }
+
+  static emit(type, payload = {}, options = {}) {
+    return this.getEventBus()?.emit(type, payload, options) ?? null;
+  }
+
+  static registerPermissionBackend(service) {
+    this.getPermissionService()?.setBackend?.(service);
   }
 
   static validateDependencies(plugin) {

@@ -34,10 +34,11 @@ Objectives:
 
 Responsible for:
 
-- Initializing DB.
-- Initializing PMMPCore.
-- Registering global core commands.
-- Executing `enableAll()` and then hooks `onStartup(event)` only for enabled plugins.
+- Initializing the shared DB (`DatabaseManager`).
+- Initializing `PMMPCore` and its service registry.
+- Registering core diagnostic commands.
+- Calling `enableAll()` and running early-phase hooks.
+- Deferring **world-backed initialization** to `world.afterEvents.worldLoad` (because Dynamic Properties are not available in early execution).
 
 ### 3.2 `scripts/PMMPCore.js`
 
@@ -47,7 +48,7 @@ Responsible for:
 - Tracking plugin status (`enabled` / `blocked`) with reasons.
 - Validating dependencies (`depend`, `softdepend`).
 - Executing plugin lifecycle (`onEnable`/`onDisable`).
-- Exposing DB access (`PMMPCore.db`).
+- Exposing DB access (`PMMPCore.db`) and public services (EventBus, Scheduler, PermissionService, MigrationService, etc).
 
 ### 3.3 `scripts/DatabaseManager.js`
 
@@ -68,19 +69,35 @@ Responsible for:
 - Explicitly importing all active plugins.
 - Defining the "official list" loaded at runtime.
 
+### 3.5 `scripts/api/index.js` (Public API surface)
+
+This file is the **public export barrel** intended for third-party plugin authors inside the PMMPCore ecosystem. It re-exports stable and experimental APIs in one place, so plugins can avoid deep imports.
+
+See: `docs/API_PUBLIC_GUIDE.md`.
+
 ## 4. Plugin Lifecycle
 
 Expected contract:
 
-- `onEnable()`: prepare state and runtime subscriptions.
-- `onStartup(event)`: register commands/dimensions/objects that require startup.
-- `onDisable()`: final flush/cleanup.
+- `onLoad()` (optional): lightweight bootstrap; **no world I/O**.
+- `onEnable()`: enable runtime hooks/subscriptions; still avoid heavy world I/O.
+- `onStartup(event)`: register Bedrock command/enums/dimensions only (early execution safe tasks).
+- `onWorldReady()` (recommended): first **world-safe** initialization point (migrations, reading/writing `PMMPCore.db`, RelationalEngine warmup).
+- `onDisable()`: cleanup and final flush-sensitive logic.
 
 Order:
 
-1. `PMMPCore.enableAll()` calls `onEnable`.
-2. `main.js` iterates plugins and executes `onStartup(event)` only when `pluginState.enabled === true`.
-3. On shutdown/reload, `PMMPCore.disableAll()` calls `onDisable`.
+1. (Optional) `PMMPCore.loadAll()` calls `onLoad` (if present).
+2. `PMMPCore.enableAll()` calls `onEnable`.
+3. `main.js` executes `onStartup(event)` only for plugins that are enabled.
+4. On `world.afterEvents.worldLoad`, the core emits `world.ready` and calls `onWorldReady()` for enabled plugins.
+5. On shutdown/reload, `PMMPCore.disableAll()` calls `onDisable`.
+
+### Early execution warning (critical)
+
+Bedrock will error if you call `world.getDynamicProperty` / `world.setDynamicProperty` too early (for example inside `beforeEvents.startup` or some `onStartup` flows). Because `PMMPCore.db` is backed by Dynamic Properties, **first reads/writes must be deferred** until `world.afterEvents.worldLoad` or later.
+
+This is documented in detail in: `docs/DATABASE_GUIDE.md` (section “When you may call the database”).
 
 ## 5. Dependency Model
 
@@ -100,7 +117,7 @@ Best practices:
 - Maintain `depend: ["PMMPCore"]` in ecosystem plugins.
 - Verify optional plugin before using its API.
 
-## 6. Commands and Basic Security
+## 6. Commands, permissions, and basic security
 
 Recommended:
 
@@ -117,8 +134,25 @@ Core command set currently includes:
 - `pmmpcore:pluginstatus <plugin>` (detailed status + reason).
 - `pmmpcore:info`
 - `pmmpcore:pmmphelp`
+- `pmmpcore:diag` (platform diagnostics: services, events, scheduler, metrics)
+- `pmmpcore:selftest` (smoke tests: KV + relational layer)
 
-## 7. Persistence and Data Schema
+For plugin commands, prefer the `CommandBus` abstraction (experimental) so you can register, validate, and execute commands consistently across the ecosystem.
+
+## 7. Core services (high level)
+
+PMMPCore provides a service registry (internal) and exposes a set of services via the `PMMPCore` facade.
+
+Commonly used services:
+
+- **Persistence**: `PMMPCore.db` (stable), `PMMPCore.getDataProvider()` (stable), `PMMPCore.createRelationalEngine()` (experimental)
+- **Permissions**: `PMMPCore.getPermissionService()` (stable), default backend is PurePerms
+- **Migrations**: `PMMPCore.getMigrationService()` (experimental) for plugin-owned versioned upgrades
+- **Events**: `PMMPCore.getEventBus()` (experimental)
+- **Scheduler**: `PMMPCore.getScheduler()` (experimental), coordinated by `TickCoordinator`
+- **Observability**: `PMMPCore.getLogger()` and internal metrics recording (flush/query/tick durations)
+
+## 8. Persistence and Data Schema
 
 ### Namespace
 
@@ -138,7 +172,7 @@ All keys under `pmmpcore:*`.
 - Avoid unnecessary writes per tick.
 - Use controlled flush in mass operations.
 
-## 8. Recommended Structure for New Plugins
+## 9. Recommended Structure for New Plugins
 
 ```text
 scripts/plugins/MyPlugin/
@@ -151,20 +185,15 @@ And register in:
 - `scripts/plugins.js` (import).
 - `pluginList` (if used for listing/diagnosis).
 
-## 9. Current Status and Documentation Scope
+## 10. Where to read next
 
-This documentation covers:
+- **Getting started / navigation**: `readme.md` and `docs/README.md`
+- **Public API surface**: `docs/API_PUBLIC_GUIDE.md`
+- **Database and persistence**: `docs/DATABASE_GUIDE.md`
+- **Plugin author guide**: `docs/PLUGIN_DEVELOPMENT_GUIDE.md`
+- **Plugin manuals**: `docs/plugins/`
 
-- PMMPCore Core.
-- Plugin contract.
-- MultiWorld (documented in dedicated file).
-
-Pending detailed documentation:
-
-- EconomyAPI.
-- PurePerms.
-
-## 10. Summary Operational Roadmap
+## 11. Summary Operational Roadmap
 
 ### Short term
 

@@ -28,6 +28,7 @@ PMMPCore.registerPlugin({
     
     // Suscribir a eventos del mundo
     this.setupEventHandlers();
+    PMMPCore.getMigrationService()?.register("ExamplePlugin", 1, () => {});
     
     console.log(`${Color.green}[ExamplePlugin] Plugin enabled successfully!${Color.reset}`);
   },
@@ -36,6 +37,23 @@ PMMPCore.registerPlugin({
     console.log(`${Color.aqua}[ExamplePlugin] Registering commands...${Color.reset}`);
     // Registrar comandos del plugin (aquí no uses DB/world.getDynamicProperty)
     this.registerCommands(event);
+  },
+
+  onWorldReady() {
+    if (_exampleRelationalDbTestDone) return;
+    _exampleRelationalDbTestDone = true;
+    try {
+      PMMPCore.getMigrationService()?.run("ExamplePlugin");
+      const rel = PMMPCore.createRelationalEngine();
+      rel.createTable("example_items", { kind: "text", dmg: "int" });
+      rel.createIndex("example_items", "kind");
+      rel.upsert("example_items", "1", { kind: "sword", dmg: 5 });
+      const rows = rel.executeQuery(`SELECT * FROM example_items WHERE kind = sword`);
+      PMMPCore.getLogger("ExamplePlugin").info("RelationalEngine smoke test OK", { rows: rows.length });
+      PMMPCore.db?.flush();
+    } catch (e) {
+      console.error(`[ExamplePlugin] RelationalEngine smoke test failed: ${e?.message ?? e}`);
+    }
   },
 
   onDisable() {

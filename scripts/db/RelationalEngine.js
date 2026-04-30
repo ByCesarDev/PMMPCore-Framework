@@ -53,6 +53,11 @@ class RelationalEngine {
     /** @type {Map<string, unknown[]>} */
     this._queryCache = new Map();
     this._queryCacheEnabled = true;
+    this._queryObserver = null;
+  }
+
+  setQueryObserver(observer) {
+    this._queryObserver = typeof observer === "function" ? observer : null;
   }
 
   _invalidateQueryCache() {
@@ -84,6 +89,14 @@ class RelationalEngine {
     const meta = existing || { schema: {}, indexes: [], compositeIndexes: [] };
     if (!existing) meta.schema = schema && typeof schema === "object" ? schema : {};
     this.db.set(this._metaKey(name), meta);
+  }
+
+  alterTable(table, updater) {
+    const meta = this.getMeta(table);
+    if (!meta) throw new Error(`Unknown table: ${table}`);
+    const next = updater({ ...meta });
+    this._setMeta(table, next ?? meta);
+    return this.getMeta(table);
   }
 
   getMeta(table) {
@@ -319,6 +332,25 @@ class RelationalEngine {
       meta._sampleSize = sample.length;
       this._setMeta(table, meta);
     }
+  }
+
+  checkIndexConsistency(table) {
+    const meta = this.getMeta(table);
+    if (!meta) return { ok: false, reason: "missing table" };
+    const rows = this.findAll(table);
+    const rowIds = new Set(rows.map((row) => String(row.id)));
+    const issues = [];
+    for (const field of meta.indexes || []) {
+      const index = this.db.get(this._indexKey(table, field)) || {};
+      for (const ids of Object.values(index)) {
+        for (const id of ids) {
+          if (!rowIds.has(String(id))) {
+            issues.push(`stale id ${id} in index ${field}`);
+          }
+        }
+      }
+    }
+    return { ok: issues.length === 0, issues };
   }
 
   _selectivity(table, field, value) {
@@ -608,6 +640,7 @@ class RelationalEngine {
    * @returns {unknown[]}
    */
   executeQuery(sql) {
+    const startedAt = Date.now();
     const norm = sql.trim().replace(/\s+/g, " ");
     if (this._queryCacheEnabled && this._queryCache.has(norm)) {
       return /** @type {unknown[]} */ (this._queryCache.get(norm));
@@ -631,6 +664,12 @@ class RelationalEngine {
       rows = rows.slice(0, ast.limit);
     }
     if (this._queryCacheEnabled) this._queryCache.set(norm, rows);
+    this._queryObserver?.({
+      sql: norm,
+      durationMs: Date.now() - startedAt,
+      rowCount: rows.length,
+      mode: "sync",
+    });
     return rows;
   }
 
@@ -642,6 +681,7 @@ class RelationalEngine {
    * @param {number} [chunkSize]
    */
   executeQueryAsync(sql, system, onDone, chunkSize = 50) {
+    const startedAt = Date.now();
     let ast;
     try {
       ast = this._parseSelect(sql);
@@ -666,6 +706,12 @@ class RelationalEngine {
         if (ast.offset != null) rows = rows.slice(ast.offset);
         if (ast.limit != null) rows = rows.slice(0, ast.limit);
         if (this._queryCacheEnabled) this._queryCache.set(norm, rows);
+        this._queryObserver?.({
+          sql: norm,
+          durationMs: Date.now() - startedAt,
+          rowCount: rows.length,
+          mode: "async",
+        });
         onDone(null, rows);
       } catch (e) {
         onDone(/** @type {Error} */ (e));
@@ -692,6 +738,12 @@ class RelationalEngine {
       if (ast.offset != null) rows = rows.slice(ast.offset);
       if (ast.limit != null) rows = rows.slice(0, ast.limit);
       if (this._queryCacheEnabled) this._queryCache.set(norm, rows);
+      this._queryObserver?.({
+        sql: norm,
+        durationMs: Date.now() - startedAt,
+        rowCount: rows.length,
+        mode: "async",
+      });
       onDone(null, rows);
     };
     system.run(step);

@@ -41,6 +41,37 @@ PurePerms auto-ensures these groups exist:
 
 If stored data is missing these groups, plugin startup/reload recreates them.
 
+## 3.1 Configuration reference (`scripts/plugins/PurePerms/config.js`)
+
+PurePerms is configured by editing `scripts/plugins/PurePerms/config.js`.
+
+### `PUREPERMS_CONFIG`
+
+- `dataProvider`: storage backend selector (current: `"dynamic-properties"`).
+- `defaultLanguage`: locale key for messages (`"en"` default).
+- `disableOp`: if `true`, disables Bedrock “operator” shortcuts and relies on PurePerms instead.
+- `enableMultiworldPerms`: if `true`, enables world-scoped permissions integration (advanced).
+- `enableNoeulSixtyfour`: if `true`, enables the “NoeulSixtyfour” auth-related feature set (advanced/optional).
+- `noeulMinimumPwLength`: minimum password length when the Noeul feature is enabled.
+- `superadminRanks`: group names that are treated as protected “superadmin” ranks (default: `["OP"]`).
+
+### `DEFAULT_GROUPS`
+
+This object defines the initial group set that PurePerms ensures exists. Per group:
+
+- `alias`: short name.
+- `isDefault`: whether this group is the default.
+- `inheritance`: list of parent groups.
+- `permissions`: list of permission nodes.
+  - `node.name` allows
+  - `-node.name` denies
+  - `*` wildcard
+- `worlds`: optional per-world overrides (advanced).
+
+### `PUREPERMS_SCHEMA_VERSION`
+
+- Current schema version stored for migrations (default: `1`).
+
 ## 4. Before You Start (Recommended First Commands)
 
 Run these first:
@@ -254,3 +285,82 @@ After installation or config changes:
 6. `/ppinfo`
 
 If all commands return expected output, setup is ready.
+
+---
+
+## 10. Installation and Enablement (Step-by-step)
+
+1. Ensure plugin exists in `scripts/plugins/PurePerms/`.
+2. Ensure import in `scripts/plugins.js`.
+3. Start world and confirm logs indicate PurePerms load.
+4. Run:
+   - `/ppreload`
+   - `/groups`
+   - `/ppinfo`
+
+If these work, PurePerms is active and responding.
+
+## 11. Lifecycle Integration (Operational behavior)
+
+- `onEnable()`
+  - Initializes service, binds permission backend in PMMPCore, prepares migrations.
+- `onWorldReady()`
+  - Runs migration-safe initialization and emits readiness behavior.
+- `onDisable()`
+  - Detaches backend from PMMPCore and stops runtime-only state.
+
+This keeps permission service availability aligned with plugin runtime state.
+
+## 12. Data and Persistence Model (Operational view)
+
+PurePerms persists:
+
+- group definitions
+- user group assignment
+- user direct permissions
+- optional world-scoped overrides
+- migration/version state
+
+Operational rules:
+
+- prefer additive updates (avoid destructive resets)
+- keep permission seed idempotent
+- reload config with `/ppreload` after config updates
+
+## 13. Security and Governance Notes
+
+- Keep `superadminRanks` minimal.
+- Restrict high-impact commands (`setgroup`, `setgperm`, `unsetgperm`, `defgroup`) to trusted roles only.
+- Audit wildcard (`*`) use periodically.
+- Keep command logs for admin-level changes where possible.
+
+## 14. FAQ
+
+### Why does a user still fail after being in OP group?
+
+Check for negative permission (`-node`) in user/group layers; denies override allows.
+
+### Should I use many direct user permissions?
+
+Prefer group-based permissions and use direct user nodes only for exceptions.
+
+### Is `/ppreload` enough after all config changes?
+
+For runtime behavior, usually yes. For major structural changes, restart plus verification commands is safer.
+
+### Can I remove default groups?
+
+Default/protected groups may be recreated or blocked from deletion by design.
+
+### When should I enable world-specific permissions?
+
+Enable `enableMultiworldPerms` only when your server actually uses per-world access models.
+
+## 15. Release Checklist (PurePerms)
+
+- [ ] Default groups present and healthy.
+- [ ] Permission checks behave as expected for Guest/Mod/Admin/OP.
+- [ ] No accidental wildcard grants.
+- [ ] Superadmin protections validated.
+- [ ] `/ppreload` works and keeps state consistent.
+- [ ] PMMPCore permission service is bound/unbound correctly across enable/disable.

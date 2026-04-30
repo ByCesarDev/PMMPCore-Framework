@@ -23,6 +23,29 @@ import "./ExamplePlugin/main.js";
 
 3. Restart Minecraft Bedrock with the behavior pack enabled
 
+## Quickstart
+
+1. Start the world.
+2. Create a test world:
+
+```text
+/pmmpcore:mw create test_normal normal
+```
+
+3. Teleport:
+
+```text
+/pmmpcore:mw tp test_normal
+```
+
+4. Run ExamplePlugin commands:
+
+```text
+/pmmpcore:exampleplugin_test
+/pmmpcore:exampleplugin_ores
+/pmmpcore:exampleplugin_hooks
+```
+
 ## Custom Ores
 
 ### Mithril Ore
@@ -111,16 +134,66 @@ Analyze current world and show custom content:
 
 ## Configuration
 
-The plugin has basic configuration in `onEnable()`:
+The plugin is configured via `scripts/plugins/ExamplePlugin/config.js` (exported as `CONFIG`).
 
-```javascript
-this.config = {
-  enabled: true,           // Plugin enabled
-  debugMode: false,        // Debug mode
-  customOres: true,        // Generate custom ores
-  customStructures: true,  // Generate custom structures
-};
-```
+### `CONFIG.plugin`
+
+- `enabled`: enables/disables the plugin
+- `debugMode`: extra logs (plugin-level)
+- `version`: plugin version string
+- `name`: plugin name (must match registration)
+
+### `CONFIG.ores`
+
+- `enabled`: master switch
+- `mithril` / `crystal` / `dimension`: individual ore rule entries
+
+Ore rule properties (per entry):
+
+- `enabled`: enables/disables this rule
+- `blockId`: block to generate (placeholder in template)
+- `minY`, `maxY`: vertical range
+- `veinsPerChunk`: frequency
+- `veinSize`: blocks per vein
+- `replace`: array of block ids that may be replaced
+- `seed`: RNG seed for deterministic placement
+- `scope`: where the rule applies
+  - `type`: `"worldType" | "worldName" | "dimensionId"`
+  - `value`: string value for the chosen type
+
+### `CONFIG.structures`
+
+- `enabled`: master switch
+- `crystalClusters`, `crystalPillars`, `specialStructures`: structure entries
+
+Structure entry properties:
+
+- `enabled`
+- `chance`: probability per chunk (0..1)
+- placement params (`minHeight`, `maxHeight`, etc) depending on structure
+- `blockId` / `topBlockId` / `platformBlockId` (depends on entry)
+- `scope`: same contract as ore rules
+
+### `CONFIG.commands`
+
+Per command key (`ores`, `hooks`, `test`):
+
+- `enabled`
+- `permissionLevel`: who may run it (template value: `"any"`)
+- `cheatsRequired`: whether cheats are required for the command to function
+
+### `CONFIG.debug`
+
+- `enabled`: master switch
+- `logLevel`: `"debug" | "info" | "warn" | "error"`
+- `logGeneration`, `logEvents`, `logCommands`: feature-specific logs
+
+### `CONFIG.performance`
+
+- `maxTasksPerHook`: max tasks returned by one generation hook callback
+- `taskDelayTicks`: delay between tasks to avoid watchdog
+- `chunkProcessingTimeout`: soft timeout in ms for chunk processing flows
+- `enableMetrics`: enable template metrics output
 
 ## API Reference
 

@@ -6,83 +6,132 @@ Idioma: [English](readme.md) | **Español**
 
 ![PMMPCore Logo](images/PMMPCore.png)
 
-**Framework modular para Minecraft Bedrock Edition**
+**Framework modular para Minecraft Bedrock Edition (Behavior Packs)**
 
-[![Estado](https://img.shields.io/badge/Status-Prototype%20Phase-orange)](#estado-actual)
+[![Estado](https://img.shields.io/badge/Status-Prototipo%20%2F%20API%20p%C3%BAblica%20en%20progreso-orange)](#estado)
 [![Licencia](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Minecraft](https://img.shields.io/badge/Minecraft-Bedrock%20Edition-green)](https://www.minecraft.net/en-us/download/bedrock-edition)
 
-[Documentación](#documentacion) · [Hoja de ruta](#hoja-de-ruta-integrada) · [Contribuir](#contribuir)
+[Inicio rápido](#inicio-r%C3%A1pido) · [Documentación](#documentaci%C3%B3n) · [Plugins](#plugins-incluidos) · [Contribuir](#contribuir)
 
 </div>
 
 ---
 
-## Resumen
+## ¿Qué es PMMPCore?
 
-PMMPCore es un framework que adapta un enfoque modular estilo PocketMine al ecosistema Bedrock, con arquitectura orientada a plugins, persistencia centralizada y comandos tipados.
+PMMPCore es un framework modular para proyectos con Bedrock Script API, inspirado en el ecosistema de plugins estilo PocketMine.
 
-Está diseñado para crear servidores/addons complejos de forma mantenible, incluso bajo las limitaciones de la Bedrock Script API.
+Incluye:
+
+- **Ciclo de vida predecible** (`onLoad`, `onEnable`, `onStartup`, `onWorldReady`, `onDisable`)
+- **Persistencia centralizada** basada en **Dynamic Properties** del mundo (`DatabaseManager`, `PMMPDataProvider`, `RelationalEngine` opcional)
+- **Capa de servicios** (eventos, comandos, scheduler, permisos, migraciones)
+- **Diagnóstico/observabilidad** para operar y depurar
+
+PMMPCore se distribuye como Behavior Pack (no como mod de servidor dedicado) y respeta las limitaciones de la Script API.
+
+---
+
+## Estado
+
+- **Estado del proyecto**: prototipo funcional con API pública en expansión
+- **Objetivo**: core estable para que terceros puedan crear plugins dentro del ecosistema del repo
+
+---
+
+## Inicio rápido
+
+### Requisitos
+
+- Minecraft Bedrock (Preview) con Script API habilitada (este repo ya está bajo una ruta `development_behavior_packs/`).
+
+### Instalar / habilitar
+
+1. Copia (o mantén) esta carpeta como Behavior Pack en:
+   - `com.mojang/development_behavior_packs/creator_customdi`
+2. En Minecraft, habilita el pack en tu mundo.
+3. Entra al mundo y ejecuta:
+
+```text
+/pmmpcore:info
+```
+
+### Verificar que todo funciona
+
+Ejecuta:
+
+```text
+/pmmpcore:diag
+/pmmpcore:selftest
+```
+
+- `pmmpcore:diag`: servicios, eventos, tareas del scheduler, métricas de tick/flush
+- `pmmpcore:selftest`: prueba rápida de KV + capa relacional y muestra el resultado
+
+---
+
+## Plugins incluidos
+
+PMMPCore es framework + un set de plugins core en `scripts/plugins/`.
+
+Actualmente:
+
+- **MultiWorld**: mundos personalizados por dimensiones con comandos y persistencia
+- **PurePerms**: permisos y grupos, con contrato estable hacia el core
+- **ExamplePlugin**: plugin de referencia con patrones y hooks de MultiWorld
+
+La documentación por plugin vive en `docs/plugins/`.
+
+---
 
 ## Documentación
 
-- Guía general del proyecto (ES): `docs/PROJECT_DOCUMENTATION.es.md`
-- **Base de datos** (KV, motor relacional, WAL, SQL): `docs/DATABASE_GUIDE.es.md` (EN: `docs/DATABASE_GUIDE.md`)
-- Guía de creación de plugins (ES): `docs/PLUGIN_DEVELOPMENT_GUIDE.es.md`
-- Documentación de MultiWorld (ES): `docs/MULTIWORLD_DOCUMENTATION.es.md`
-- General project guide (EN): `docs/PROJECT_DOCUMENTATION.md`
-- Plugin creation guide (EN): `docs/PLUGIN_DEVELOPMENT_GUIDE.md`
-- MultiWorld documentation (EN): `docs/MULTIWORLD_DOCUMENTATION.md`
-- Índice de documentación EN: `docs/README.md`
-- Índice de documentación ES: `docs/README.es.md`
+Empieza por:
 
-## Estado actual
+- **Índice de docs**: `docs/README.es.md`
 
-- Fase actual: **prototipo funcional en evolución**.
+Referencias del core:
 
-### Estado de plugins
+- **API pública (servicios, ciclo de vida, estabilidad)**: `docs/API_PUBLIC_GUIDE.es.md`
+- **Base de datos (KV, WAL, DataProvider, RelationalEngine + SQL)**: `docs/DATABASE_GUIDE.es.md`
+- **Arquitectura y pipeline de arranque**: `docs/PROJECT_DOCUMENTATION.es.md`
 
-| Plugin | Estado |
-| --- | --- |
-| PurePerms | ✅ Complete |
-| PureChat | 📋 Planned |
-| MultiWorld | 🔄 Process |
-| EconomyAPI | 📋 Planned |
-| ScoreHub | 📋 Planned |
-| WelcomeMessage | 📋 Planned |
-| Portals | 📋 Planned |
-| WarpGUI | 📋 Planned |
-| MineSystem | 📋 Planned |
-| CPlots | 📋 Planned |
-| SignShop | 📋 Planned |
-| Slapper | 📋 Planned |
-| PlaceholderAPI | 📋 Planned |
-| essentialsTP | 📋 Planned |
+Para autores de plugins:
 
-## Hoja de ruta integrada
+- **Guía de desarrollo de plugins**: `docs/PLUGIN_DEVELOPMENT_GUIDE.es.md`
+- **Guía de migración (legacy → API v1)**: `docs/PLUGIN_MIGRATION_GUIDE.es.md`
 
-### Fase 1 - Base estable del framework
+---
 
-- [x] Núcleo PMMPCore funcional.
-- [x] Registro y habilitación centralizada de plugins.
-- [x] Persistencia base con `DatabaseManager`.
-- [x] Comandos base del core.
+## Estructura del repo (alto nivel)
 
-### Fase 2 - MultiWorld robusto
+```text
+scripts/
+  main.js                  # pipeline de arranque (seguro post-worldLoad) + diagnósticos
+  PMMPCore.js               # facade core + service registry
+  DatabaseManager.js        # persistencia: cache + dirty buffer + flush + WAL
+  api/                      # export surface pública para plugins de terceros
+  core/                     # eventos, scheduler, permisos, observabilidad, etc.
+  db/                       # motor relacional, codecs, migraciones, WAL
+  plugins/
+    MultiWorld/
+    PurePerms/
+    ExamplePlugin/
+docs/
+  README.es.md              # índice
+  DATABASE_GUIDE.es.md
+  API_PUBLIC_GUIDE.es.md
+  PROJECT_DOCUMENTATION.es.md
+  plugins/                  # manuales de plugins (uso + configuración)
+```
 
-- [x] CRUD de mundos (`create`, `tp`, `list`, `info`, `delete`).
-- [x] Tipos: `normal`, `flat`, `void`, `skyblock`.
-- [x] Limpieza por lotes (`purgechunks`).
-- [x] Mundo principal configurable (`setmain`, `main`).
-- [x] Control de spawn global (`setspawn`) y diagnósticos de spawn (`info`).
-- [x] Restauración en reconexión para mundos no-main y modo lobby opcional.
+---
 
 ## Contribuir
 
-Si contribuyes al proyecto:
-
-- mantén compatibilidad con la Bedrock Script API usada por el repo;
-- evita romper contratos existentes del core/plugins;
-- documenta cambios funcionales relevantes en `docs/`;
-- prioriza cambios incrementales y verificables.
+- Mantén compatibilidad con la Bedrock Script API usada por el repo.
+- Prioriza cambios **retrocompatibles** para APIs `stable`.
+- Documenta cambios en `docs/` (y añade versión `.es.md` cuando aplique).
+- Evita usar `world.getDynamicProperty` / `world.setDynamicProperty` directamente para datos de PMMPCore; usa `PMMPCore.db`.
 

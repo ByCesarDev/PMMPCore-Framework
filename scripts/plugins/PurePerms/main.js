@@ -14,6 +14,8 @@ PMMPCore.registerPlugin({
     this.service = new PurePermsService();
     this._subscriptions = [];
     this._initialized = false;
+    PMMPCore.registerPermissionBackend(this.service);
+    PMMPCore.getMigrationService()?.register("PurePerms", 1, () => {});
 
     const worldLoadSub = world.afterEvents.worldLoad.subscribe(() => {
       if (this._initialized) return;
@@ -41,6 +43,7 @@ PMMPCore.registerPlugin({
       }
     });
     this._subscriptions.push(spawnSub);
+    this.context?.getLogger?.()?.info?.("Permission backend online");
     console.log("[PurePerms] PurePerms system enabled.");
   },
 
@@ -59,7 +62,17 @@ PMMPCore.registerPlugin({
     }
     this._subscriptions = [];
     this.service?.clearCache?.();
+    PMMPCore.registerPermissionBackend(null);
     console.log("[PurePerms] PurePerms system disabled.");
+  },
+
+  onWorldReady() {
+    try {
+      PMMPCore.getMigrationService()?.run("PurePerms");
+      PMMPCore.emit("permissions.ready", { provider: "PurePerms" });
+    } catch (error) {
+      console.warn(`[PurePerms] Migration runner failed: ${error?.message ?? "unknown error"}`);
+    }
   },
 
   getHelp() {

@@ -41,6 +41,37 @@ PurePerms asegura automáticamente estos grupos:
 
 Si faltan en la data guardada, se recrean al iniciar/recargar/leer grupos.
 
+## 3.1 Referencia de configuración (`scripts/plugins/PurePerms/config.js`)
+
+PurePerms se configura editando `scripts/plugins/PurePerms/config.js`.
+
+### `PUREPERMS_CONFIG`
+
+- `dataProvider`: selector de backend de storage (actual: `"dynamic-properties"`).
+- `defaultLanguage`: idioma/locale para mensajes (`"en"` por defecto).
+- `disableOp`: si es `true`, deshabilita shortcuts de “operador” de Bedrock y delega en PurePerms.
+- `enableMultiworldPerms`: si es `true`, habilita integración de permisos por mundo (avanzado).
+- `enableNoeulSixtyfour`: si es `true`, habilita el set de features “NoeulSixtyfour” (avanzado/opcional).
+- `noeulMinimumPwLength`: longitud mínima de contraseña cuando Noeul está habilitado.
+- `superadminRanks`: nombres de grupos protegidos como “superadmin” (default: `["OP"]`).
+
+### `DEFAULT_GROUPS`
+
+Este objeto define los grupos iniciales que PurePerms asegura que existan. Por grupo:
+
+- `alias`: nombre corto.
+- `isDefault`: si el grupo es el default.
+- `inheritance`: lista de grupos padre.
+- `permissions`: lista de nodos de permiso.
+  - `node.name` permite
+  - `-node.name` niega
+  - `*` wildcard
+- `worlds`: overrides por mundo (avanzado).
+
+### `PUREPERMS_SCHEMA_VERSION`
+
+- Versión actual del esquema usada para migraciones (default: `1`).
+
 ## 4. Primeros comandos recomendados
 
 Ejecuta este bloque al iniciar:
@@ -251,3 +282,82 @@ Después de instalar o cambiar config:
 6. `/ppinfo`
 
 Si todo responde correctamente, tu setup está listo.
+
+---
+
+## 10. Instalación y habilitación (paso a paso)
+
+1. Verifica el plugin en `scripts/plugins/PurePerms/`.
+2. Verifica el import en `scripts/plugins.js`.
+3. Inicia el mundo y confirma logs de carga.
+4. Ejecuta:
+   - `/ppreload`
+   - `/groups`
+   - `/ppinfo`
+
+Si todo responde, PurePerms está activo y operativo.
+
+## 11. Integración con lifecycle (comportamiento operativo)
+
+- `onEnable()`
+  - Inicializa servicio, conecta backend de permisos en PMMPCore y prepara migraciones.
+- `onWorldReady()`
+  - Ejecuta inicialización segura y comportamiento de readiness.
+- `onDisable()`
+  - Desconecta backend en PMMPCore y limpia estado runtime.
+
+Esto mantiene disponibilidad de permisos alineada con el estado real del plugin.
+
+## 12. Modelo de datos y persistencia (visión operativa)
+
+PurePerms persiste:
+
+- definición de grupos
+- asignación de grupo por usuario
+- permisos directos de usuario
+- overrides por mundo (si se habilitan)
+- versión/estado de migración
+
+Reglas operativas:
+
+- preferir actualizaciones aditivas (evitar resets destructivos)
+- mantener permission seed idempotente
+- recargar config con `/ppreload` tras cambios
+
+## 13. Notas de seguridad y gobernanza
+
+- Mantén `superadminRanks` al mínimo necesario.
+- Restringe comandos de alto impacto (`setgroup`, `setgperm`, `unsetgperm`, `defgroup`) a roles de confianza.
+- Audita uso de wildcard (`*`) de forma periódica.
+- Registra cambios administrativos cuando sea posible.
+
+## 14. FAQ
+
+### ¿Por qué un usuario en OP sigue fallando permisos?
+
+Revisa denegaciones `-node` en capas de usuario/grupo; la denegación gana sobre la permisión.
+
+### ¿Conviene usar muchos permisos directos de usuario?
+
+No. Mejor permisos por grupo y usar permisos directos solo para excepciones puntuales.
+
+### ¿`/ppreload` alcanza para todos los cambios?
+
+Para comportamiento runtime, normalmente sí. En cambios estructurales, es más seguro reiniciar y volver a validar.
+
+### ¿Puedo borrar grupos por defecto?
+
+Los grupos default/protegidos pueden recrearse o bloquear su borrado por diseño.
+
+### ¿Cuándo activar permisos por mundo?
+
+Activa `enableMultiworldPerms` solo si tu servidor usa realmente un modelo por mundo.
+
+## 15. Checklist de release (PurePerms)
+
+- [ ] Grupos default presentes y correctos.
+- [ ] Permisos correctos para Guest/Mod/Admin/OP.
+- [ ] Sin wildcards accidentales.
+- [ ] Protección superadmin validada.
+- [ ] `/ppreload` funciona y mantiene consistencia.
+- [ ] El servicio de permisos de PMMPCore se conecta/desconecta correctamente en enable/disable.

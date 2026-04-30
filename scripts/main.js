@@ -18,6 +18,18 @@ world.afterEvents.worldLoad.subscribe(() => {
     if (PMMPCore.db && typeof PMMPCore.db.replayWalIfAny === "function") {
       PMMPCore.db.replayWalIfAny();
     }
+    PMMPCore.emit("world.ready", {});
+    for (const plugin of PMMPCore.getPlugins()) {
+      const state = PMMPCore.getPluginState(plugin.name);
+      if (!state.enabled) continue;
+      if (plugin.onWorldReady && typeof plugin.onWorldReady === "function") {
+        try {
+          plugin.onWorldReady();
+        } catch (error) {
+          console.error(`[PMMPCore] Failed world-ready hook for ${plugin.name}: ${error.message}`);
+        }
+      }
+    }
   } catch (e) {
     console.error(`[PMMPCore] WAL replay: ${e.message}`);
   }
@@ -28,13 +40,21 @@ system.beforeEvents.startup.subscribe((event) => {
 
   const dbManager = new DatabaseManager();
   PMMPCore.initialize(dbManager);
+  for (const plugin of PMMPCore.getPlugins()) {
+    if (plugin.onLoad && typeof plugin.onLoad === "function") {
+      try {
+        plugin.onLoad();
+      } catch (error) {
+        console.error(`[PMMPCore] Failed load hook for ${plugin.name}: ${error.message}`);
+      }
+    }
+  }
 
   const AUTO_FLUSH_TICKS = 120;
   system.runInterval(() => {
     try {
-      if (PMMPCore.db && typeof PMMPCore.db.flush === "function") {
-        PMMPCore.db.flush();
-      }
+      PMMPCore.getTickCoordinator()?.tick?.();
+      PMMPCore.getTickCoordinator()?.flushDatabase?.();
     } catch (e) {
       console.error(`[PMMPCore] DB auto-flush: ${e.message}`);
     }
@@ -66,6 +86,69 @@ system.beforeEvents.startup.subscribe((event) => {
       return { status: CustomCommandStatus.Success };
     }
   );
+
+  PMMPCore.getCommandBus()?.registerBedrockCommand(event.customCommandRegistry, {
+    name: "pmmpcore:diag",
+    description: "Show PMMPCore platform diagnostics",
+    permissionLevel: CommandPermissionLevel.Any,
+    cheatsRequired: false,
+    owner: "core",
+    execute(origin) {
+      const player = origin.sourceEntity;
+      if (!player || !(player instanceof Player)) {
+        return { status: CustomCommandStatus.Failure, message: "Only players can use this command." };
+      }
+      const services = PMMPCore.getApiMetadata().services;
+      const eventSummary = PMMPCore.getEventBus()?.listenerSummary?.() ?? [];
+      const schedulerSummary = PMMPCore.getScheduler()?.summary?.() ?? [];
+      const observability = PMMPCore.getServiceRegistry()?.get("observability")?.snapshot?.() ?? {};
+      player.sendMessage(`${Color.bold}=== PMMPCore Diagnostics ===${Color.reset}`);
+      player.sendMessage(`${Color.aqua}API Version: ${Color.white}${PMMPCore.getApiMetadata().version}`);
+      player.sendMessage(`${Color.aqua}Services: ${Color.white}${services.map((s) => `${s.name}:${s.stability}`).join(", ")}`);
+      player.sendMessage(`${Color.aqua}Event topics: ${Color.white}${eventSummary.length}`);
+      player.sendMessage(`${Color.aqua}Scheduled tasks: ${Color.white}${schedulerSummary.length}`);
+      if (observability.lastFlush) {
+        player.sendMessage(`${Color.aqua}Last flush: ${Color.white}${observability.lastFlush.durationMs}ms`);
+      }
+      if (observability.lastTick) {
+        player.sendMessage(`${Color.aqua}Last core tick: ${Color.white}${observability.lastTick.durationMs}ms`);
+      }
+      return { status: CustomCommandStatus.Success };
+    },
+  });
+
+  PMMPCore.getCommandBus()?.registerBedrockCommand(event.customCommandRegistry, {
+    name: "pmmpcore:selftest",
+    description: "Run PMMPCore platform smoke tests",
+    permissionLevel: CommandPermissionLevel.Any,
+    cheatsRequired: false,
+    owner: "core",
+    execute(origin) {
+      const player = origin.sourceEntity;
+      if (!player || !(player instanceof Player)) {
+        return { status: CustomCommandStatus.Failure, message: "Only players can use this command." };
+      }
+      try {
+        const db = PMMPCore.db;
+        db.set("selftest:kv", { ok: true, at: Date.now() });
+        const kv = db.get("selftest:kv");
+        const rel = PMMPCore.createRelationalEngine();
+        rel.createTable("selftest_rows", { kind: "text" });
+        rel.createIndex("selftest_rows", "kind");
+        rel.upsert("selftest_rows", "row1", { kind: "check" });
+        const rows = rel.executeQuery(`SELECT * FROM selftest_rows WHERE kind = check`);
+        const indexCheck = rel.checkIndexConsistency("selftest_rows");
+        db.flush();
+        player.sendMessage(`${Color.bold}=== PMMPCore Self Test ===${Color.reset}`);
+        player.sendMessage(`${Color.aqua}KV: ${Color.white}${kv?.ok ? "ok" : "fail"}`);
+        player.sendMessage(`${Color.aqua}SQL-lite rows: ${Color.white}${rows.length}`);
+        player.sendMessage(`${Color.aqua}Index consistency: ${Color.white}${indexCheck.ok ? "ok" : "fail"}`);
+      } catch (error) {
+        player.sendMessage(`${Color.red}Self test failed: ${error.message}${Color.reset}`);
+      }
+      return { status: CustomCommandStatus.Success };
+    },
+  });
 
   event.customCommandRegistry.registerCommand(
     {
@@ -204,6 +287,7 @@ system.beforeEvents.startup.subscribe((event) => {
 
   console.log(`${Color.aqua}[PMMPCore] Enabling plugins immediately...${Color.reset}`);
   PMMPCore.enableAll();
+  PMMPCore.emit("startup.ready", {});
   
   // Inicializar hooks de startup de plugins en una sola pasada.
   console.log(`${Color.aqua}[PMMPCore] Running plugin startup hooks...${Color.reset}`);

@@ -170,6 +170,11 @@ class DatabaseManager {
     return ok;
   }
 
+  flushWithPriority(priority = "normal") {
+    console.log(`[DB] flushWithPriority(${priority})`);
+    return this.flush();
+  }
+
   // ─── API genérica ───────────────────────────────────────────────────────────
 
   /**
@@ -369,10 +374,12 @@ class DatabaseManager {
         estimatedSize: totalSize,
         keys,
         dirtyKeys: this._dirty.size,
+        walEnabled: this._walEnabled,
+        cacheEntries: this._cache.size,
       };
     } catch (e) {
       console.error(`[DB] getStats error: ${e.message}`);
-      return { totalKeys: 0, estimatedSize: 0, keys: [], dirtyKeys: 0 };
+      return { totalKeys: 0, estimatedSize: 0, keys: [], dirtyKeys: 0, walEnabled: this._walEnabled, cacheEntries: this._cache.size };
     }
   }
 }

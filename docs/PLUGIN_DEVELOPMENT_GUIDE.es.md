@@ -2,278 +2,85 @@
 
 Idioma: [English](PLUGIN_DEVELOPMENT_GUIDE.md) | **Español**
 
-## 1. Objetivo de esta guía
+## 1) Objetivo y público
 
-Explica cómo crear plugins compatibles con PMMPCore respetando el contrato del core y evitando errores comunes de Bedrock Script API.
+Esta guía enseña a construir plugins sólidos para PMMPCore:
 
-## 2. Requisitos
+- uso correcto del lifecycle
+- comandos y permisos
+- persistencia y migraciones
+- diseño modular y dependencias
+- checklist de pruebas y release
 
-- Conocimiento de JavaScript para Bedrock Script API.
-- Entender comandos custom (`customCommandRegistry`).
-- Respetar ciclo de vida de PMMPCore.
+Si eres nuevo en el framework, léela completa antes de arrancar tu plugin.
 
-## 3. Estructura mínima
+---
 
-Crear carpeta:
+## 2) Requisitos previos
 
-```text
-scripts/plugins/MyPlugin/
-```
+- JavaScript para Bedrock Script API
+- nociones de `customCommandRegistry`
+- lectura base de:
+  - `docs/API_PUBLIC_GUIDE.es.md`
+  - `docs/DATABASE_GUIDE.es.md`
+  - `docs/PLUGIN_MIGRATION_GUIDE.es.md`
 
-Archivo principal:
+---
 
-```text
-scripts/plugins/MyPlugin/main.js
-```
+## 3) Lifecycle explicado en detalle
 
-## 4. Plantilla base
+### `onLoad()`
 
-```javascript
-import { PMMPCore } from "../../PMMPCore.js";
-import { Player, CustomCommandStatus, CommandPermissionLevel } from "@minecraft/server";
+Úsalo para:
 
-PMMPCore.registerPlugin({
-  name: "MyPlugin",
-  version: "1.0.0",
-  depend: ["PMMPCore"],
-  softdepend: [],
+- constantes
+- parseo de config
+- wiring local de módulos
 
-  onEnable() {
-    console.log("[MyPlugin] Enabled");
-  },
+Evita:
 
-  onStartup(event) {
-    event.customCommandRegistry.registerCommand(
-      {
-        name: "pmmpcore:myplugin_ping",
-        description: "Basic health command",
-        permissionLevel: CommandPermissionLevel.Any,
-        cheatsRequired: false,
-      },
-      (origin) => {
-        const source = origin.initiator ?? origin.sourceEntity;
-        if (!(source instanceof Player)) {
-          return { status: CustomCommandStatus.Failure, message: "Only players can run this command." };
-        }
-        source.sendMessage("MyPlugin OK");
-        return { status: CustomCommandStatus.Success };
-      }
-    );
-  },
+- lecturas/escrituras de Dynamic Properties
+- inicialización dependiente del mundo
 
-  onDisable() {
-    console.log("[MyPlugin] Disabled");
-  },
-});
-```
+### `onEnable()`
 
-Nota:
+Úsalo para:
 
-- Si declaras `depend: ["PMMPCore"]`, PMMPCore lo trata como estricto y bloqueará el plugin si el core no está inicializado.
+- suscripciones
+- setup de estado runtime
+- registro de migraciones
+- creación de contexto del plugin
 
-## 5. Integración en runtime
+### `onStartup(event)`
 
-Agregar import en `scripts/plugins.js`:
+Úsalo para:
 
-```javascript
-import "./plugins/MyPlugin/main.js";
-```
+- registro de enums de comandos
+- registro de comandos
+- tareas de bootstrap de startup
 
-Si existe `pluginList`, agregar también el nombre.
+Evita DB aquí.
 
-## 6. Uso de base de datos
+### `onWorldReady()`
 
-Referencia completa: **[DATABASE_GUIDE.es.md](DATABASE_GUIDE.es.md)** (modelo de persistencia, `RelationalEngine`, SQL, WAL, límites, resolución de problemas).
+Úsalo para:
 
-### API general
+- primeras lecturas/escrituras DB
+- hidratación de cachés en memoria
+- ejecución de migraciones
+- setup del motor relacional (si aplica)
 
-- `PMMPCore.db.get(key)`
-- `PMMPCore.db.set(key, value)`
-- `PMMPCore.db.delete(key)`
+### `onDisable()`
 
-### API por plugin
+Úsalo para:
 
-- `PMMPCore.db.getPluginData("MyPlugin")`
-- `PMMPCore.db.setPluginData("MyPlugin", { ... })`
-- `PMMPCore.db.setPluginData("MyPlugin", "setting", value)`
+- desuscribir handlers
+- limpiar tareas runtime
+- flush final opcional
 
-Buenas prácticas:
+---
 
-- Namespacing por plugin.
-- Guardar en batch cuando sea posible.
-- Evitar escribir por tick sin necesidad real.
-
-### Caché, buffer dirty y flush
-
-- No uses `PMMPCore.db` (ni `world.getDynamicProperty`) dentro de `onStartup` / arranque temprano: Bedrock lanza *"cannot be used in early execution"*. Usa `world.afterEvents.worldLoad` (o el mismo patrón diferido que EconomyAPI) para la primera lectura/escritura.
-- `get()` devuelve un **clon** de objetos/arrays; los cambios no se guardan hasta que llames otra vez a `set()` (o helpers como `setPluginData`).
-- La base de datos mantiene caché en RAM y claves **dirty**; `flush()` persiste todo en Dynamic Properties. El core hace auto-flush periódico; puedes llamar **`PMMPCore.db.flush()`** tras operaciones críticas si necesitas persistencia inmediata.
-- **`PMMPCore.getDataProvider()`** devuelve una fachada estilo PocketMine (`loadPlayer`, `savePlayer`, `flush`, etc.).
-- **`PMMPCore.createRelationalEngine()`** devuelve el motor relacional opcional (tablas, índices, subconjunto SQL) sobre el mismo `DatabaseManager`. También puedes importar desde `scripts/db/index.js`.
-
-## 7. Comandos: Recomendaciones prácticas
-
-- Usar prefijo `pmmpcore:`.
-- Bedrock exige formato `namespace:value`.
-- Definir bien `mandatoryParameters` y `optionalParameters`.
-- Usar `CustomCommandParamType.Enum` para opciones estables y autocompletado.
-- Dividir trabajo pesado en ticks.
-- Mensajes de error claros y accionables.
-
-### 7.1 Patrón básico (`help`, `info`, acciones)
-
-Patrón recomendado:
-
-- `/pmmpcore:myplugin help`
-- `/pmmpcore:myplugin info`
-- `/pmmpcore:myplugin <action> ...`
-
-Con un solo comando raíz y subcomandos en enum:
-
-- experiencia consistente;
-- autocompletado;
-- handlers desacoplados por acción.
-
-## 8. Integración de permisos con PurePerms
-
-Si tu plugin expone comandos o acciones administrativas, define nodos de permiso explícitos y valídalos a través de PurePerms.
-
-Reglas recomendadas:
-
-- publicar nodos por feature/subcomando;
-- mantener nombres predecibles;
-- no meter defaults de permisos de otro plugin dentro del config base de PurePerms;
-- si hace falta experiencia plug-and-play, sembrar defaults desde el plugin dueño del feature.
-
-### 8.1 Nomenclatura recomendada
-
-Usar nodos con scope del plugin:
-
-- `pperms.command.myplugin.help`
-- `pperms.command.myplugin.info`
-- `pperms.command.myplugin.create`
-- `pperms.command.myplugin.delete`
-
-Esto mantiene el sistema ordenado y evita colisiones.
-
-### 8.2 Guard de permisos en comandos
-
-Patrón recomendado:
-
-```javascript
-function getPurePermsService() {
-  const plugin = PMMPCore.getPlugin("PurePerms");
-  return plugin?.service ?? null;
-}
-
-function guardPermission(player, node) {
-  const purePerms = getPurePermsService();
-  if (!purePerms) return true; // politica fallback si PurePerms no existe
-  const allowed = purePerms.hasPermission(player.name, node, player.dimension?.id ?? null, player);
-  if (!allowed) {
-    player.sendMessage(`[MyPlugin] You do not have permission: ${node}`);
-  }
-  return allowed;
-}
-```
-
-Y antes de cada acción:
-
-```javascript
-if (!guardPermission(player, "pperms.command.myplugin.create")) {
-  return { status: CustomCommandStatus.Success };
-}
-```
-
-### 8.3 Permission seed controlado por el plugin
-
-Si tu plugin necesita defaults sensatos para funcionar de entrada, es mejor usar un `permission seed` del propio plugin en vez de editar los defaults de PurePerms.
-
-Ventajas:
-
-- PurePerms sigue siendo genérico;
-- cada plugin es dueño de sus nodos;
-- solo se agregan permisos faltantes;
-- el admin mantiene control manual sobre rangos.
-
-Ejemplo conceptual:
-
-```javascript
-const MYPLUGIN_PERMISSION_SEED = {
-  Guest: ["pperms.command.myplugin.help", "pperms.command.myplugin.info"],
-  Admin: ["pperms.command.myplugin.create", "pperms.command.myplugin.delete"],
-};
-```
-
-En startup, el plugin puede:
-
-1. detectar si PurePerms está cargado;
-2. leer permisos actuales del grupo;
-3. agregar solo nodos faltantes;
-4. evitar sobreescribir decisiones manuales del administrador.
-
-### 8.4 Reglas para un seed idempotente
-
-Un buen permission seed debe ser:
-
-- **idempotente**: correr varias veces no cambia nada después de la primera;
-- **no destructivo**: no borrar ni pisar permisos existentes automáticamente;
-- **acotado**: sembrar solo nodos del propio plugin;
-- **opcional**: si PurePerms no está, debe saltarse sin romper startup.
-
-## 9. Dependencias entre plugins
-
-Ejemplo:
-
-```javascript
-depend: ["PMMPCore"],
-softdepend: ["EconomyAPI"]
-```
-
-Antes de usar API de otro plugin:
-
-```javascript
-const economy = PMMPCore.getPlugin("EconomyAPI");
-if (!economy) {
-  // fallback o mensaje
-}
-```
-
-## 10. Rendimiento
-
-- Evitar escaneos completos del mundo por tick.
-- Limitar loops por presupuesto por ciclo.
-- Cachear resultados frecuentes.
-- En generación de terreno, preferir operaciones por volumen/rango.
-
-## 11. Manejo de errores
-
-- En callbacks de eventos/comandos, envolver operaciones riesgosas en `try/catch`.
-- No silenciar errores críticos sin log.
-- Distinguir warning recuperable de error bloqueante.
-
-## 12. Checklist de salida
-
-- [ ] Registra correctamente en PMMPCore.
-- [ ] No rompe startup si falla una dependencia opcional.
-- [ ] Comandos registrados en `onStartup(event)`.
-- [ ] Nodos de permisos documentados y validados si el plugin protege acciones.
-- [ ] Datos persistidos con namespace claro.
-- [ ] Logs útiles de debugging.
-- [ ] Documentación mínima en `docs/`.
-
-## 13. Convenciones sugeridas
-
-- Nombres de plugins en PascalCase (`MyPlugin`).
-- Comandos en minúsculas.
-- Mensajes con prefijo corto (`[MyPlugin]`).
-- Separar lógica en módulos si crece el archivo.
-
-## 14. Diseño modular recomendado
-
-Evitar un `main.js` gigante. Preferir módulos por responsabilidad.
-
-Estructura sugerida:
+## 4) Estructura recomendada de carpetas
 
 ```text
 scripts/plugins/MyPlugin/
@@ -286,15 +93,291 @@ scripts/plugins/MyPlugin/
 
 Responsabilidades:
 
-- `main.js`: registro del plugin + hooks de ciclo de vida.
-- `commands.js`: registro y handlers de comandos.
-- `service.js`: lógica de negocio.
-- `state.js`: estado compartido en runtime.
-- `config.js`: constantes y enums.
+- `main.js`: registro + hooks lifecycle
+- `commands.js`: registro y routing de comandos
+- `service.js`: lógica de negocio + persistencia
+- `state.js`: estado compartido (maps/flags/caches)
+- `config.js`: constantes y ajustes
 
-Regla práctica:
+---
 
-- handlers de comandos llaman servicios, no lógica de negocio extensa inline;
-- persistencia centralizada en capa de servicio;
-- evitar imports circulares.
+## 5) Plantilla base (patrón seguro)
+
+```javascript
+import { PMMPCore } from "../../api/index.js";
+import { registerMyPluginCommands } from "./commands.js";
+import { MyPluginService } from "./service.js";
+
+PMMPCore.registerPlugin({
+  name: "MyPlugin",
+  version: "1.0.0",
+  depend: ["PMMPCore"],
+  softdepend: [],
+
+  onEnable() {
+    this.context = PMMPCore.getPluginContext("MyPlugin", "1.0.0");
+    this.service = new MyPluginService();
+    this.service.registerMigrations();
+  },
+
+  onStartup(event) {
+    registerMyPluginCommands(event, this.service);
+  },
+
+  onWorldReady() {
+    this.service.runMigrations();
+    this.service.hydrate();
+  },
+
+  onDisable() {
+    this.service?.shutdown();
+    PMMPCore.db.flush();
+  },
+});
+```
+
+---
+
+## 6) Integración en runtime
+
+Agregar import en `scripts/plugins.js`:
+
+```javascript
+import "./plugins/MyPlugin/main.js";
+```
+
+Si el repo usa `pluginList`, agrega el nombre para diagnósticos.
+
+---
+
+## 7) Persistencia (KV primero, relacional cuando haga falta)
+
+Ruta principal:
+
+- `PMMPCore.db` (stable)
+
+Operaciones:
+
+- `get`, `set`, `delete`, `has`
+- `getPluginData`, `setPluginData`
+- `flush`
+
+Comportamiento importante:
+
+- `get()` devuelve clones
+- mutar un objeto leído no persiste hasta `set()`
+- escrituras pueden quedar en buffer hasta `flush()`
+
+Cuándo usar `flush()`:
+
+- mutaciones administrativas críticas
+- batches que deben sobrevivir cierres abruptos
+
+Usa `RelationalEngine` solo si realmente necesitas consultas/indexes avanzados.
+
+---
+
+## 8) Comandos: patrón completo práctico
+
+Guías:
+
+- comandos namespaced (`pmmpcore:...`)
+- un comando raíz con subcomandos enum
+- validar fuente (`origin.initiator ?? origin.sourceEntity`)
+- respuestas claras y accionables
+
+Ejemplo:
+
+```javascript
+import {
+  Player,
+  CustomCommandStatus,
+  CommandPermissionLevel,
+  CustomCommandParamType,
+} from "@minecraft/server";
+
+export function registerMyPluginCommands(event, service) {
+  event.customCommandRegistry.registerEnum("pmmpcore:myplugin_subcommand", [
+    "help",
+    "info",
+    "reload",
+  ]);
+
+  event.customCommandRegistry.registerCommand(
+    {
+      name: "pmmpcore:myplugin",
+      description: "MyPlugin command root",
+      permissionLevel: CommandPermissionLevel.Any,
+      cheatsRequired: false,
+      mandatoryParameters: [{ type: CustomCommandParamType.Enum, name: "pmmpcore:myplugin_subcommand" }],
+    },
+    (origin, subcommand) => {
+      const player = origin.initiator ?? origin.sourceEntity;
+      if (!(player instanceof Player)) {
+        return { status: CustomCommandStatus.Failure, message: "Only players can run this command." };
+      }
+      return service.handleCommand(player, (subcommand ?? "help").toLowerCase());
+    }
+  );
+}
+```
+
+---
+
+## 9) Integración de permisos
+
+Prioriza la abstracción estable:
+
+```javascript
+const perms = PMMPCore.getPermissionService();
+```
+
+Nomenclatura recomendada de nodos:
+
+- `pperms.command.myplugin.help`
+- `pperms.command.myplugin.info`
+- `pperms.command.myplugin.reload`
+- `pperms.command.myplugin.admin`
+
+Buenas prácticas:
+
+- nodo por acción
+- prefijo consistente
+- helper central `guardPermission(...)`
+- seed opcional idempotente desde tu plugin
+
+---
+
+## 10) Dependencias y soft dependencies
+
+Ejemplo:
+
+```javascript
+depend: ["PMMPCore"],
+softdepend: ["EconomyAPI"]
+```
+
+Patrón:
+
+```javascript
+const economy = PMMPCore.getPlugin("EconomyAPI");
+if (!economy) {
+  // ruta fallback
+}
+```
+
+Reglas:
+
+- hard dep -> fail-fast
+- soft dep -> degradación elegante
+
+---
+
+## 11) Migraciones de datos
+
+Registrar en `onEnable()`, ejecutar en `onWorldReady()`:
+
+```javascript
+registerMigrations() {
+  PMMPCore.getMigrationService()?.register("MyPlugin", 1, () => {
+    PMMPCore.db.setPluginData("MyPlugin", "schema", { version: 1 });
+  });
+}
+
+runMigrations() {
+  PMMPCore.getMigrationService()?.run("MyPlugin");
+}
+```
+
+Reglas:
+
+- idempotentes
+- poco destructivas
+- versionadas y con logs
+
+---
+
+## 12) Rendimiento y watchdog safety
+
+- evita scans completos por tick
+- divide trabajo pesado en varios ticks
+- cachea consultas repetidas
+- usa scheduler (`getScheduler()`) para tareas repetitivas/diferidas
+- evita escrituras síncronas masivas en un frame
+
+---
+
+## 13) Manejo de errores y observabilidad
+
+Patrón:
+
+- `try/catch` en handlers de riesgo
+- logs con prefijo de plugin
+- distinguir warning recuperable vs error bloqueante
+
+Formato sugerido:
+
+- `[MyPlugin][warn] ...`
+- `[MyPlugin][error] ...`
+
+Para diagnóstico de plataforma, usar `/pmmpcore:diag`.
+
+---
+
+## 14) Checklist de pruebas antes de release
+
+- [ ] Plugin registra y habilita correctamente.
+- [ ] Comandos disponibles y validados.
+- [ ] Permisos aplican como se espera.
+- [ ] Sin acceso DB en fases tempranas.
+- [ ] Migraciones corren en primera carga y no-op en la segunda.
+- [ ] Escrituras críticas sobreviven reinicio (puntos de flush verificados).
+- [ ] Dependencias opcionales no rompen funcionalidad base.
+- [ ] Documentación del plugin actualizada.
+
+---
+
+## 15) Errores comunes y corrección
+
+- **Error:** DB en `onStartup` -> **Solución:** mover a `onWorldReady`
+- **Error:** callbacks de comando gigantes -> **Solución:** routing hacia capa service
+- **Error:** Dynamic Properties directas -> **Solución:** `PMMPCore.db`
+- **Error:** nodos de permiso sin scope -> **Solución:** prefijo por plugin
+
+---
+
+## 16) Estándar mínimo de documentación por plugin
+
+Cada plugin debe incluir:
+
+- objetivo/alcance
+- referencia de comandos
+- nodos de permisos
+- propiedades de configuración
+- notas de migración (si cambia esquema)
+- troubleshooting básico
+
+---
+
+## 17) FAQ
+
+### ¿Todos los plugins deben usar todos los servicios de PMMPCore?
+
+No. Usa solo lo necesario. Empieza minimal (`db`, comandos, permisos) y agrega scheduler/eventos cuando aporte valor real.
+
+### ¿Dónde debe vivir la lógica de negocio?
+
+En `service.js` (o equivalente). Los handlers de comandos deben ser delgados y centrados en routing/validación.
+
+### ¿Puedo escribir en DB cada tick?
+
+Puedes, pero casi siempre es mala idea. Mantén estado en memoria y persiste por lotes controlados.
+
+### ¿Debo llamar `PMMPCore.db.flush()` todo el tiempo?
+
+Úsalo tras escrituras críticas y en límites controlados (acciones admin, operaciones sensibles a cierre), no en cada acción sin criterio.
+
+### ¿Qué tan detallada debe ser la doc de un plugin?
+
+Lo suficiente para que un dev nuevo pueda instalar, configurar, usar comandos, entender permisos y resolver fallos sin leer el código primero.
 

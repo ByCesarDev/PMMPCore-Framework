@@ -23,6 +23,29 @@ import "./ExamplePlugin/main.js";
 
 3. Reinicia Minecraft Bedrock con el behavior pack activado
 
+## Inicio rápido
+
+1. Entra al mundo.
+2. Crea un mundo de prueba:
+
+```text
+/pmmpcore:mw create test_normal normal
+```
+
+3. Teleporta:
+
+```text
+/pmmpcore:mw tp test_normal
+```
+
+4. Ejecuta comandos del ExamplePlugin:
+
+```text
+/pmmpcore:exampleplugin_test
+/pmmpcore:exampleplugin_ores
+/pmmpcore:exampleplugin_hooks
+```
+
 ## Minerales Personalizados
 
 ### Mithril Ore
@@ -111,16 +134,66 @@ Analiza el mundo actual y muestra contenido personalizado:
 
 ## Configuración
 
-El plugin tiene configuración básica en `onEnable()`:
+El plugin se configura en `scripts/plugins/ExamplePlugin/config.js` (exportado como `CONFIG`).
 
-```javascript
-this.config = {
-  enabled: true,           // Plugin activado
-  debugMode: false,        // Modo debug
-  customOres: true,        // Generar minerales personalizados
-  customStructures: true,  // Generar estructuras personalizadas
-};
-```
+### `CONFIG.plugin`
+
+- `enabled`: activa/desactiva el plugin
+- `debugMode`: logs extra (a nivel plugin)
+- `version`: string de versión
+- `name`: nombre del plugin (debe coincidir con el registro)
+
+### `CONFIG.ores`
+
+- `enabled`: switch global
+- `mithril` / `crystal` / `dimension`: entradas de reglas de mineral
+
+Propiedades de regla (por entrada):
+
+- `enabled`: activa/desactiva la regla
+- `blockId`: bloque a generar (placeholder en el template)
+- `minY`, `maxY`: rango vertical
+- `veinsPerChunk`: frecuencia
+- `veinSize`: bloques por vetilla
+- `replace`: array de block ids a reemplazar
+- `seed`: seed RNG para colocación determinista
+- `scope`: dónde aplica la regla
+  - `type`: `"worldType" | "worldName" | "dimensionId"`
+  - `value`: valor string para el tipo elegido
+
+### `CONFIG.structures`
+
+- `enabled`: switch global
+- `crystalClusters`, `crystalPillars`, `specialStructures`: entradas de estructura
+
+Propiedades de estructura:
+
+- `enabled`
+- `chance`: probabilidad por chunk (0..1)
+- parámetros de placement (`minHeight`, `maxHeight`, etc) según entrada
+- `blockId` / `topBlockId` / `platformBlockId` (depende de la entrada)
+- `scope`: mismo contrato que las reglas de minerales
+
+### `CONFIG.commands`
+
+Por comando (`ores`, `hooks`, `test`):
+
+- `enabled`
+- `permissionLevel`: quién puede ejecutarlo (valor template: `"any"`)
+- `cheatsRequired`: si requiere cheats
+
+### `CONFIG.debug`
+
+- `enabled`: switch global
+- `logLevel`: `"debug" | "info" | "warn" | "error"`
+- `logGeneration`, `logEvents`, `logCommands`: logs por feature
+
+### `CONFIG.performance`
+
+- `maxTasksPerHook`: tareas máximas devueltas por un hook
+- `taskDelayTicks`: delay entre tareas para evitar watchdog
+- `chunkProcessingTimeout`: timeout suave en ms
+- `enableMetrics`: habilita métricas del template
 
 ## Referencia de API
 
