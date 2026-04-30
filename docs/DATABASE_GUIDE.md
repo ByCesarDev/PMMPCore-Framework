@@ -6,6 +6,26 @@ This document is the authoritative reference for persistence in PMMPCore: the ke
 
 ---
 
+## Quickstart (entry-level)
+
+If you only need to persist plugin state safely:
+
+1. Read/write through `PMMPCore.db`.
+2. Do not touch DB in early execution.
+3. Use `onWorldReady()` for first read/write.
+4. Call `flush()` after admin-critical writes.
+
+```mermaid
+flowchart TD
+  pluginAction[PluginAction] --> kvWrite[PMMPCore.db.set]
+  kvWrite --> dirtyBuffer[DirtyBuffer]
+  dirtyBuffer --> flushCall{Flush now?}
+  flushCall -->|Yes| dynWrite[DynamicPropertyWrite]
+  flushCall -->|No| autoFlush[PeriodicAutoFlush]
+```
+
+---
+
 ## Table of contents
 
 1. [What this is (and is not)](#1-what-this-is-and-is-not)
@@ -51,6 +71,17 @@ Plugins / RelationalEngine / PMMPDataProvider
                     │
                     ▼
       world.getDynamicProperty / setDynamicProperty
+```
+
+```mermaid
+flowchart TD
+  pluginLayer[Plugins] --> providerLayer[DataProviderOrRelationalEngine]
+  providerLayer --> dbManager[DatabaseManager]
+  dbManager --> cache[LRUCache]
+  dbManager --> dirty[DirtySet]
+  dbManager --> codec[JsonCodec]
+  dbManager --> wal[WalLog]
+  dbManager --> worldApi[WorldDynamicProperties]
 ```
 
 **Rule:** Application and plugin code should **not** call `world.getDynamicProperty` or `world.setDynamicProperty` for PMMPCore data. Use `PMMPCore.db` (or inject `DatabaseManager`). Internal WAL helpers may touch the world for `pmmpcore:wal:*` only as part of the provided implementation.
@@ -155,6 +186,19 @@ Useful for `/info` and capacity monitoring.
 
 ---
 
+## 6.1 Write path details
+
+```mermaid
+flowchart TD
+  setCall[set suffix value] --> compare{SameAsCached}
+  compare -->|Yes| skipDirty[Skip dirty mark]
+  compare -->|No| cacheUpdate[Update cache]
+  cacheUpdate --> markDirty[Mark dirty key]
+  markDirty --> flushPhase[flush phase]
+```
+
+---
+
 ## 7. Write-ahead log (WAL)
 
 **Purpose:** Best-effort recovery if the game stops between writing the WAL snapshot and finishing all dirty writes in a single `flush()` pass.
@@ -170,6 +214,20 @@ On **`world.afterEvents.worldLoad`**, the core calls **`replayWalIfAny()`**: if 
 **Testing WAL:** Deliberately aborting `flush()` immediately after `writeSnapshot` (development-only) is the reliable way to exercise replay; killing the client at random timing is not.
 
 **Limitations:** Not a transactional log; no guarantee against partial multi-key corruption if failure occurs mid-flush without a valid snapshot.
+
+---
+
+## 7.1 WAL replay flow
+
+```mermaid
+flowchart TD
+  worldLoad[WorldLoad] --> readWal[ReadWalSnapshot]
+  readWal --> hasWal{HasSnapshot}
+  hasWal -->|No| continueBoot[Continue boot]
+  hasWal -->|Yes| replay[Replay entries writeThrough]
+  replay --> clearWal[ClearWal]
+  clearWal --> continueBoot
+```
 
 ---
 
@@ -342,6 +400,19 @@ Avoid manual collisions; use `plugin:YourPluginName` or dedicated `rtable:` tabl
 | `find` throws “No index” | `createIndex` for that field first. |
 | SQL parse error | Compare query to [section 10](#10-sql-dialect-supported-subset). |
 | High dirty count | Normal under heavy write load until next auto-flush; verify interval in `main.js`. |
+
+---
+
+## 14.1 Troubleshooting decision tree
+
+```mermaid
+flowchart TD
+  symptom[Observed issue] --> kind{IssueType}
+  kind -->|EarlyExecutionError| movePhase[Move DB calls to world-ready]
+  kind -->|DataLostAfterRestart| flushCheck[Check flush boundaries]
+  kind -->|QueryError| sqlCheck[Validate SQL subset and indexes]
+  kind -->|LagSpikes| chunkWork[Chunk writes/queries across ticks]
+```
 
 ---
 

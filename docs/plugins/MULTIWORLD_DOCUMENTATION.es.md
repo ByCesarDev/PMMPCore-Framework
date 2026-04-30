@@ -541,3 +541,28 @@ Primero `CHUNKS_PER_TICK`, luego `GENERATION_TICK_RATE`, luego radios.
 - [ ] No aparecen errores de DB en early execution.
 - [ ] La data de mundos persiste correctamente tras reinicio.
 
+## 23. Vistas operativas Mermaid
+
+### 23.1 Flujo de arquitectura
+
+```mermaid
+flowchart TD
+  commandInput[ComandoMultiWorld] --> commandRouter[MultiWorldCommands]
+  commandRouter --> serviceLayer[MultiWorldService]
+  serviceLayer --> worldRegistry[EstadoRegistroMundos]
+  serviceLayer --> dbLayer[PMMPCoreDB]
+  serviceLayer --> generator[HooksGeneracion]
+  serviceLayer --> teleportFlow[FlujoTeleportSpawn]
+```
+
+### 23.2 Árbol de decisión runtime
+
+```mermaid
+flowchart TD
+  symptom[SintomaObservado] --> class{ClaseSintoma}
+  class -->|WorldNotFound| checkIndex[Revisar índice y normalización]
+  class -->|SpawnIssue| checkSpawn[Revisar mundo principal y routing spawn]
+  class -->|GenerationIssue| checkHooks[Revisar hooks de generación y tipo]
+  class -->|DataMismatch| checkDb[Revisar data DB y límites flush]
+```
+

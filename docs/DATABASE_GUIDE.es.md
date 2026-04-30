@@ -6,6 +6,26 @@ Este documento es la referencia principal de la persistencia en PMMPCore: el alm
 
 ---
 
+## Inicio rápido (entry-level)
+
+Si solo quieres persistir estado de plugin de forma segura:
+
+1. Usa `PMMPCore.db`.
+2. No uses DB en early execution.
+3. Primera E/S en `onWorldReady()`.
+4. Llama `flush()` tras escrituras críticas.
+
+```mermaid
+flowchart TD
+  pluginAction[AccionPlugin] --> kvWrite[PMMPCore.db.set]
+  kvWrite --> dirtyBuffer[DirtyBuffer]
+  dirtyBuffer --> flushCall{Flush ahora}
+  flushCall -->|Si| dynWrite[EscrituraDynamicProperty]
+  flushCall -->|No| autoFlush[AutoFlushPeriodico]
+```
+
+---
+
 ## Índice
 
 1. [Qué es (y qué no es)](#1-qué-es-y-qué-no-es)
@@ -51,6 +71,17 @@ Plugins / RelationalEngine / PMMPDataProvider
                     │
                     ▼
       world.getDynamicProperty / setDynamicProperty
+```
+
+```mermaid
+flowchart TD
+  pluginLayer[Plugins] --> providerLayer[DataProviderOrRelationalEngine]
+  providerLayer --> dbManager[DatabaseManager]
+  dbManager --> cache[LRUCache]
+  dbManager --> dirty[DirtySet]
+  dbManager --> codec[JsonCodec]
+  dbManager --> wal[WalLog]
+  dbManager --> worldApi[WorldDynamicProperties]
 ```
 
 **Regla:** El código de aplicación y plugins **no** debe llamar a `getDynamicProperty` / `setDynamicProperty` del mundo para datos de PMMPCore. Usa `PMMPCore.db` (o inyecta `DatabaseManager`). El WAL interno puede tocar el mundo solo en claves `pmmpcore:wal:*` como parte de esta implementación.
@@ -149,6 +180,19 @@ Las claves son **sufijos** sin el prefijo `pmmpcore:`; el gestor antepone `pmmpc
 
 ---
 
+## 6.1 Detalle del camino de escritura
+
+```mermaid
+flowchart TD
+  setCall[set suffix value] --> compare{IgualEnCache}
+  compare -->|Si| skipDirty[No marcar dirty]
+  compare -->|No| cacheUpdate[Actualizar cache]
+  cacheUpdate --> markDirty[Marcar dirty]
+  markDirty --> flushPhase[Fase flush]
+```
+
+---
+
 ## 7. Registro write-ahead (WAL)
 
 **Objetivo:** Recuperación razonable si el juego se cierra entre escribir el snapshot WAL y terminar todas las escrituras de un `flush()`.
@@ -164,6 +208,20 @@ En **`world.afterEvents.worldLoad`**, el core llama **`replayWalIfAny()`**: si h
 **Pruebas:** Abortar `flush()` justo después del snapshot (solo desarrollo) es la forma fiable de probar replay; matar el cliente a ciegas no lo es.
 
 **Límites:** No es un log transaccional completo; no hay garantía fuerte ante fallos a mitad de flush sin snapshot válido.
+
+---
+
+## 7.1 Flujo de replay WAL
+
+```mermaid
+flowchart TD
+  worldLoad[WorldLoad] --> readWal[LeerWalSnapshot]
+  readWal --> hasWal{HaySnapshot}
+  hasWal -->|No| continueBoot[Continuar arranque]
+  hasWal -->|Si| replay[Reaplicar entries writeThrough]
+  replay --> clearWal[LimpiarWal]
+  clearWal --> continueBoot
+```
 
 ---
 
@@ -314,6 +372,19 @@ El parser es deliberadamente pequeño. Lo no listado aquí debe considerarse **n
 | `find` sin índice | `createIndex` previo. |
 | Error de parse SQL | Comparar con [sección 10](#10-dialecto-sql-subconjunto-soportado). |
 | Dirty alto | Normal bajo muchas escrituras hasta el siguiente flush. |
+
+---
+
+## 14.1 Árbol de decisión de troubleshooting
+
+```mermaid
+flowchart TD
+  symptom[Sintoma observado] --> kind{TipoDeProblema}
+  kind -->|EarlyExecutionError| movePhase[Mover acceso DB a world-ready]
+  kind -->|PerdidaDatosReinicio| flushCheck[Revisar limites de flush]
+  kind -->|ErrorConsulta| sqlCheck[Validar subset SQL e indices]
+  kind -->|LagSpikes| chunkWork[Fragmentar trabajo por ticks]
+```
 
 ---
 

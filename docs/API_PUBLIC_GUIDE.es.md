@@ -6,6 +6,26 @@ Esta guía es la referencia canónica de la API pública de PMMPCore. Está pens
 
 ---
 
+## Inicio rápido para autores nuevos
+
+Si es tu primer plugin en PMMPCore:
+
+1. Importa únicamente desde `scripts/api/index.js`.
+2. Registra comandos en `onStartup(event)`.
+3. Usa DB en `onWorldReady()`.
+4. Protege comandos con permisos.
+5. Mueve lógica de negocio a `service.js`.
+
+```mermaid
+flowchart TD
+  importStep[Import desde api/index.js] --> lifecycleStep[Implementar lifecycle]
+  lifecycleStep --> commandStep[Registrar comandos en onStartup]
+  commandStep --> dataStep[Acceso DB en onWorldReady]
+  dataStep --> releaseStep[Validar y publicar]
+```
+
+---
+
 ## 1) Qué significa “API pública” en PMMPCore
 
 En este repositorio, un símbolo se considera público si:
@@ -75,6 +95,26 @@ El plugin debería seguir este contrato:
 `Native function [World::getDynamicProperty] cannot be used in early execution`
 
 Por eso el primer acceso a DB debe ir en `onWorldReady()` (o un flujo equivalente seguro post-world-load).
+
+---
+
+## 4.1 Matriz de qué hacer y qué no hacer
+
+| Fase | Operaciones seguras | Operaciones no seguras |
+|---|---|---|
+| `onLoad` | constantes, flags, wiring | DB read/write |
+| `onEnable` | suscripciones, registro de migraciones | hidratación pesada de mundo |
+| `onStartup` | enums y firma de comandos | `PMMPCore.db.get/set` |
+| `onWorldReady` | DB, migraciones, cachés | loops bloqueantes sin chunking |
+| `onDisable` | cleanup, flush final | escrituras riesgosas sin control |
+
+```mermaid
+flowchart TD
+  onLoad[onLoad] --> onEnable[onEnable]
+  onEnable --> onStartup[onStartup]
+  onStartup --> onWorldReady[onWorldReady]
+  onWorldReady --> onDisable[onDisable]
+```
 
 ---
 
@@ -195,6 +235,21 @@ if (!perms?.has(player.name, "pperms.command.myplugin.admin", player.dimension?.
 
 ---
 
+## 6.4 Flujo de fallo común
+
+```mermaid
+flowchart TD
+  cmdCall[LlamadaComando] --> permCheck{TienePermiso}
+  permCheck -->|No| deny[Responder denegación clara]
+  permCheck -->|Si| runBusiness[Ejecutar lógica en service]
+  runBusiness --> dbCall[Persistir con PMMPCore.db]
+  dbCall --> flushDecision{EscrituraCritica}
+  flushDecision -->|Si| doFlush[flush manual]
+  flushDecision -->|No| relyAuto[auto-flush]
+```
+
+---
+
 ## 7) Referencia de exports públicos (`scripts/api/index.js`)
 
 ### Core facade
@@ -247,6 +302,20 @@ Nota: aunque exista un export, prioriza `PMMPCore.get...()` salvo que estés ext
 
 ---
 
+## 9.1 Diagrama de flujo de datos
+
+```mermaid
+flowchart TD
+  pluginCode[PluginCode] --> pmmpFacade[PMMPCoreFacade]
+  pmmpFacade --> stableApi[APIs estables]
+  pmmpFacade --> experimentalApi[APIs experimentales]
+  stableApi --> dbStorage[DatabaseManager]
+  experimentalApi --> relEngine[RelationalEngine]
+  relEngine --> dbStorage
+```
+
+---
+
 ## 10) Lecturas relacionadas
 
 - Persistencia y durabilidad: `docs/DATABASE_GUIDE.es.md`
@@ -277,3 +346,12 @@ Comandos en `onStartup(event)`. Carga/persistencia de datos en `onWorldReady()`.
 ### ¿Debo acceder a PurePerms directamente?
 
 Primero usa `PMMPCore.getPermissionService()`. Recurre a internals de backend solo si es estrictamente necesario.
+
+### ¿Qué mínimo documental debe tener un plugin?
+
+Como mínimo:
+
+- quickstart de onboarding,
+- comandos + permisos,
+- errores frecuentes y troubleshooting,
+- al menos un diagrama de arquitectura/runtime.

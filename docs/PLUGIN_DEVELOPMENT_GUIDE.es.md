@@ -16,6 +16,26 @@ Si eres nuevo en el framework, léela completa antes de arrancar tu plugin.
 
 ---
 
+## 1.1 Tu primer plugin en 10 minutos
+
+Ruta mínima:
+
+1. Crea carpeta del plugin y `main.js`.
+2. Registra plugin con `depend: ["PMMPCore"]`.
+3. Registra comandos en `onStartup`.
+4. Accede a persistencia en `onWorldReady`.
+5. Añade import en `scripts/plugins.js`.
+
+```mermaid
+flowchart TD
+  createFiles[Crear archivos plugin] --> registerPlugin[Registrar en PMMPCore]
+  registerPlugin --> startupCommands[Registrar comandos]
+  startupCommands --> worldReadyData[Hidratar data en world-ready]
+  worldReadyData --> testRun[Ejecutar checklist smoke]
+```
+
+---
+
 ## 2) Requisitos previos
 
 - JavaScript para Bedrock Script API
@@ -77,6 +97,18 @@ Evita DB aquí.
 - desuscribir handlers
 - limpiar tareas runtime
 - flush final opcional
+
+---
+
+## 3.1 Flujo de decisión del lifecycle
+
+```mermaid
+flowchart TD
+  pluginTask[TareaPlugin] --> phaseCheck{NecesitaDatosMundo}
+  phaseCheck -->|No| startupPath[onLoad o onStartup]
+  phaseCheck -->|Si| worldReadyPath[onWorldReady]
+  worldReadyPath --> persist[Persistir con PMMPCore.db]
+```
 
 ---
 
@@ -224,6 +256,20 @@ export function registerMyPluginCommands(event, service) {
 
 ---
 
+## 8.1 Flujo de ejecución de comandos
+
+```mermaid
+flowchart TD
+  commandInput[Entrada comando] --> parseArgs[Parsear argumentos]
+  parseArgs --> resolveSender[Resolver sender]
+  resolveSender --> validatePerms{Tiene permiso}
+  validatePerms -->|No| denyMessage[Responder denegación clara]
+  validatePerms -->|Si| callService[Llamar service layer]
+  callService --> successReply[Respuesta de éxito]
+```
+
+---
+
 ## 9) Integración de permisos
 
 Prioriza la abstracción estable:
@@ -297,6 +343,18 @@ Reglas:
 
 ---
 
+## 11.1 Flujo de migración
+
+```mermaid
+flowchart TD
+  onEnablePhase[onEnable] --> registerMigration[Registrar versiones migración]
+  registerMigration --> worldReadyPhase[onWorldReady]
+  worldReadyPhase --> runMigration[Ejecutar migraciones pendientes]
+  runMigration --> hydrateState[Hidratar estado runtime]
+```
+
+---
+
 ## 12) Rendimiento y watchdog safety
 
 - evita scans completos por tick
@@ -334,6 +392,19 @@ Para diagnóstico de plataforma, usar `/diag`.
 - [ ] Escrituras críticas sobreviven reinicio (puntos de flush verificados).
 - [ ] Dependencias opcionales no rompen funcionalidad base.
 - [ ] Documentación del plugin actualizada.
+
+---
+
+## 14.1 Árbol de troubleshooting para autores
+
+```mermaid
+flowchart TD
+  issue[Problema detectado] --> kind{Categoria}
+  kind -->|CommandNotWorking| commandCheck[Revisar enum routing y sender validation]
+  kind -->|PermissionDeniedUnexpectedly| permsCheck[Revisar nodo y contexto de mundo]
+  kind -->|DataNotPersisted| flushCheck[Revisar flush y fase lifecycle]
+  kind -->|StartupCrash| earlyCheck[Revisar llamadas unsafe en early-execution]
+```
 
 ---
 

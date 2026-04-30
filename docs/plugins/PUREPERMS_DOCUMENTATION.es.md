@@ -361,3 +361,27 @@ Activa `enableMultiworldPerms` solo si tu servidor usa realmente un modelo por m
 - [ ] Protección superadmin validada.
 - [ ] `/ppreload` funciona y mantiene consistencia.
 - [ ] El servicio de permisos de PMMPCore se conecta/desconecta correctamente en enable/disable.
+
+## 16. Diagramas Mermaid de arquitectura y decisión
+
+### 16.1 Flujo de resolución de permisos
+
+```mermaid
+flowchart TD
+  permissionCheck[SolicitudCheckPermiso] --> loadUser[Cargar contexto usuario grupo]
+  loadUser --> worldLayer[Aplicar capa por mundo]
+  worldLayer --> inheritance[Resolver cadena de herencia]
+  inheritance --> mergeRules[Combinar reglas allow deny]
+  mergeRules --> finalDecision[Decisión final]
+```
+
+### 16.2 Árbol de troubleshooting
+
+```mermaid
+flowchart TD
+  symptom[Sintoma observado] --> class{Clase}
+  class -->|UnexpectedDeny| checkNegatives[Revisar nodos negativos y herencia]
+  class -->|UnexpectedAllow| checkWildcard[Revisar wildcard y defaults]
+  class -->|WorldMismatch| checkWorldScope[Revisar alcance por mundo]
+  class -->|AdminLockout| checkSuperadmin[Revisar protecciones superadmin y actor]
+```

@@ -99,6 +99,7 @@ Current included plugins:
 - **MultiWorld**: dimension-backed custom worlds with commands and persistence
 - **PurePerms**: permissions and groups, with a stable core-facing permission contract
 - **PlaceholderAPI**: dynamic `%placeholder%` parser with built-in expansions and plugin runtime registry
+- **EconomyAPI**: full economy suite (wallet, debt, bank, ranking, commands, and runtime API for plugins)
 - **PureChat**: group-based chat formats, player prefix/suffix, and nametag templates
 - **ExamplePlugin**: reference plugin showing MultiWorld hooks and patterns
 
@@ -139,6 +140,7 @@ scripts/
     MultiWorld/
     PurePerms/
     PlaceholderAPI/
+    EconomyAPI/
     ExamplePlugin/
 docs/
   README.md                 # documentation index

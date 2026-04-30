@@ -303,3 +303,37 @@ No. It is optional and safely falls back when unavailable.
 ### Where should admins configure rank colors?
 
 In PureChat format templates, not directly in PurePerms group names.
+
+## 12. Mermaid Runtime Views
+
+### 12.1 Chat pipeline flow
+
+```mermaid
+flowchart TD
+  chatInput[PlayerChatInput] --> permGate[PermissionGate]
+  permGate --> contextResolve[Resolve player context]
+  contextResolve --> internalPlaceholders[Resolve PureChat placeholders]
+  internalPlaceholders --> externalPlaceholders[Resolve PlaceholderAPI tokens]
+  externalPlaceholders --> broadcast[Broadcast formatted line]
+```
+
+### 12.2 NameTag update flow
+
+```mermaid
+flowchart TD
+  spawnEvent[PlayerSpawn] --> readinessCheck[PureChat ready check]
+  readinessCheck --> contextResolve[Resolve context and template]
+  contextResolve --> placeholderPass[Apply placeholders]
+  placeholderPass --> nameTagApply[Apply nameTag]
+```
+
+### 12.3 Troubleshooting tree
+
+```mermaid
+flowchart TD
+  symptom[ObservedSymptom] --> class{Class}
+  class -->|WrongGroupFormat| checkGroup[Check effective group from PurePerms]
+  class -->|PlaceholderNotResolved| checkPapi[Check PlaceholderAPI availability and token syntax]
+  class -->|NoColor| checkColorPerm[Check coloredMessages permission]
+  class -->|NoIntercept| checkUseNode[Check pchat permission and chat hook state]
+```

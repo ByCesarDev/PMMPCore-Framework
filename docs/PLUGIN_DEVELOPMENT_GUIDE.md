@@ -16,6 +16,26 @@ If you are new to the framework, read this guide fully once before coding your p
 
 ---
 
+## 1.1 First plugin in 10 minutes
+
+Minimal path:
+
+1. Create plugin folder and `main.js`.
+2. Register plugin with `depend: ["PMMPCore"]`.
+3. Register commands in `onStartup`.
+4. Access persistence in `onWorldReady`.
+5. Add import in `scripts/plugins.js`.
+
+```mermaid
+flowchart TD
+  createFiles[Create plugin files] --> registerPlugin[Register in PMMPCore]
+  registerPlugin --> startupCommands[Register commands]
+  startupCommands --> worldReadyData[Hydrate data in world-ready]
+  worldReadyData --> testRun[Run smoke checklist]
+```
+
+---
+
 ## 2) Prerequisites
 
 - JavaScript knowledge for Bedrock Script API
@@ -77,6 +97,18 @@ Use for:
 - unsubscribing handlers
 - cleanup of runtime tasks
 - optional final `flush()` for critical pending writes
+
+---
+
+## 3.1 Lifecycle decision flow
+
+```mermaid
+flowchart TD
+  pluginTask[PluginTask] --> phaseCheck{NeedsWorldData}
+  phaseCheck -->|No| startupPath[onLoad or onStartup]
+  phaseCheck -->|Yes| worldReadyPath[onWorldReady]
+  worldReadyPath --> persist[Persist with PMMPCore.db]
+```
 
 ---
 
@@ -224,6 +256,20 @@ export function registerMyPluginCommands(event, service) {
 
 ---
 
+## 8.1 Command execution flow
+
+```mermaid
+flowchart TD
+  commandInput[Command input] --> parseArgs[Parse args]
+  parseArgs --> resolveSender[Resolve sender]
+  resolveSender --> validatePerms{Has permission}
+  validatePerms -->|No| denyMessage[Deny with actionable message]
+  validatePerms -->|Yes| callService[Call service layer]
+  callService --> successReply[Return success response]
+```
+
+---
+
 ## 9) Permissions integration
 
 Prefer stable abstraction:
@@ -297,6 +343,18 @@ Rules for safe migrations:
 
 ---
 
+## 11.1 Migration flow
+
+```mermaid
+flowchart TD
+  onEnablePhase[onEnable] --> registerMigration[Register migration versions]
+  registerMigration --> worldReadyPhase[onWorldReady]
+  worldReadyPhase --> runMigration[Run pending migrations]
+  runMigration --> hydrateState[Hydrate runtime state]
+```
+
+---
+
 ## 12) Performance and watchdog safety
 
 - Avoid full scans every tick.
@@ -334,6 +392,19 @@ For platform-wide diagnostics, use `/diag`.
 - [ ] Critical writes survive reboot (verify with flush points).
 - [ ] Optional dependencies degrade gracefully.
 - [ ] Plugin documentation exists and is current.
+
+---
+
+## 14.1 Troubleshooting tree for plugin authors
+
+```mermaid
+flowchart TD
+  issue[Issue found] --> kind{Issue category}
+  kind -->|CommandNotWorking| commandCheck[Check enum routing and sender validation]
+  kind -->|PermissionDeniedUnexpectedly| permsCheck[Check node + world context]
+  kind -->|DataNotPersisted| flushCheck[Check flush boundaries and lifecycle phase]
+  kind -->|StartupCrash| earlyCheck[Check early-execution unsafe calls]
+```
 
 ---
 

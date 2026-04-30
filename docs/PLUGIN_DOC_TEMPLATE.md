@@ -6,6 +6,22 @@ Use this template for every new plugin document under `docs/plugins/`.
 
 ---
 
+## Documentation quality bar (mandatory)
+
+Every plugin document must include:
+
+- onboarding section for entry-level users,
+- actionable examples (not conceptual only),
+- troubleshooting with symptom -> cause -> fix,
+- limits and operational caveats,
+- multiple Mermaid diagrams for technical docs.
+
+Minimum Mermaid requirement:
+
+- 1 architecture flow,
+- 1 runtime/command flow,
+- 1 troubleshooting decision tree.
+
 ## 1) Header
 
 - Plugin name
@@ -93,6 +109,29 @@ Per command:
 
 - version-to-version behavior/data changes
 
+## 14) Mermaid diagrams (required)
+
+- Architecture flow (components and responsibilities)
+- Runtime flow (startup, command handling, persistence path)
+- Troubleshooting decision tree
+
+Template snippets:
+
+```mermaid
+flowchart TD
+  userAction[UserAction] --> commandLayer[CommandLayer]
+  commandLayer --> serviceLayer[ServiceLayer]
+  serviceLayer --> storageLayer[StorageLayer]
+```
+
+```mermaid
+flowchart TD
+  symptom[ObservedSymptom] --> class{SymptomClass}
+  class -->|CategoryA| checkA[CheckA]
+  class -->|CategoryB| checkB[CheckB]
+  class -->|CategoryC| checkC[CheckC]
+```
+
 ---
 
 ## Ready-to-copy skeleton
@@ -131,4 +170,19 @@ Language: **English** | [Español](<FILE>.es.md)
 
 ## 10. FAQ
 ...
+```
+
+### Extended skeleton (recommended)
+
+```markdown
+## 11. Limits and quotas
+...
+
+## 12. Troubleshooting decision tree
+```mermaid
+flowchart TD
+  symptom[ObservedSymptom] --> class{Class}
+  class -->|A| actionA[ActionA]
+  class -->|B| actionB[ActionB]
+```
 ```

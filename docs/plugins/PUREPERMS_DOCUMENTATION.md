@@ -364,3 +364,27 @@ Enable `enableMultiworldPerms` only when your server actually uses per-world acc
 - [ ] Superadmin protections validated.
 - [ ] `/ppreload` works and keeps state consistent.
 - [ ] PMMPCore permission service is bound/unbound correctly across enable/disable.
+
+## 16. Mermaid Architecture and Decision Flows
+
+### 16.1 Permission resolution flow
+
+```mermaid
+flowchart TD
+  permissionCheck[PermissionCheckRequest] --> loadUser[Load user and group context]
+  loadUser --> worldLayer[Apply world-specific layer]
+  worldLayer --> inheritance[Resolve inheritance chain]
+  inheritance --> mergeRules[Merge allow and deny rules]
+  mergeRules --> finalDecision[Final allow deny decision]
+```
+
+### 16.2 Troubleshooting tree
+
+```mermaid
+flowchart TD
+  symptom[Observed symptom] --> class{Class}
+  class -->|UnexpectedDeny| checkNegatives[Check negative nodes and inheritance]
+  class -->|UnexpectedAllow| checkWildcard[Check wildcard and group defaults]
+  class -->|WorldMismatch| checkWorldScope[Check world-specific settings]
+  class -->|AdminLockout| checkSuperadmin[Check superadmin protections and actor type]
+```

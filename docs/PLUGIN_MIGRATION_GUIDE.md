@@ -6,6 +6,27 @@ This guide helps you migrate existing plugins (legacy patterns) to the PMMPCore 
 
 ---
 
+## Migration quick path
+
+If you only need the safest migration sequence:
+
+1. Move startup DB logic to `onWorldReady`.
+2. Replace direct Dynamic Property usage with `PMMPCore.db`.
+3. Replace backend-specific permission checks with `getPermissionService()`.
+4. Add versioned migration steps.
+5. Validate with restart and command smoke tests.
+
+```mermaid
+flowchart TD
+  legacyPlugin[LegacyPlugin] --> lifecycleFix[Fix lifecycle phase boundaries]
+  lifecycleFix --> storageFix[Move to PMMPCore.db]
+  storageFix --> permsFix[Normalize permissions API]
+  permsFix --> migrationStep[Add migration versions]
+  migrationStep --> verification[Run migration verification checklist]
+```
+
+---
+
 ## 1) Why migrate
 
 Migrating to PMMPCore v1 patterns gives you:
@@ -41,6 +62,17 @@ Migrating to PMMPCore v1 patterns gives you:
 6. **Run validation checklist**
 
 This order reduces the chance of silent data or permission regressions.
+
+---
+
+## 3.1 Risk map by migration stage
+
+| Stage | Primary risk | Primary mitigation |
+|---|---|---|
+| Lifecycle | early execution runtime errors | split startup/world-ready concerns |
+| Persistence | data mismatch or data loss | explicit read/write mapping + flush boundaries |
+| Permissions | accidental privilege changes | centralized guard helper and node audit |
+| Migrations | repeated transform or corruption | idempotent migration logic and version checks |
 
 ---
 
@@ -146,6 +178,20 @@ Adopt:
 
 ---
 
+## 4.1 End-to-end migration flow
+
+```mermaid
+flowchart TD
+  assess[Assess current plugin] --> classify[Classify legacy patterns]
+  classify --> moveLifecycle[Move world I/O to onWorldReady]
+  moveLifecycle --> swapStorage[Swap storage calls to PMMPCore.db]
+  swapStorage --> swapPerms[Swap permission checks]
+  swapPerms --> addMigrations[Register and run migrations]
+  addMigrations --> validate[Validate and harden]
+```
+
+---
+
 ## 5) Real-world migration examples
 
 ## Example 1: startup crash due to early execution
@@ -198,6 +244,16 @@ Fix:
 
 ---
 
+## 6.1 Verification runbook
+
+1. Fresh world load test.
+2. Restart world and verify no repeated migration application.
+3. Command smoke test for all changed commands.
+4. Permission-denied path test (negative test).
+5. Data durability test (write -> flush -> restart -> read).
+
+---
+
 ## 7) Common pitfalls
 
 - Migrating command logic but forgetting enum registration
@@ -238,3 +294,7 @@ Prefer not to. Keep migrations deterministic and focused on your plugin-owned da
 ### How do I prove migration is safe?
 
 Run a first-load test, restart test, and rollback/forward test using `/diag` plus plugin command smoke tests.
+
+### Should I migrate command UX while migrating internals?
+
+Prefer keeping command UX stable during migration and improving UX in a separate pass, so regressions are easier to isolate.

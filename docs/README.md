@@ -2,7 +2,23 @@
 
 Language: **English** | [Español](README.es.md)
 
-Index of official project documentation.
+Official PMMPCore documentation index and navigation entrypoint.
+
+## Documentation map
+
+```mermaid
+flowchart TD
+  start[DocsHome] --> coreDocs[CoreGuides]
+  start --> pluginDocs[PluginManuals]
+  start --> opsDocs[OperationsAndTroubleshooting]
+  start --> templates[AuthoringTemplates]
+  coreDocs --> project[PROJECT_DOCUMENTATION]
+  coreDocs --> api[API_PUBLIC_GUIDE]
+  coreDocs --> db[DATABASE_GUIDE]
+  coreDocs --> dev[PLUGIN_DEVELOPMENT_GUIDE]
+  opsDocs --> migration[PLUGIN_MIGRATION_GUIDE]
+  opsDocs --> troubleshooting[TROUBLESHOOTING_PLAYBOOK]
+```
 
 ## Documents
 
@@ -17,6 +33,7 @@ Index of official project documentation.
 - `plugins/PUREPERMS_DOCUMENTATION.md` - PurePerms usage, groups/permissions, persistence, and configuration.
 - `plugins/PURECHAT_DOCUMENTATION.md` - PureChat usage, templates/placeholders, permissions, and compatibility commands.
 - `plugins/PLACEHOLDERAPI_DOCUMENTATION.md` - PlaceholderAPI usage, built-in expansions, commands, and plugin integration.
+- `plugins/ECONOMYAPI_DOCUMENTATION.md` - EconomyAPI usage, wallet/debt/bank operations, commands, events, and integration API.
 
 ## Current Coverage
 
@@ -30,7 +47,16 @@ Documented in detail:
 - PurePerms.
 - PureChat.
 - PlaceholderAPI.
+- EconomyAPI.
 
 Pending (upcoming versions):
 
-- EconomyAPI.
+- None. Expand existing docs as APIs evolve.
+
+## How to use this index
+
+If you are:
+
+- **New to PMMPCore** -> start with `PROJECT_DOCUMENTATION.md` then `PLUGIN_DEVELOPMENT_GUIDE.md`.
+- **Building plugins** -> read `API_PUBLIC_GUIDE.md`, then `DATABASE_GUIDE.md`, then plugin manuals.
+- **Debugging production behavior** -> go directly to `TROUBLESHOOTING_PLAYBOOK.md`.

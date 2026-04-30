@@ -17,6 +17,19 @@ Nota de arquitectura:
 
 - PlaceholderAPI es un plugin, no parte de los exports del core de PMMPCore.
 
+## 1.1 Pipeline de resolucion
+
+```mermaid
+flowchart TD
+  inputText[TextoEntrada] --> tokenScan[EscaneoRegexTokens]
+  tokenScan --> tokenClassify[ResolucionIdentifierKey]
+  tokenClassify --> expansionLookup[LookupRegistroExpansiones]
+  expansionLookup --> cacheCheck[RevisionCache]
+  cacheCheck --> expansionRun[onPlaceholderRequest]
+  expansionRun --> fallbackRule[FallbackSiDesconocido]
+  fallbackRule --> outputText[TextoResuelto]
+```
+
 ## 2. Sintaxis y reglas de resolucion
 
 - Sintaxis principal: `%identifier_key%` (ejemplo: `%player_name%`).
@@ -38,6 +51,12 @@ Nota del parser de comandos Bedrock:
 
 ```text
 /papi parse "%online_players%"
+```
+
+Comando recomendado para test seguro sin pelear con `%...%`:
+
+```text
+/papi test player name
 ```
 
 ## 4. Permisos
@@ -139,6 +158,13 @@ Ejemplo de formato:
 /pchat setformat OP global "[%time_current%] %player_name% (%online_players%) > {msg}"
 ```
 
+Orden de integracion:
+
+1. PureChat resuelve placeholders internos `{...}`.
+2. PlaceholderAPI resuelve tokens `%...%`.
+
+Asi ambos sistemas pueden convivir en el mismo formato.
+
 ## 9. Checklist de prueba rapida
 
 ```text
@@ -154,6 +180,49 @@ Esperado:
 
 - placeholders validos se resuelven,
 - placeholders desconocidos se mantienen sin cambios.
+
+## 10. Troubleshooting
+
+### `parse` falla con error de sintaxis al usar `%token%`
+
+- Usa comillas en Bedrock:
+  - `/papi parse "%online_players%"`
+- O usa `/papi test <expansion> <key>`.
+
+### Se resuelve en `/papi parse` pero no en formato de chat
+
+- Verifica que el plugin consumidor (por ejemplo PureChat) use runtime de PlaceholderAPI.
+- Verifica que editaste el formato del grupo efectivo.
+
+### Placeholders de jugador no se resuelven
+
+- Confirma que hay contexto de jugador valido.
+- En contexto no-jugador usa placeholders server/time/general.
+
+## 11. Vistas runtime e integración Mermaid
+
+### 11.1 Flujo de resolución por expansión
+
+```mermaid
+flowchart TD
+  token[TokenPlaceholder] --> parseToken[Parse identifier y key]
+  parseToken --> aliasCheck[Check alias map]
+  aliasCheck --> expansionLookup[Lookup expansión]
+  expansionLookup --> invoke[Invocar onPlaceholderRequest]
+  invoke --> fallback[Fallback si null o error]
+  fallback --> finalValue[Valor final de reemplazo]
+```
+
+### 11.2 Flujo de integración de plugin consumidor
+
+```mermaid
+flowchart TD
+  consumerPlugin[PluginConsumidor] --> runtimeFetch[PMMPCore.getPlugin PlaceholderAPI]
+  runtimeFetch --> hasRuntime{ExisteRuntime}
+  hasRuntime -->|No| fallbackText[Usar texto fallback]
+  hasRuntime -->|Si| parseCall[Llamar runtime.parse]
+  parseCall --> render[Render salida resuelta]
+```
 
 ## 10. Limites y notas
 

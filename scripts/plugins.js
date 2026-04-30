@@ -7,9 +7,10 @@ console.log("[PMMPCore] Loading plugins...");
 import "./plugins/MultiWorld/main.js";
 import "./plugins/PurePerms/main.js";
 import "./plugins/PlaceholderAPI/main.js";
+import "./plugins/EconomyAPI/main.js";
 import "./plugins/PureChat/main.js";
 import "./plugins/ExamplePlugin/main.js";
 
-export const pluginList = ["MultiWorld", "PurePerms", "PlaceholderAPI", "PureChat", "ExamplePlugin"];
+export const pluginList = ["MultiWorld", "PurePerms", "PlaceholderAPI", "EconomyAPI", "PureChat", "ExamplePlugin"];
 
-console.log("[PMMPCore] Plugin loader initialized - MultiWorld, PurePerms, PlaceholderAPI, PureChat, ExamplePlugin loaded");
+console.log("[PMMPCore] Plugin loader initialized - MultiWorld, PurePerms, PlaceholderAPI, EconomyAPI, PureChat, ExamplePlugin loaded");

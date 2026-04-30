@@ -2,213 +2,175 @@
 
 Idioma: [English](PROJECT_DOCUMENTATION.md) | **Español**
 
-## 1. Resumen general
+## 1. Para qué existe PMMPCore
 
-PMMPCore es un framework para Minecraft Bedrock que estandariza el desarrollo modular de funcionalidades tipo plugin dentro de los límites de la Script API.
+PMMPCore es un framework para Behavior Packs de Bedrock que permite desarrollar plugins con un modelo consistente de lifecycle, persistencia, permisos, comandos y observabilidad.
 
-Objetivos:
+Si vienes a evaluarlo rápido:
 
-- Unificar arquitectura y ciclo de vida.
-- Reducir acoplamiento entre módulos.
-- Centralizar persistencia y comandos.
-- Facilitar mantenimiento y escalabilidad.
+- Tiene ciclo de vida estándar.
+- Tiene una ruta de persistencia única (`PMMPCore.db`).
+- Tiene servicios reutilizables (migraciones, scheduler, eventos, permisos).
+- Incluye plugins core listos para usar.
 
-## 2. Limitaciones de Bedrock y decisiones de diseño
+## 2. Vista rápida de arquitectura
 
-### Limitaciones relevantes
+```mermaid
+flowchart TD
+  bootFile[main.js raiz] --> coreMain[scripts/main.js]
+  coreMain --> pmmpcoreCore[PMMPCore.js]
+  coreMain --> dbManager[DatabaseManager]
+  coreMain --> pluginLoader[scripts/plugins.js]
+  pluginLoader --> pluginMains[PluginMainFiles]
+  pmmpcoreCore --> services[ServiceRegistry]
+  services --> permissions[PermissionService]
+  services --> scheduler[TaskScheduler]
+  services --> events[EventBus]
+  dbManager --> dynProps[WorldDynamicProperties]
+```
 
-- No existe carga dinámica real de scripts en runtime.
-- Acceso a archivos limitado o no disponible en juego.
-- Persistencia principal vía Dynamic Properties.
+## 3. Flujo runtime (clave)
 
-### Decisiones de arquitectura
+```mermaid
+flowchart TD
+  startup[beforeEvents.startup] --> initCore[Init PMMPCore y DB]
+  initCore --> pluginEnable[enableAll -> onEnable]
+  pluginEnable --> startupHooks[onStartup registro de comandos]
+  startupHooks --> worldLoad[world.afterEvents.worldLoad]
+  worldLoad --> readyHooks[onWorldReady fase segura DB]
+  readyHooks --> tickLoop[TickCoordinator y flush periodico]
+```
 
-- Carga estática de plugins desde `scripts/plugins.js`.
-- Registro de plugins en `PMMPCore.registerPlugin(...)`.
-- Inicio coordinado desde `scripts/main.js`.
-- Persistencia centralizada vía `DatabaseManager`.
+Contrato de lifecycle por plugin:
 
-## 3. Componentes del sistema
+- `onLoad()`: opcional, sin I/O de mundo.
+- `onEnable()`: suscripciones y setup.
+- `onStartup(event)`: comandos/enums únicamente.
+- `onWorldReady()`: primer punto seguro para DB/migraciones.
+- `onDisable()`: limpieza + cierre seguro.
 
-### 3.1 `scripts/main.js`
+## 4. Seguridad de early execution
 
-Responsable de:
+Dynamic Properties no están disponibles en fases tempranas, por lo que `PMMPCore.db` tampoco debe usarse ahí.
 
-- Inicializar la DB compartida (`DatabaseManager`).
-- Inicializar `PMMPCore` y su service registry.
-- Registrar comandos de diagnóstico del core.
-- Ejecutar `enableAll()` y hooks de fase temprana.
-- Diferir inicialización **dependiente del mundo** a `world.afterEvents.worldLoad` (porque Dynamic Properties no están disponibles en “early execution”).
+```mermaid
+flowchart TD
+  startupPhase[FaseStartup] -->|DB read/write| earlyError[ErrorEarlyExecution]
+  startupPhase -->|Registrar comandos| safePath[Seguro]
+  worldReadyPhase[FaseWorldReady] -->|DB read/write| safeDb[AccesoDBSeguro]
+```
 
-### 3.2 `scripts/PMMPCore.js`
+Regla práctica:
 
-Responsable de:
+- En `onStartup`: registrar comandos.
+- En `onWorldReady`: hidratar estado, migrar y persistir.
 
-- Registrar plugins (Map interno).
-- Mantener estado de plugins (`enabled` / `blocked`) con razón.
-- Validar dependencias (`depend`, `softdepend`).
-- Ejecutar ciclo de vida (`onEnable` / `onDisable`).
-- Exponer acceso a DB (`PMMPCore.db`) y servicios públicos (EventBus, Scheduler, PermissionService, MigrationService, etc).
+## 5. Componentes y responsabilidades
 
-### 3.3 `scripts/DatabaseManager.js`
+- `scripts/main.js`: orquestación de arranque y puente a world-ready.
+- `scripts/PMMPCore.js`: registro plugins, validación dependencias y acceso a servicios.
+- `scripts/DatabaseManager.js`: KV, caché LRU, dirty buffer, flush, WAL replay.
+- `scripts/plugins.js`: orden de carga de plugins.
+- `scripts/api/index.js`: exports públicos curados.
 
-Responsable de:
+## 6. Estrategia de dependencias
 
-- Único acceso a Dynamic Properties para datos de aplicación bajo `pmmpcore:*` (caché LRU, dirty, `flush()`, WAL opcional al iniciar flush).
-- API genérica (`get`, `set`, `delete`, `has`); `get` devuelve clones de objetos/arrays.
-- Helpers de plugin/jugador.
-- API shard de MultiWorld (`mw:index`, `mw:world:*`, `mw:chunks:*`).
-- `listPropertySuffixes(prefix)` para motores internos.
-- El motor relacional/SQL está en `scripts/db/RelationalEngine.js` y solo usa `DatabaseManager`; `PMMPCore.getDataProvider()` expone `scripts/PMMPDataProvider.js`.
-- Documentación de referencia: [DATABASE_GUIDE.es.md](DATABASE_GUIDE.es.md).
+`depend` (obligatoria):
 
-### 3.4 `scripts/plugins.js`
+- si falta, el plugin queda bloqueado.
 
-Responsable de:
+`softdepend` (opcional):
 
-- Importar explícitamente plugins activos.
-- Definir la lista oficial cargada en runtime.
+- si falta, el plugin sigue activo con degradación funcional.
 
-### 3.5 `scripts/api/index.js` (superficie de API pública)
+```mermaid
+flowchart TD
+  pluginDef[PluginDefinition] --> hardDeps[depend]
+  pluginDef --> softDeps[softdepend]
+  hardDeps --> checkHard{TodosPresentes}
+  checkHard -->|No| blocked[PluginBlocked]
+  checkHard -->|Si| continueEnable[ContinueEnable]
+  softDeps --> checkSoft{TodosPresentes}
+  checkSoft -->|No| warnOnly[WarnOnly]
+  checkSoft -->|Si| optionalOn[OptionalFeaturesOn]
+```
 
-Este archivo es el **barrel de exportación público** pensado para autores de plugins (dentro del ecosistema PMMPCore). Re-exporta APIs estables y experimentales para evitar imports profundos.
+## 7. Vista de datos
 
-Ver: `docs/API_PUBLIC_GUIDE.es.md`.
-
-## 4. Ciclo de vida de plugins
-
-Contrato esperado:
-
-- `onLoad()` (opcional): bootstrap ligero; **sin I/O de mundo**.
-- `onEnable()`: activar hooks/suscripciones; todavía evitar I/O pesado del mundo.
-- `onStartup(event)`: registrar comandos/enums/dimensiones de Bedrock (tareas seguras en fase temprana).
-- `onWorldReady()` (recomendado): primer punto **seguro con mundo** (migraciones, leer/escribir `PMMPCore.db`, warmup de RelationalEngine).
-- `onDisable()`: limpieza y lógica final sensible a flush.
-
-Orden:
-
-1. (Opcional) `PMMPCore.loadAll()` llama `onLoad` (si existe).
-2. `PMMPCore.enableAll()` llama `onEnable`.
-3. `main.js` ejecuta `onStartup(event)` solo para plugins habilitados.
-4. En `world.afterEvents.worldLoad`, el core emite `world.ready` y llama `onWorldReady()` para plugins habilitados.
-5. En shutdown/reload, `PMMPCore.disableAll()` llama `onDisable`.
-
-### Advertencia de “early execution” (crítico)
-
-Bedrock falla si llamas `world.getDynamicProperty` / `world.setDynamicProperty` demasiado temprano (por ejemplo dentro de `beforeEvents.startup` o algunos flujos de `onStartup`). Como `PMMPCore.db` depende de Dynamic Properties, **las primeras lecturas/escrituras deben diferirse** a `world.afterEvents.worldLoad` o más tarde.
-
-Esto está documentado en detalle en: `docs/DATABASE_GUIDE.es.md` (sección “Cuándo puedes llamar a la DB”).
-
-## 5. Modelo de dependencias
-
-### `depend`
-
-- Dependencia obligatoria.
-- Si falta, el plugin no se habilita.
-- `PMMPCore` se valida como dependencia estricta cuando se declara.
-
-### `softdepend`
-
-- Dependencia opcional.
-- Si falta, solo genera warning.
-
-Buenas prácticas:
-
-- Mantener `depend: ["PMMPCore"]` en complementos del ecosistema.
-- Verificar plugin opcional antes de usar su API.
-
-## 6. Comandos, permisos y seguridad básica
-
-Recomendado:
-
-- Nombres con namespace: `pmmpcore:<command>`.
-- En Bedrock, comandos custom deben ser `namespace:value`.
-- Resolver origen con `origin.initiator ?? origin.sourceEntity`.
-- Validar `instanceof Player` cuando aplique.
-- Mutaciones sensibles dentro de `system.run(...)`.
-
-Comandos core actuales:
-
-- `pmmpcore:plugins`
-- `pmmpcore:pl`
-- `pmmpcore:pluginstatus <plugin>`
-- `pmmpcore:info`
-- `pmmpcore:pmmphelp`
-- `pmmpcore:diag` (diagnóstico de plataforma: servicios, eventos, scheduler, métricas)
-- `pmmpcore:selftest` (smoke tests: KV + capa relacional)
-
-Para comandos de plugins, se recomienda el `CommandBus` (experimental) para registrar/validar/ejecutar de forma consistente.
-
-## 7. Servicios del core (alto nivel)
-
-PMMPCore provee un service registry (interno) y expone servicios a través del facade `PMMPCore`.
-
-Servicios comunes:
-
-- **Persistencia**: `PMMPCore.db` (stable), `PMMPCore.getDataProvider()` (stable), `PMMPCore.createRelationalEngine()` (experimental)
-- **Permisos**: `PMMPCore.getPermissionService()` (stable), backend por defecto PurePerms
-- **Migraciones**: `PMMPCore.getMigrationService()` (experimental) para upgrades versionados por plugin
-- **Eventos**: `PMMPCore.getEventBus()` (experimental)
-- **Scheduler**: `PMMPCore.getScheduler()` (experimental), coordinado por `TickCoordinator`
-- **Observabilidad**: `PMMPCore.getLogger()` y métricas internas (duración de flush/query/ticks)
-
-## 8. Persistencia y esquema de datos
-
-### Namespace
-
-Todas las claves bajo `pmmpcore:*`.
-
-### Ejemplos de claves
+Namespaces principales:
 
 - `pmmpcore:player:<name>`
 - `pmmpcore:plugin:<pluginName>`
-- `pmmpcore:mw:index`
-- `pmmpcore:mw:world:<worldName>`
-- `pmmpcore:mw:chunks:<worldName>`
+- `pmmpcore:mw:*`
+- `pmmpcore:rtable:*`
 
-Recomendaciones:
-
-- Guardar estructuras compactas.
-- Evitar escrituras innecesarias por tick.
-- Usar flush controlado en operaciones masivas.
-
-## 9. Estructura recomendada para nuevos plugins
-
-```text
-scripts/plugins/MyPlugin/
-  main.js
-  (módulos internos opcionales)
+```mermaid
+flowchart TD
+  pluginCode[PluginCode] --> kvApi[PMMPCore.db]
+  pluginCode --> relApi[RelationalEngine]
+  kvApi --> playerSpace[player namespace]
+  kvApi --> pluginSpace[plugin namespace]
+  relApi --> rtableSpace[rtable namespace]
 ```
 
-Y registrar en:
+## 8. Observabilidad operativa
 
-- `scripts/plugins.js` (import).
-- `pluginList` (si se usa para listados/diagnóstico).
+Comandos útiles:
 
-## 10. Por dónde seguir
+- `pmmpcore:plugins`
+- `pmmpcore:pluginstatus`
+- `pmmpcore:diag`
+- `pmmpcore:info`
+- `pmmpcore:selftest`
 
-Siguiente lectura recomendada:
+Objetivo: reducir diagnóstico por intuición y hacerlo reproducible.
 
-- **Navegación / arranque**: `README.es.md` y `docs/README.es.md`
-- **API pública**: `docs/API_PUBLIC_GUIDE.es.md`
-- **Base de datos/persistencia**: `docs/DATABASE_GUIDE.es.md`
-- **Guía de autores de plugins**: `docs/PLUGIN_DEVELOPMENT_GUIDE.es.md`
-- **Manuales de plugins**: `docs/plugins/`
+## 9. Casos comunes
 
-## 10. Hoja de ruta operativa resumida
+### Caso A: autor de plugin nuevo
 
-### Corto plazo
+1. Crea `scripts/plugins/MyPlugin/main.js`.
+2. Registra con `depend: ["PMMPCore"]`.
+3. Comandos en `onStartup`.
+4. DB/migraciones en `onWorldReady`.
+5. Añade import en `scripts/plugins.js`.
 
-- Seguir optimizando generación `normal` en MultiWorld.
-- Endurecer rutas de error y observabilidad.
+### Caso B: plugin con economía opcional
 
-### Mediano plazo
+1. `softdepend: ["EconomyAPI"]`.
+2. Resolver plugin con `PMMPCore.getPlugin("EconomyAPI")`.
+3. Si no existe, degradar solo features económicas.
 
-- Scaffolding para nuevos plugins.
-- Pruebas de regresión de comandos críticos.
+## 10. Fallos frecuentes
 
-### Largo plazo
+- DB en `onStartup` -> mover a `onWorldReady`.
+- Comando sin namespace -> usar `pmmpcore:<nombre>`.
+- Lógica en callback de comando -> mover a `service.js`.
+- Dependencia no declarada -> añadir `depend`/`softdepend`.
 
-- Versión estable del framework.
-- Documentación completa de complementos base.
+## 11. Orientación de roadmap
+
+Corto plazo:
+
+- robustez operativa,
+- consistencia de observabilidad,
+- calidad documental.
+
+Mediano plazo:
+
+- plantillas/scaffolding para plugins,
+- regresión de comandos críticos.
+
+Largo plazo:
+
+- madurez de API estable,
+- contratos de ecosistema más sólidos.
+
+## 12. Lecturas siguientes
+
+- [Guía API pública](API_PUBLIC_GUIDE.es.md)
+- [Guía de base de datos](DATABASE_GUIDE.es.md)
+- [Guía de desarrollo de plugins](PLUGIN_DEVELOPMENT_GUIDE.es.md)
+- [Guía de migración](PLUGIN_MIGRATION_GUIDE.es.md)
+- [Playbook de troubleshooting](TROUBLESHOOTING_PLAYBOOK.es.md)
 

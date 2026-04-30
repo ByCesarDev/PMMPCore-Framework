@@ -6,6 +6,22 @@ Usa esta plantilla para cada documento nuevo de plugin en `docs/plugins/`.
 
 ---
 
+## Barra de calidad documental (obligatoria)
+
+Toda documentación de plugin debe incluir:
+
+- onboarding para usuarios entry-level,
+- ejemplos accionables (no solo teoría),
+- troubleshooting por síntoma -> causa -> solución,
+- límites y notas operativas,
+- múltiples diagramas Mermaid en docs técnicos.
+
+Mínimo Mermaid requerido:
+
+- 1 flujo de arquitectura,
+- 1 flujo runtime/comandos,
+- 1 árbol de decisión de troubleshooting.
+
 ## 1) Encabezado
 
 - Nombre del plugin
@@ -93,6 +109,29 @@ Por comando:
 
 - cambios de comportamiento/data por versión
 
+## 14) Diagramas Mermaid (obligatorio)
+
+- Flujo de arquitectura (componentes y responsabilidades)
+- Flujo runtime (arranque, comandos, persistencia)
+- Árbol de troubleshooting
+
+Snippets base:
+
+```mermaid
+flowchart TD
+  userAction[AccionUsuario] --> commandLayer[CapaComandos]
+  commandLayer --> serviceLayer[CapaService]
+  serviceLayer --> storageLayer[CapaStorage]
+```
+
+```mermaid
+flowchart TD
+  symptom[SintomaObservado] --> class{ClaseSintoma}
+  class -->|CategoriaA| checkA[ChequeoA]
+  class -->|CategoriaB| checkB[ChequeoB]
+  class -->|CategoriaC| checkC[ChequeoC]
+```
+
 ---
 
 ## Esqueleto listo para copiar
@@ -131,4 +170,19 @@ Idioma: **Español** | [English](<FILE>.md)
 
 ## 10. FAQ
 ...
+```
+
+### Esqueleto extendido (recomendado)
+
+```markdown
+## 11. Límites y cuotas
+...
+
+## 12. Árbol de troubleshooting
+```mermaid
+flowchart TD
+  symptom[Sintoma] --> class{Clase}
+  class -->|A| actionA[AccionA]
+  class -->|B| actionB[AccionB]
+```
 ```

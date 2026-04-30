@@ -99,6 +99,7 @@ Actualmente:
 - **MultiWorld**: mundos personalizados por dimensiones con comandos y persistencia
 - **PurePerms**: permisos y grupos, con contrato estable hacia el core
 - **PlaceholderAPI**: parser de `%placeholders%` con expansiones incluidas y registro runtime para plugins
+- **EconomyAPI**: suite completa de economia (wallet, deuda, banco, ranking, comandos y API runtime para plugins)
 - **PureChat**: formatos de chat por grupo, prefijo/sufijo por jugador y templates de nametag
 - **ExamplePlugin**: plugin de referencia con patrones y hooks de MultiWorld
 
@@ -139,6 +140,7 @@ scripts/
     MultiWorld/
     PurePerms/
     PlaceholderAPI/
+    EconomyAPI/
     ExamplePlugin/
 docs/
   README.es.md              # índice

@@ -654,3 +654,28 @@ Start with `CHUNKS_PER_TICK`, then `GENERATION_TICK_RATE`, then generation/clean
 - [ ] Cleanup locks engage and release correctly.
 - [ ] No early-execution DB errors appear in logs.
 - [ ] World data persists correctly across restart.
+
+## 26. Mermaid Operational Views
+
+### 26.1 Architecture flow
+
+```mermaid
+flowchart TD
+  commandInput[MultiWorldCommand] --> commandRouter[MultiWorldCommands]
+  commandRouter --> serviceLayer[MultiWorldService]
+  serviceLayer --> worldRegistry[WorldRegistryState]
+  serviceLayer --> dbLayer[PMMPCoreDB]
+  serviceLayer --> generator[WorldGeneratorHooks]
+  serviceLayer --> teleportFlow[TeleportAndSpawnFlow]
+```
+
+### 26.2 Runtime decision tree
+
+```mermaid
+flowchart TD
+  symptom[ObservedSymptom] --> class{SymptomClass}
+  class -->|WorldNotFound| checkIndex[Check world index and normalization]
+  class -->|SpawnIssue| checkSpawn[Check main world and spawn routing]
+  class -->|GenerationIssue| checkHooks[Check generation hooks and type]
+  class -->|DataMismatch| checkDb[Check db data and flush boundaries]
+```

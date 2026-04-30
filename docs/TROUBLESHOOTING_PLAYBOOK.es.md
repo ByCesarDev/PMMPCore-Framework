@@ -6,6 +6,29 @@ Este playbook está orientado por síntomas. Empieza por lo que ves en logs/comp
 
 ---
 
+## Inicio rápido de diagnóstico
+
+Secuencia mínima antes de depurar en profundidad:
+
+1. Reproduce el fallo con pasos exactos.
+2. Ejecuta `/pmmpcore:diag`.
+3. Identifica la fase lifecycle implicada.
+4. Revisa permisos y registro de comandos.
+5. Revisa flush y estado de migraciones.
+
+```mermaid
+flowchart TD
+  issue[ProblemaDetectado] --> reproduce[Reproducir con pasos mínimos]
+  reproduce --> diag[Ejecutar comando diag]
+  diag --> phase{FaseLifecycle}
+  phase --> startupPath[Checks de startup]
+  phase --> worldReadyPath[Checks de world-ready]
+  startupPath --> fixOrEscalate[Corregir o escalar]
+  worldReadyPath --> fixOrEscalate
+```
+
+---
+
 ## Síntoma: `cannot be used in early execution`
 
 ### Causa probable
@@ -21,6 +44,24 @@ El plugin accede DB/Dynamic Properties demasiado temprano (`onStartup` o fase de
 
 - Mueve la primera lectura/escritura DB a `onWorldReady()`.
 - Deja `onStartup(event)` solo para registro de comandos/enums.
+
+---
+
+## Síntoma: plugin habilitado pero comportamiento roto
+
+### Causa probable
+
+- Estado `enabled` correcto pero falló hidratación en `onWorldReady`.
+
+### Cómo confirmarlo
+
+- Ejecuta `/pmmpcore:pluginstatus <PluginName>`.
+- Revisa logs alrededor del hook world-ready del plugin.
+
+### Solución
+
+- Añade logging explícito con try/catch en `onWorldReady`.
+- Verifica orden de migraciones y dependencias requeridas.
 
 ---
 
@@ -132,6 +173,20 @@ Quedaron escrituras en buffer dirty sin `flush()` antes del cierre.
 
 ---
 
+## Árbol de decisión por tipo de síntoma
+
+```mermaid
+flowchart TD
+  symptom[Sintoma] --> class{Categoria}
+  class -->|StartupError| startupChecks[Revisar early execution y startup hooks]
+  class -->|CommandIssue| commandChecks[Revisar enum, params y sender validation]
+  class -->|PermissionIssue| permChecks[Revisar nodos y contexto world]
+  class -->|DataIssue| dataChecks[Revisar flush, migración y ruta storage]
+  class -->|PerformanceIssue| perfChecks[Revisar loops, scans y chunking]
+```
+
+---
+
 ## Síntoma: SQL shell deshabilitado o denegado
 
 ### Causa probable
@@ -149,3 +204,13 @@ Quedaron escrituras en buffer dirty sin `flush()` antes del cierre.
 - Habilita SQL global con `/sqltoggle on`.
 - Asigna los nodos SQL requeridos.
 - Ejecuta `/sqlseed` una vez y prueba con `/sql SELECT * FROM items`.
+
+---
+
+## Checklist de escalado para maintainers
+
+- Guardar comando exacto de entrada y salida.
+- Capturar estado con `pluginstatus`.
+- Capturar snapshot de `/diag`.
+- Identificar primer hook lifecycle que falla.
+- Dejar ruta mínima reproducible en issue/PR.

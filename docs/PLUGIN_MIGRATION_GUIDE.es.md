@@ -6,6 +6,27 @@ Esta guía te ayuda a migrar plugins existentes (patrones legacy) al estilo PMMP
 
 ---
 
+## Ruta rápida de migración
+
+Si quieres el camino más seguro:
+
+1. Mueve DB de startup a `onWorldReady`.
+2. Sustituye Dynamic Properties directas por `PMMPCore.db`.
+3. Sustituye checks backend-specific por `getPermissionService()`.
+4. Añade migraciones versionadas.
+5. Valida con reinicio + smoke tests de comandos.
+
+```mermaid
+flowchart TD
+  legacyPlugin[PluginLegacy] --> lifecycleFix[Corregir limites lifecycle]
+  lifecycleFix --> storageFix[Migrar storage a PMMPCore.db]
+  storageFix --> permsFix[Normalizar API de permisos]
+  permsFix --> migrationStep[Agregar versiones de migracion]
+  migrationStep --> verification[Ejecutar checklist de verificacion]
+```
+
+---
+
 ## 1) Por qué migrar
 
 Migrar a patrones v1 te da:
@@ -41,6 +62,17 @@ Migrar a patrones v1 te da:
 6. **Pasa checklist final de validación**
 
 Este orden reduce errores silenciosos de data/permisos.
+
+---
+
+## 3.1 Mapa de riesgos por etapa
+
+| Etapa | Riesgo principal | Mitigación principal |
+|---|---|---|
+| Lifecycle | errores early execution | separar startup y world-ready |
+| Persistencia | pérdida/desalineación de datos | mapeo explícito + límites de flush |
+| Permisos | cambios de privilegios involuntarios | helper central y auditoría de nodos |
+| Migraciones | transformación repetida o corrupta | lógica idempotente + control de versión |
 
 ---
 
@@ -146,6 +178,20 @@ Adoptar:
 
 ---
 
+## 4.1 Flujo end-to-end de migración
+
+```mermaid
+flowchart TD
+  assess[Evaluar plugin actual] --> classify[Clasificar patrones legacy]
+  classify --> moveLifecycle[Mover I_O a onWorldReady]
+  moveLifecycle --> swapStorage[Cambiar storage a PMMPCore.db]
+  swapStorage --> swapPerms[Cambiar checks de permisos]
+  swapPerms --> addMigrations[Registrar y correr migraciones]
+  addMigrations --> validate[Validar y endurecer]
+```
+
+---
+
 ## 5) Ejemplos reales de fallos y solución
 
 ## Caso 1: crash por early execution
@@ -198,6 +244,16 @@ Solución:
 
 ---
 
+## 6.1 Runbook de verificación
+
+1. Prueba de carga en mundo nuevo.
+2. Reinicio y verificación de no repetir migraciones.
+3. Smoke test de comandos migrados.
+4. Test negativo de permisos denegados.
+5. Test de durabilidad (write -> flush -> restart -> read).
+
+---
+
 ## 7) Errores comunes
 
 - Migrar lógica de comando pero olvidar enums
@@ -238,3 +294,7 @@ Mejor evitarlo. Mantén migraciones deterministas y enfocadas en datos propios d
 ### ¿Cómo valido que la migración es segura?
 
 Prueba primera carga, prueba reinicio y prueba rollback/forward usando `/diag` más smoke tests de comandos.
+
+### ¿Debo cambiar UX de comandos durante la migración?
+
+Mejor mantener UX estable en la migración y mejorar UX en una fase aparte para aislar regresiones.

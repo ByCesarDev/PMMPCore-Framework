@@ -313,3 +313,37 @@ No. Es opcional y tiene fallback seguro.
 ### ¿Dónde deben configurarse colores de rangos?
 
 En templates de PureChat, no en nombres de grupo de PurePerms.
+
+## 12. Vistas runtime Mermaid
+
+### 12.1 Flujo de pipeline de chat
+
+```mermaid
+flowchart TD
+  chatInput[EntradaChatJugador] --> permGate[GuardPermisos]
+  permGate --> contextResolve[Resolver contexto jugador]
+  contextResolve --> internalPlaceholders[Resolver placeholders PureChat]
+  internalPlaceholders --> externalPlaceholders[Resolver tokens PlaceholderAPI]
+  externalPlaceholders --> broadcast[Broadcast línea formateada]
+```
+
+### 12.2 Flujo de actualización NameTag
+
+```mermaid
+flowchart TD
+  spawnEvent[EventoSpawn] --> readinessCheck[Check plugin listo]
+  readinessCheck --> contextResolve[Resolver contexto y template]
+  contextResolve --> placeholderPass[Aplicar placeholders]
+  placeholderPass --> nameTagApply[Aplicar nameTag]
+```
+
+### 12.3 Árbol de troubleshooting
+
+```mermaid
+flowchart TD
+  symptom[SintomaObservado] --> class{Clase}
+  class -->|WrongGroupFormat| checkGroup[Revisar grupo efectivo PurePerms]
+  class -->|PlaceholderNotResolved| checkPapi[Revisar PlaceholderAPI y sintaxis token]
+  class -->|NoColor| checkColorPerm[Revisar permiso coloredMessages]
+  class -->|NoIntercept| checkUseNode[Revisar permiso pchat y estado hook chat]
+```

@@ -6,6 +6,29 @@ This playbook is symptom-driven. Start from what you see in logs/behavior and fo
 
 ---
 
+## Diagnostic quickstart
+
+Use this minimal sequence before deep debugging:
+
+1. Reproduce once with exact steps.
+2. Run `/pmmpcore:diag`.
+3. Identify lifecycle phase involved.
+4. Check permissions and command registration.
+5. Check DB flush and migration state.
+
+```mermaid
+flowchart TD
+  issue[IssueObserved] --> reproduce[Reproduce with minimal steps]
+  reproduce --> diag[Run diag command]
+  diag --> phase{Lifecycle phase}
+  phase --> startupPath[Startup path checks]
+  phase --> worldReadyPath[WorldReady path checks]
+  startupPath --> fixOrEscalate[Fix or escalate]
+  worldReadyPath --> fixOrEscalate
+```
+
+---
+
 ## Symptom: `cannot be used in early execution`
 
 ### Likely cause
@@ -21,6 +44,24 @@ Plugin calls DB/world Dynamic Properties too early (`onStartup` or startup phase
 
 - Move first DB read/write to `onWorldReady()`.
 - Keep `onStartup(event)` only for command/enum registrations.
+
+---
+
+## Symptom: plugin enabled but not behaving as expected
+
+### Likely cause
+
+- Plugin state is `enabled` but service hydration failed in `onWorldReady`.
+
+### How to confirm
+
+- Run `/pmmpcore:pluginstatus <PluginName>`.
+- Check logs around plugin world-ready hook.
+
+### Fix
+
+- Add explicit try/catch logging inside `onWorldReady`.
+- Validate migration order and required service dependencies.
 
 ---
 
@@ -132,6 +173,20 @@ Writes remained in dirty buffer and were not flushed before shutdown.
 
 ---
 
+## Decision tree by symptom class
+
+```mermaid
+flowchart TD
+  symptom[Symptom] --> class{Class}
+  class -->|StartupError| startupChecks[Check early execution and startup hooks]
+  class -->|CommandIssue| commandChecks[Check enum, params, sender validation]
+  class -->|PermissionIssue| permChecks[Check nodes and world context]
+  class -->|DataIssue| dataChecks[Check flush, migration, storage path]
+  class -->|PerformanceIssue| perfChecks[Check loops, scans, chunking]
+```
+
+---
+
 ## Symptom: SQL shell is disabled or denied
 
 ### Likely cause
@@ -149,3 +204,13 @@ Writes remained in dirty buffer and were not flushed before shutdown.
 - Enable SQL shell globally with `/sqltoggle on`.
 - Grant required SQL nodes.
 - Use `/sqlseed` once, then test with `/sql SELECT * FROM items`.
+
+---
+
+## Escalation checklist for maintainers
+
+- Collect exact command input and output.
+- Capture plugin state via `pluginstatus`.
+- Capture `/diag` output snapshot.
+- Identify first failing lifecycle hook.
+- Provide minimal reproducible path in issue/PR comment.
