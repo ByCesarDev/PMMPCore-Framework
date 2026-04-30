@@ -15,6 +15,7 @@ Index of official project documentation.
 - `PLUGIN_DOC_TEMPLATE.md` - official template/checklist for documenting new plugins.
 - `plugins/MULTIWORLD_DOCUMENTATION.md` - MultiWorld usage, commands, persistence, and configuration.
 - `plugins/PUREPERMS_DOCUMENTATION.md` - PurePerms usage, groups/permissions, persistence, and configuration.
+- `plugins/PURECHAT_DOCUMENTATION.md` - PureChat usage, templates/placeholders, permissions, and compatibility commands.
 
 ## Current Coverage
 

@@ -15,6 +15,7 @@ Idioma: [English](README.md) | **Español**
 - `PLUGIN_DOC_TEMPLATE.es.md` - plantilla oficial/checklist para documentar plugins nuevos.
 - `plugins/MULTIWORLD_DOCUMENTATION.es.md` - MultiWorld: uso, comandos, persistencia y configuración.
 - `plugins/PUREPERMS_DOCUMENTATION.es.md` - PurePerms: uso, grupos/permisos, persistencia y configuración.
+- `plugins/PURECHAT_DOCUMENTATION.es.md` - PureChat: uso, templates/placeholders, permisos y comandos de compatibilidad.
 
 Versiones en inglés:
 
@@ -27,6 +28,7 @@ Versiones en inglés:
 - `PLUGIN_DOC_TEMPLATE.md`
 - `plugins/MULTIWORLD_DOCUMENTATION.md`
 - `plugins/PUREPERMS_DOCUMENTATION.md`
+- `plugins/PURECHAT_DOCUMENTATION.md`
 
 ## Cobertura actual
 
