@@ -79,6 +79,7 @@ Actualmente:
 
 - **MultiWorld**: mundos personalizados por dimensiones con comandos y persistencia
 - **PurePerms**: permisos y grupos, con contrato estable hacia el core
+- **PureChat**: formatos de chat por grupo, prefijo/sufijo por jugador y templates de nametag
 - **ExamplePlugin**: plugin de referencia con patrones y hooks de MultiWorld
 
 La documentación por plugin vive en `docs/plugins/`.

@@ -79,6 +79,7 @@ Current included plugins:
 
 - **MultiWorld**: dimension-backed custom worlds with commands and persistence
 - **PurePerms**: permissions and groups, with a stable core-facing permission contract
+- **PureChat**: group-based chat formats, player prefix/suffix, and nametag templates
 - **ExamplePlugin**: reference plugin showing MultiWorld hooks and patterns
 
 See each plugin’s documentation under `docs/plugins/`.
