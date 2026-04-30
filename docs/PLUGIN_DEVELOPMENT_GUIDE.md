@@ -320,7 +320,7 @@ Suggested message style:
 - `[MyPlugin][warn] ...`
 - `[MyPlugin][error] ...`
 
-For platform-wide diagnostics, use `/pmmpcore:diag`.
+For platform-wide diagnostics, use `/diag`.
 
 ---
 

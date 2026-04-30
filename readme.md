@@ -54,7 +54,7 @@ PMMPCore is implemented as a Behavior Pack (not a dedicated server mod). It runs
 3. Start the world, then open chat and run:
 
 ```text
-/pmmpcore:info
+/info
 ```
 
 ### Verify everything is working
@@ -62,8 +62,8 @@ PMMPCore is implemented as a Behavior Pack (not a dedicated server mod). It runs
 Run:
 
 ```text
-/pmmpcore:diag
-/pmmpcore:selftest
+/diag
+/selftest
 ```
 
 - `pmmpcore:diag`: shows services, event topics, scheduler tasks, and last tick/flush metrics

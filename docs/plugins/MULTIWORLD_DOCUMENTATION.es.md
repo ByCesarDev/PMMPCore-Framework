@@ -87,7 +87,7 @@ MultiWorld puede hacer un “barrido de seguridad” adicional más allá de los
 
 ### Tipos de mundo y mundos vanilla
 
-- `WORLD_TYPES`: `"normal" | "flat" | "void" | "skyblock"` (usado por `/pmmpcore:mw create`).
+- `WORLD_TYPES`: `"normal" | "flat" | "void" | "skyblock"` (usado por `/mw create`).
 - `VANILLA_WORLDS`: aliases y labels para `overworld`, `nether`, `end`.
 - `resolveVanillaWorld(name)`: resuelve aliases como `ow` → overworld.
 
@@ -102,7 +102,7 @@ MultiWorld puede hacer un “barrido de seguridad” adicional más allá de los
 
 Comando raíz:
 
-- `/pmmpcore:mw <subcommand> ...`
+- `/mw <subcommand> ...`
 
 Autocompletado:
 
@@ -353,7 +353,7 @@ Comportamiento:
 
 ## 11.1 Diagnóstico de spawn en `info`
 
-`/pmmpcore:mw info <world>` muestra:
+`/mw info <world>` muestra:
 
 - `Spawn (saved)`
 - `Spawn (resolved now)`
@@ -451,24 +451,24 @@ Si falta agresividad en limpieza:
 3. Inicia mundo y verifica logs:
    - `Loading modular MultiWorld plugin...`
 4. Ejecuta comandos de humo:
-   - `/pmmpcore:mw help`
-   - `/pmmpcore:mw list`
-   - `/pmmpcore:diag`
+   - `/mw help`
+   - `/mw list`
+   - `/diag`
 
 Si todo responde, MultiWorld está correctamente conectado.
 
 ## 17. Inicio rápido (primeros 5 minutos)
 
 1. Crear mundo:
-   - `/pmmpcore:mw create demo normal`
+   - `/mw create demo normal`
 2. Teleport:
-   - `/pmmpcore:mw tp demo`
+   - `/mw tp demo`
 3. Inspección runtime:
-   - `/pmmpcore:mw info demo`
+   - `/mw info demo`
 4. Definir main world (opcional):
-   - `/pmmpcore:mw setmain demo`
+   - `/mw setmain demo`
 5. Probar limpieza en entorno de prueba:
-   - `/pmmpcore:mw purgechunks demo`
+   - `/mw purgechunks demo`
 
 ## 18. Integración con lifecycle (qué hace y cuándo)
 
@@ -514,7 +514,7 @@ Así evitas que mundos viejos fallen tras actualizar.
 
 ### ¿Por qué no existe alias `/mw`?
 
-Bedrock exige comandos custom en formato `namespace:value`; se usa `/pmmpcore:mw`.
+Bedrock permite usar comandos custom sin escribir el namespace; esta documentación usa `/mw`.
 
 ### ¿Puedo subir capacidad más allá de 50 mundos?
 

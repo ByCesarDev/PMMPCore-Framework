@@ -89,7 +89,7 @@ MultiWorld can perform an additional “safety sweep” beyond tracked chunks to
 
 ### World types and vanilla worlds
 
-- `WORLD_TYPES`: `"normal" | "flat" | "void" | "skyblock"` (used by `/pmmpcore:mw create`).
+- `WORLD_TYPES`: `"normal" | "flat" | "void" | "skyblock"` (used by `/mw create`).
 - `VANILLA_WORLDS`: alias and label mapping for `overworld`, `nether`, `end`.
 - `resolveVanillaWorld(name)`: resolves aliases like `ow` → overworld.
 
@@ -106,7 +106,7 @@ Currently:
 
 Root command:
 
-- `/pmmpcore:mw <subcommand> ...`
+- `/mw <subcommand> ...`
 
 Autocomplete support:
 
@@ -369,7 +369,7 @@ Behavior:
 
 ## 11.1 Spawn Diagnostics in `info`
 
-`/pmmpcore:mw info <world>` now reports:
+`/mw info <world>` now reports:
 
 - `Spawn (saved)`: spawn stored in world metadata/config.
 - `Spawn (resolved now)`: effective spawn resolved at runtime.
@@ -565,24 +565,24 @@ GENERATION_TICK_RATE = 5;      // Default: 10
 3. Start world and confirm load logs:
    - `Loading modular MultiWorld plugin...`
 4. Run smoke commands:
-   - `/pmmpcore:mw help`
-   - `/pmmpcore:mw list`
-   - `/pmmpcore:diag`
+   - `/mw help`
+   - `/mw list`
+   - `/diag`
 
 If these succeed, MultiWorld is wired correctly.
 
 ## 20. Quickstart (First 5 minutes)
 
 1. Create world:
-   - `/pmmpcore:mw create demo normal`
+   - `/mw create demo normal`
 2. Teleport:
-   - `/pmmpcore:mw tp demo`
+   - `/mw tp demo`
 3. Inspect runtime info:
-   - `/pmmpcore:mw info demo`
+   - `/mw info demo`
 4. Set as main world (optional):
-   - `/pmmpcore:mw setmain demo`
+   - `/mw setmain demo`
 5. Test cleanup in a non-production test world:
-   - `/pmmpcore:mw purgechunks demo`
+   - `/mw purgechunks demo`
 
 ## 21. Lifecycle Integration (What MultiWorld does and when)
 
@@ -628,7 +628,7 @@ This prevents old worlds from failing hard after updates.
 
 ### Why does `/mw` alias not exist?
 
-Bedrock custom commands require `namespace:value`; MultiWorld uses `/pmmpcore:mw`.
+Bedrock custom commands can be used without writing namespace; MultiWorld documentation uses `/mw`.
 
 ### Can I increase world capacity beyond 50?
 

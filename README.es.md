@@ -54,7 +54,7 @@ PMMPCore se distribuye como Behavior Pack (no como mod de servidor dedicado) y r
 3. Entra al mundo y ejecuta:
 
 ```text
-/pmmpcore:info
+/info
 ```
 
 ### Verificar que todo funciona
@@ -62,8 +62,8 @@ PMMPCore se distribuye como Behavior Pack (no como mod de servidor dedicado) y r
 Ejecuta:
 
 ```text
-/pmmpcore:diag
-/pmmpcore:selftest
+/diag
+/selftest
 ```
 
 - `pmmpcore:diag`: servicios, eventos, tareas del scheduler, métricas de tick/flush

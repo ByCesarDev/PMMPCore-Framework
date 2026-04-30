@@ -136,7 +136,7 @@ Las claves son **sufijos** sin el prefijo `pmmpcore:`; el gestor antepone `pmmpc
 
 ### Estadísticas
 
-`getStats()` devuelve `totalKeys`, `estimatedSize`, `keys`, `dirtyKeys`. Sirve para `/pmmpcore:info` y vigilancia de capacidad.
+`getStats()` devuelve `totalKeys`, `estimatedSize`, `keys`, `dirtyKeys`. Sirve para `/info` y vigilancia de capacidad.
 
 ---
 
@@ -289,7 +289,7 @@ El parser es deliberadamente pequeño. Lo no listado aquí debe considerarse **n
 
 ## 12. Diagnóstico
 
-- En juego: **`/pmmpcore:info`**
+- En juego: **`/info`**
 - Log: prefijo **`[DB]`**
 
 ---

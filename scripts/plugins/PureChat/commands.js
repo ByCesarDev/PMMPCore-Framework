@@ -221,7 +221,9 @@ function registerRootCommand(registry, service) {
         if (op === "preview") {
           if (!sender.isPlayer) throw new Error("Preview can only be used by players.");
           const info = service.resolvePlayerContext(sender.player, "Hello world");
+          const permsInfo = service._getPermsDebug?.(sender.player) ?? null;
           sender.sendMessage(`§b[PureChat] Group: §f${info.groupName}`);
+          if (permsInfo) sender.sendMessage(`§b[PureChat] PurePerms effectiveGroup: §f${permsInfo.effectiveGroup ?? "-"}§r`);
           sender.sendMessage(`§b[PureChat] Chat template: §f${info.chatTemplate}`);
           sender.sendMessage(`§b[PureChat] Nametag template: §f${info.nametagTemplate}`);
           return;

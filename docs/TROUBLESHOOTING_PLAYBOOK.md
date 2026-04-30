@@ -33,7 +33,7 @@ Writes remained in dirty buffer and were not flushed before shutdown.
 ### How to confirm
 
 - Check code path for missing `PMMPCore.db.flush()` after critical writes.
-- Use `/pmmpcore:diag` to inspect flush behavior.
+- Use `/diag` to inspect flush behavior.
 
 ### Fix
 
@@ -124,7 +124,7 @@ Writes remained in dirty buffer and were not flushed before shutdown.
 ## Standard diagnostic sequence
 
 1. Reproduce with minimal steps.
-2. Check `/pmmpcore:diag`.
+2. Check `/diag`.
 3. Isolate lifecycle phase (`onStartup` vs `onWorldReady`).
 4. Verify command registration and permission guards.
 5. Verify flush/migration behavior.

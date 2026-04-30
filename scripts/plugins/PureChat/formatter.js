@@ -12,7 +12,10 @@ export function stripAmpersandColors(text) {
 export function applyTemplate(template, data) {
   let out = String(template ?? "");
   for (const [key, value] of Object.entries(data ?? {})) {
-    out = out.replaceAll(`{${key}}`, String(value ?? ""));
+    const replacement = String(value ?? "");
+    // Compatibility: support both `{placeholder}` and `<<placeholder>>`.
+    out = out.replaceAll(`{${key}}`, replacement);
+    out = out.replaceAll(`<<${key}>>`, replacement);
   }
   return out;
 }

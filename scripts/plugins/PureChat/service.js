@@ -109,7 +109,10 @@ export class PureChatService {
     const perms = PMMPCore.getPermissionService();
     let groupName = "Guest";
     try {
-      groupName = perms?.resolve?.(player?.name, worldName, player)?.groupName ?? "Guest";
+      // PermissionService.resolve() returns permission sets, not group info.
+      // Use getUserInfo() (PurePerms-backed) to resolve effective group.
+      const info = perms?.getUserInfo?.(player?.name, worldName);
+      groupName = info?.effectiveGroup ?? info?.group ?? "Guest";
     } catch (_) {}
 
     const state = this._getState();
@@ -122,7 +125,10 @@ export class PureChatService {
     const suffix = String(playerData.suffix ?? "");
     const faction = resolveFactionContext(player);
     const placeholders = {
-      display_name: player?.nameTag || player?.name || "Unknown",
+      // Important: `player.nameTag` may already contain rank/prefix formatting.
+      // `{display_name}` must remain the raw player name to avoid duplicating rank tags in chat templates.
+      display_name: player?.name || "Unknown",
+      nametag: player?.nameTag || player?.name || "Unknown",
       msg: String(message ?? ""),
       prefix,
       suffix,
@@ -153,6 +159,16 @@ export class PureChatService {
       nametag: worldName ? String(ov.nametag ?? g.nametag ?? "") : String(g.nametag ?? ""),
       world: worldName ?? null,
     };
+  }
+
+  _getPermsDebug(player) {
+    try {
+      const perms = PMMPCore.getPermissionService();
+      const worldName = this._resolveWorldName(player?.dimension?.id);
+      return perms?.getUserInfo?.(player?.name, worldName) ?? null;
+    } catch (_) {
+      return null;
+    }
   }
 
   _hasPermission(player, node) {

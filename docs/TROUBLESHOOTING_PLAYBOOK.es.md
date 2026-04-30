@@ -33,7 +33,7 @@ Quedaron escrituras en buffer dirty sin `flush()` antes del cierre.
 ### Cómo confirmarlo
 
 - Revisa si falta `PMMPCore.db.flush()` en rutas críticas.
-- Usa `/pmmpcore:diag` para revisar comportamiento de flush.
+- Usa `/diag` para revisar comportamiento de flush.
 
 ### Solución
 
@@ -124,7 +124,7 @@ Quedaron escrituras en buffer dirty sin `flush()` antes del cierre.
 ## Secuencia estándar de diagnóstico
 
 1. Reproducir con pasos mínimos.
-2. Revisar `/pmmpcore:diag`.
+2. Revisar `/diag`.
 3. Aislar fase de lifecycle (`onStartup` vs `onWorldReady`).
 4. Verificar registro de comandos y guards de permisos.
 5. Verificar flush/migraciones.

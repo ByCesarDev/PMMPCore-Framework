@@ -194,7 +194,7 @@ Fix:
 - [ ] Permission checks use `getPermissionService()`
 - [ ] Migrations are registered and executed exactly once per version
 - [ ] Critical writes call `PMMPCore.db.flush()` where needed
-- [ ] `/pmmpcore:diag` shows healthy platform status after plugin load
+- [ ] `/diag` shows healthy platform status after plugin load
 
 ---
 
@@ -237,4 +237,4 @@ Prefer not to. Keep migrations deterministic and focused on your plugin-owned da
 
 ### How do I prove migration is safe?
 
-Run a first-load test, restart test, and rollback/forward test using `/pmmpcore:diag` plus plugin command smoke tests.
+Run a first-load test, restart test, and rollback/forward test using `/diag` plus plugin command smoke tests.

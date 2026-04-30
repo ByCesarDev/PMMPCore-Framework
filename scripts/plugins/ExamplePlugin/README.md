@@ -29,21 +29,21 @@ import "./ExamplePlugin/main.js";
 2. Create a test world:
 
 ```text
-/pmmpcore:mw create test_normal normal
+/mw create test_normal normal
 ```
 
 3. Teleport:
 
 ```text
-/pmmpcore:mw tp test_normal
+/mw tp test_normal
 ```
 
 4. Run ExamplePlugin commands:
 
 ```text
-/pmmpcore:exampleplugin_test
-/pmmpcore:exampleplugin_ores
-/pmmpcore:exampleplugin_hooks
+/exampleplugin_test
+/exampleplugin_ores
+/exampleplugin_hooks
 ```
 
 ## Custom Ores
@@ -85,22 +85,22 @@ import "./ExamplePlugin/main.js";
 
 ## Commands
 
-### `/pmmpcore:exampleplugin_ores`
+### `/exampleplugin_ores`
 List all custom ores registered:
 ```
-/pmmpcore:exampleplugin_ores
+/exampleplugin_ores
 ```
 
-### `/pmmpcore:exampleplugin_hooks`
+### `/exampleplugin_hooks`
 List all active generation hooks:
 ```
-/pmmpcore:exampleplugin_hooks
+/exampleplugin_hooks
 ```
 
-### `/pmmpcore:exampleplugin_test`
+### `/exampleplugin_test`
 Analyze current world and show custom content:
 ```
-/pmmpcore:exampleplugin_test
+/exampleplugin_test
 ```
 
 ## Testing
@@ -108,28 +108,28 @@ Analyze current world and show custom content:
 ### Ore Testing
 ```bash
 # Create normal world (should have ores)
-/pmmpcore:mw create test_normal normal
+/mw create test_normal normal
 
 # Create flat world (should not have ores)  
-/pmmpcore:mw create test_flat flat
+/mw create test_flat flat
 
 # Create specific world
-/pmmpcore:mw create crystal_world normal
+/mw create crystal_world normal
 
 # Test commands
-/pmmpcore:exampleplugin_test
-/pmmpcore:exampleplugin_ores
+/exampleplugin_test
+/exampleplugin_ores
 ```
 
 ### Structure Testing
 ```bash
 # Teleport and explore
-/pmmpcore:mw tp test_normal
+/mw tp test_normal
 # Walk around to generate chunks and find structures
 
 # Check in specific world
-/pmmpcore:mw tp crystal_world
-/pmmpcore:exampleplugin_hooks
+/mw tp crystal_world
+/exampleplugin_hooks
 ```
 
 ## Configuration

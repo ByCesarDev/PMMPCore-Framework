@@ -142,7 +142,7 @@ MultiWorld’s `flushWorldData()` ends with **`PMMPCore.db.flush()`** so world s
 - `keys` (suffix list),
 - `dirtyKeys` (count of pending writes).
 
-Useful for `/pmmpcore:info` and capacity monitoring.
+Useful for `/info` and capacity monitoring.
 
 ---
 
@@ -317,7 +317,7 @@ Avoid manual collisions; use `plugin:YourPluginName` or dedicated `rtable:` tabl
 
 ## 12. Diagnostics
 
-- In-game: **`/pmmpcore:info`** — plugins, DB key count, estimated size, **dirty** count.
+- In-game: **`/info`** — plugins, DB key count, estimated size, **dirty** count.
 - Logs: watch for **`[DB]`** prefix (`flush error`, `decode`, WAL replay).
 
 ---

@@ -194,7 +194,7 @@ Solución:
 - [ ] Permisos vía `getPermissionService()`
 - [ ] Migraciones registradas y ejecutadas una sola vez por versión
 - [ ] Escrituras críticas llaman `PMMPCore.db.flush()` cuando corresponde
-- [ ] `/pmmpcore:diag` muestra estado sano tras cargar plugin
+- [ ] `/diag` muestra estado sano tras cargar plugin
 
 ---
 
@@ -237,4 +237,4 @@ Mejor evitarlo. Mantén migraciones deterministas y enfocadas en datos propios d
 
 ### ¿Cómo valido que la migración es segura?
 
-Prueba primera carga, prueba reinicio y prueba rollback/forward usando `/pmmpcore:diag` más smoke tests de comandos.
+Prueba primera carga, prueba reinicio y prueba rollback/forward usando `/diag` más smoke tests de comandos.

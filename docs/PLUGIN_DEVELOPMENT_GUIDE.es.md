@@ -320,7 +320,7 @@ Formato sugerido:
 - `[MyPlugin][warn] ...`
 - `[MyPlugin][error] ...`
 
-Para diagnóstico de plataforma, usar `/pmmpcore:diag`.
+Para diagnóstico de plataforma, usar `/diag`.
 
 ---
 

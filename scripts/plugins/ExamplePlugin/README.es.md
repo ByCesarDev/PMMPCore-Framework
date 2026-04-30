@@ -29,21 +29,21 @@ import "./ExamplePlugin/main.js";
 2. Crea un mundo de prueba:
 
 ```text
-/pmmpcore:mw create test_normal normal
+/mw create test_normal normal
 ```
 
 3. Teleporta:
 
 ```text
-/pmmpcore:mw tp test_normal
+/mw tp test_normal
 ```
 
 4. Ejecuta comandos del ExamplePlugin:
 
 ```text
-/pmmpcore:exampleplugin_test
-/pmmpcore:exampleplugin_ores
-/pmmpcore:exampleplugin_hooks
+/exampleplugin_test
+/exampleplugin_ores
+/exampleplugin_hooks
 ```
 
 ## Minerales Personalizados
@@ -85,22 +85,22 @@ import "./ExamplePlugin/main.js";
 
 ## Comandos
 
-### `/pmmpcore:exampleplugin_ores`
+### `/exampleplugin_ores`
 Lista todos los minerales personalizados registrados:
 ```
-/pmmpcore:exampleplugin_ores
+/exampleplugin_ores
 ```
 
-### `/pmmpcore:exampleplugin_hooks`
+### `/exampleplugin_hooks`
 Lista todos los hooks de generación activos:
 ```
-/pmmpcore:exampleplugin_hooks
+/exampleplugin_hooks
 ```
 
-### `/pmmpcore:exampleplugin_test`
+### `/exampleplugin_test`
 Analiza el mundo actual y muestra contenido personalizado:
 ```
-/pmmpcore:exampleplugin_test
+/exampleplugin_test
 ```
 
 ## Testing
@@ -108,28 +108,28 @@ Analiza el mundo actual y muestra contenido personalizado:
 ### Test de Minerales
 ```bash
 # Crear mundo normal (debería tener minerales)
-/pmmpcore:mw create test_normal normal
+/mw create test_normal normal
 
 # Crear mundo flat (no debería tener minerales)  
-/pmmpcore:mw create test_flat flat
+/mw create test_flat flat
 
 # Crear mundo específico
-/pmmpcore:mw create crystal_world normal
+/mw create crystal_world normal
 
 # Probar comandos
-/pmmpcore:exampleplugin_test
-/pmmpcore:exampleplugin_ores
+/exampleplugin_test
+/exampleplugin_ores
 ```
 
 ### Test de Estructuras
 ```bash
 # Teletransportar y explorar
-/pmmpcore:mw tp test_normal
+/mw tp test_normal
 # Camina alrededor para generar chunks y buscar estructuras
 
 # Verificar en mundo específico
-/pmmpcore:mw tp crystal_world
-/pmmpcore:exampleplugin_hooks
+/mw tp crystal_world
+/exampleplugin_hooks
 ```
 
 ## Configuración
