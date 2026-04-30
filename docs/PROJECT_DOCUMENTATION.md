@@ -53,10 +53,13 @@ Responsible for:
 
 Responsible for:
 
-- Reading/writing data with namespace `pmmpcore:*`.
-- Generic API (`get`, `set`, `delete`, `has`).
+- Sole access to Dynamic Properties for application data under `pmmpcore:*` (LRU cache, dirty buffer, `flush()`, optional WAL snapshot on flush).
+- Generic API (`get`, `set`, `delete`, `has`) with `get` returning clones of objects/arrays.
 - Plugin/player helpers.
 - Sharded API of MultiWorld (`mw:index`, `mw:world:*`, `mw:chunks:*`).
+- `listPropertySuffixes(prefix)` for internal engines.
+- Optional relational SQL layer lives in `scripts/db/RelationalEngine.js` and uses only `DatabaseManager`; `PMMPCore.getDataProvider()` exposes `scripts/PMMPDataProvider.js`.
+- Authoritative documentation: [DATABASE_GUIDE.md](DATABASE_GUIDE.md).
 
 ### 3.4 `scripts/plugins.js`
 

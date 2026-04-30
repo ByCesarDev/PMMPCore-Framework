@@ -1,6 +1,6 @@
 console.log("=== PMMPCore MAIN SCRIPT LOADING ===");
 
-import { system, Player, CustomCommandStatus, CommandPermissionLevel, CustomCommandParamType } from "@minecraft/server";
+import { world, system, Player, CustomCommandStatus, CommandPermissionLevel, CustomCommandParamType } from "@minecraft/server";
 
 console.log("=== MINECRAFT IMPORTS COMPLETED ===");
 
@@ -13,11 +13,32 @@ console.log("=== LOADING PLUGINS ===");
 import "./plugins.js";
 console.log("=== PLUGINS LOADED ===");
 
+world.afterEvents.worldLoad.subscribe(() => {
+  try {
+    if (PMMPCore.db && typeof PMMPCore.db.replayWalIfAny === "function") {
+      PMMPCore.db.replayWalIfAny();
+    }
+  } catch (e) {
+    console.error(`[PMMPCore] WAL replay: ${e.message}`);
+  }
+});
+
 system.beforeEvents.startup.subscribe((event) => {
   console.log(`${Color.aqua}[PMMPCore] Starting initialization...${Color.reset}`);
 
   const dbManager = new DatabaseManager();
   PMMPCore.initialize(dbManager);
+
+  const AUTO_FLUSH_TICKS = 120;
+  system.runInterval(() => {
+    try {
+      if (PMMPCore.db && typeof PMMPCore.db.flush === "function") {
+        PMMPCore.db.flush();
+      }
+    } catch (e) {
+      console.error(`[PMMPCore] DB auto-flush: ${e.message}`);
+    }
+  }, AUTO_FLUSH_TICKS);
 
   event.customCommandRegistry.registerCommand(
     {
@@ -130,6 +151,9 @@ system.beforeEvents.startup.subscribe((event) => {
       player.sendMessage(`${Color.aqua}Plugins Enabled: ${Color.white}${enabledPlugins}`);
       player.sendMessage(`${Color.aqua}Database Keys: ${Color.white}${stats.totalKeys}`);
       player.sendMessage(`${Color.aqua}DB Size: ${Color.white}${stats.estimatedSize} chars`);
+      if (stats.dirtyKeys !== undefined) {
+        player.sendMessage(`${Color.aqua}DB Dirty (RAM buffer): ${Color.white}${stats.dirtyKeys}`);
+      }
       player.sendMessage(`${Color.green}System Status: ${Color.white}Operational`);
 
       return { status: CustomCommandStatus.Success };

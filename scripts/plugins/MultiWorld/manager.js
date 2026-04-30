@@ -445,6 +445,7 @@ export class WorldManager {
       PMMPCore.db.setWorldIndex(Array.from(worldsData.keys()));
       for (const [name, data] of worldsData) PMMPCore.db.setWorld(name, data);
       for (const [name, set]  of generatedChunks) PMMPCore.db.setChunks(name, Array.from(set));
+      PMMPCore.db.flush();
       clearDirtyFlag();
       return true;
     } catch (e) {

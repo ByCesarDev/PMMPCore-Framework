@@ -83,6 +83,8 @@ If `pluginList` exists, also add the plugin name.
 
 ## 6. Database Usage
 
+Full reference: **[DATABASE_GUIDE.md](DATABASE_GUIDE.md)** (persistence model, `RelationalEngine`, SQL subset, WAL, limits, troubleshooting).
+
 ### General API
 
 - `PMMPCore.db.get(key)`
@@ -100,6 +102,14 @@ If `pluginList` exists, also add the plugin name.
 - Namespacing by plugin in internal structures.
 - Save in batch when possible.
 - Avoid writing every tick unless real necessity.
+
+### Caching, dirty buffer, and flush
+
+- Do **not** call `PMMPCore.db` (or `world.getDynamicProperty`) from `onStartup` / early startup: Bedrock throws *"cannot be used in early execution"*. Use `world.afterEvents.worldLoad` (or the same deferred pattern as EconomyAPI) for first reads/writes.
+- `get()` returns a **clone** of stored objects/arrays; changes are not saved until you call `set()` (or helpers like `setPluginData`) again.
+- The database keeps a memory cache and a **dirty** set; `flush()` writes all pending keys to Dynamic Properties. The core runs a periodic auto-flush; call **`PMMPCore.db.flush()`** yourself after critical batches if you must harden persistence immediately.
+- **`PMMPCore.getDataProvider()`** returns a thin PocketMine-style facade (`loadPlayer`, `savePlayer`, `flush`, etc.).
+- **`PMMPCore.createRelationalEngine()`** returns the optional relational layer (tables, indexes, SQL subset) backed by the same `DatabaseManager`. You can also import from `scripts/db/index.js`.
 
 ## 7. Commands: Practical Recommendations
 

@@ -53,10 +53,13 @@ Responsable de:
 
 Responsable de:
 
-- Leer/escribir datos con namespace `pmmpcore:*`.
-- API genérica (`get`, `set`, `delete`, `has`).
+- Único acceso a Dynamic Properties para datos de aplicación bajo `pmmpcore:*` (caché LRU, dirty, `flush()`, WAL opcional al iniciar flush).
+- API genérica (`get`, `set`, `delete`, `has`); `get` devuelve clones de objetos/arrays.
 - Helpers de plugin/jugador.
 - API shard de MultiWorld (`mw:index`, `mw:world:*`, `mw:chunks:*`).
+- `listPropertySuffixes(prefix)` para motores internos.
+- El motor relacional/SQL está en `scripts/db/RelationalEngine.js` y solo usa `DatabaseManager`; `PMMPCore.getDataProvider()` expone `scripts/PMMPDataProvider.js`.
+- Documentación de referencia: [DATABASE_GUIDE.es.md](DATABASE_GUIDE.es.md).
 
 ### 3.4 `scripts/plugins.js`
 

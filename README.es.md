@@ -27,6 +27,7 @@ Está diseñado para crear servidores/addons complejos de forma mantenible, incl
 ## Documentación
 
 - Guía general del proyecto (ES): `docs/PROJECT_DOCUMENTATION.es.md`
+- **Base de datos** (KV, motor relacional, WAL, SQL): `docs/DATABASE_GUIDE.es.md` (EN: `docs/DATABASE_GUIDE.md`)
 - Guía de creación de plugins (ES): `docs/PLUGIN_DEVELOPMENT_GUIDE.es.md`
 - Documentación de MultiWorld (ES): `docs/MULTIWORLD_DOCUMENTATION.es.md`
 - General project guide (EN): `docs/PROJECT_DOCUMENTATION.md`

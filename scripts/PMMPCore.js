@@ -1,4 +1,6 @@
 import { world, system, Player, CustomCommandStatus, CommandPermissionLevel } from "@minecraft/server";
+import { PMMPDataProvider } from "./PMMPDataProvider.js";
+import { RelationalEngine } from "./db/RelationalEngine.js";
 
 const Color = {
   red: "\xA7c",
@@ -143,6 +145,20 @@ class PMMPCore {
     this.db = databaseManager;
     this.initialized = true;
     console.log(`${Color.green}[PMMPCore] Core system initialized${Color.reset}`);
+  }
+
+  /** @returns {PMMPDataProvider | null} */
+  static getDataProvider() {
+    if (!this.db) return null;
+    return new PMMPDataProvider(this.db);
+  }
+
+  /** @returns {RelationalEngine} */
+  static createRelationalEngine() {
+    if (!this.db) {
+      throw new Error("PMMPCore is not initialized");
+    }
+    return new RelationalEngine(this.db);
   }
 
   static validateDependencies(plugin) {

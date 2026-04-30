@@ -4,6 +4,9 @@ import { WorldGenerator } from "../MultiWorld/generator.js";
 
 console.log("[ExamplePlugin] Loading example plugin template...");
 
+/** Smoke test RelationalEngine una vez por sesión (no usar getDynamicProperty en onStartup). */
+let _exampleRelationalDbTestDone = false;
+
 PMMPCore.registerPlugin({
   name: "ExamplePlugin",
   version: "1.0.0",
@@ -31,8 +34,7 @@ PMMPCore.registerPlugin({
 
   onStartup(event) {
     console.log(`${Color.aqua}[ExamplePlugin] Registering commands...${Color.reset}`);
-    
-    // Registrar comandos del plugin
+    // Registrar comandos del plugin (aquí no uses DB/world.getDynamicProperty)
     this.registerCommands(event);
   },
 

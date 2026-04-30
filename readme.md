@@ -148,6 +148,7 @@ scripts/
 ## Documentation
 
 - General project guide: `docs/PROJECT_DOCUMENTATION.md`
+- **Database layer** (KV, relational engine, WAL, SQL subset): `docs/DATABASE_GUIDE.md` (Spanish: `docs/DATABASE_GUIDE.es.md`)
 - Plugin creation guide: `docs/PLUGIN_DEVELOPMENT_GUIDE.md`
 - MultiWorld documentation: `docs/MULTIWORLD_DOCUMENTATION.md`
 - PurePerms documentation: `docs/PUREPERMS_DOCUMENTATION.md`
