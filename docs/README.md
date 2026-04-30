@@ -16,6 +16,7 @@ Index of official project documentation.
 - `plugins/MULTIWORLD_DOCUMENTATION.md` - MultiWorld usage, commands, persistence, and configuration.
 - `plugins/PUREPERMS_DOCUMENTATION.md` - PurePerms usage, groups/permissions, persistence, and configuration.
 - `plugins/PURECHAT_DOCUMENTATION.md` - PureChat usage, templates/placeholders, permissions, and compatibility commands.
+- `plugins/PLACEHOLDERAPI_DOCUMENTATION.md` - PlaceholderAPI usage, built-in expansions, commands, and plugin integration.
 
 ## Current Coverage
 
@@ -27,6 +28,8 @@ Documented in detail:
 - Plugin development.
 - MultiWorld.
 - PurePerms.
+- PureChat.
+- PlaceholderAPI.
 
 Pending (upcoming versions):
 

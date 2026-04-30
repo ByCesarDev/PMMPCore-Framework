@@ -57,7 +57,7 @@ Quedaron escrituras en buffer dirty sin `flush()` antes del cierre.
 
 ### Solución
 
-- Usa siempre comandos namespaced.
+- En docs usa alias root (`/sql`, `/diag`, etc.); las variantes namespaced pueden seguir existiendo a nivel de registro.
 - Alinea schema de comando con firma de callback.
 - Devuelve `Failure` con mensaje accionable.
 
@@ -129,3 +129,23 @@ Quedaron escrituras en buffer dirty sin `flush()` antes del cierre.
 4. Verificar registro de comandos y guards de permisos.
 5. Verificar flush/migraciones.
 6. Reprobar tras un cambio a la vez.
+
+---
+
+## Síntoma: SQL shell deshabilitado o denegado
+
+### Causa probable
+
+- El toggle global de SQL está en off.
+- Faltan permisos SQL (`pmmpcore.sql.read`, `pmmpcore.sql.write`, `pmmpcore.sql.admin`).
+
+### Cómo confirmarlo
+
+- Ejecuta `/sqltoggle on` (solo admin) y reintenta.
+- Revisa permisos del jugador/grupo en PurePerms.
+
+### Solución
+
+- Habilita SQL global con `/sqltoggle on`.
+- Asigna los nodos SQL requeridos.
+- Ejecuta `/sqlseed` una vez y prueba con `/sql SELECT * FROM items`.

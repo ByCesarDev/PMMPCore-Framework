@@ -57,7 +57,7 @@ Writes remained in dirty buffer and were not flushed before shutdown.
 
 ### Fix
 
-- Use namespaced command names only.
+- Prefer root command aliases in docs (`/sql`, `/diag`, etc.); namespaced variants may still exist at registration time.
 - Keep command schemas aligned with callback signature.
 - Return explicit `Failure` with actionable messages.
 
@@ -129,3 +129,23 @@ Writes remained in dirty buffer and were not flushed before shutdown.
 4. Verify command registration and permission guards.
 5. Verify flush/migration behavior.
 6. Retest after one change at a time.
+
+---
+
+## Symptom: SQL shell is disabled or denied
+
+### Likely cause
+
+- Global SQL toggle is off.
+- Missing SQL permission node (`pmmpcore.sql.read`, `pmmpcore.sql.write`, `pmmpcore.sql.admin`).
+
+### How to confirm
+
+- Run `/sqltoggle on` (admin only) and retry.
+- Check permissions in PurePerms for the player/group.
+
+### Fix
+
+- Enable SQL shell globally with `/sqltoggle on`.
+- Grant required SQL nodes.
+- Use `/sqlseed` once, then test with `/sql SELECT * FROM items`.

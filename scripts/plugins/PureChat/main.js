@@ -9,7 +9,7 @@ console.log("[PureChat] Loading PureChat plugin...");
 PMMPCore.registerPlugin({
   name: PURECHAT_PLUGIN_NAME,
   version: "1.0.0",
-  depend: ["PMMPCore", "PurePerms"],
+  depend: ["PMMPCore", "PurePerms", "PlaceholderAPI"],
 
   onEnable() {
     this.service = new PureChatService();

@@ -100,7 +100,10 @@ PMMPCore.registerPlugin({
         hasPersonalSpawn = !!spawnPoint;
       } catch (_) {}
 
-      const shouldRouteToMain = event.initialSpawn || !hasPersonalSpawn;
+      // Do not override normal respawn behavior. Routing should only happen on first join.
+      // The previous condition (`initialSpawn || !hasPersonalSpawn`) forced players without
+      // a personal spawnpoint (no bed/anchor) into main-world fallback each respawn.
+      const shouldRouteToMain = !!event.initialSpawn;
       if (!shouldRouteToMain) return;
 
       const tryRouteToMain = (attempt = 0) => {
@@ -120,6 +123,14 @@ PMMPCore.registerPlugin({
 
         const restored = WorldManager.teleportPlayerToPreferredJoinLocation(player);
         if (restored.ok) return;
+
+        // Important: when main destination is vanilla overworld, do not force a teleport on first join.
+        // Bedrock already resolves a proper spawnpoint (world spawn / safe spawn rules), and forcing
+        // an early teleport can fallback to 0,64,0 while chunks/spawn metadata are still warming up.
+        const mainDestination = WorldManager.resolveMainWorldDestination();
+        if (!mainDestination?.isCustom && mainDestination?.id === "minecraft:overworld") {
+          return;
+        }
 
         const moved = WorldManager.teleportPlayerToMainWorld(player);
         if (!moved.ok) {

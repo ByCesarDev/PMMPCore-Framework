@@ -84,7 +84,8 @@ export class PureChatService {
 
   applyNametag(player) {
     const resolved = this.resolvePlayerContext(player, "");
-    const nametag = buildNametag(resolved.nametagTemplate, resolved.placeholders);
+    const nametagRaw = buildNametag(resolved.nametagTemplate, resolved.placeholders);
+    const nametag = this._applyExternalPlaceholders(nametagRaw, player);
     try {
       player.nameTag = nametag;
       return nametag;
@@ -97,7 +98,8 @@ export class PureChatService {
     const canUseColor = this.hasPermissionNode(player, PURECHAT_PERMISSIONS.coloredMessages);
     const safeMessage = canUseColor ? String(rawMessage ?? "") : stripAmpersandColors(rawMessage ?? "");
     const resolved = this.resolvePlayerContext(player, safeMessage);
-    return buildChatMessage(resolved.chatTemplate, resolved.placeholders);
+    const lineRaw = buildChatMessage(resolved.chatTemplate, resolved.placeholders);
+    return this._applyExternalPlaceholders(lineRaw, player);
   }
 
   hasPermissionNode(player, node) {
@@ -205,6 +207,19 @@ export class PureChatService {
   _resolveGroupKey(groupName, groups) {
     const n = normalizeName(groupName);
     return Object.keys(groups ?? {}).find((k) => normalizeName(k) === n) ?? null;
+  }
+
+  _applyExternalPlaceholders(text, player) {
+    try {
+      const placeholderPlugin = PMMPCore.getPlugin?.("PlaceholderAPI");
+      const runtime = placeholderPlugin?.runtime ?? null;
+      if (!runtime?.parse) return text;
+      return runtime.parse(String(text ?? ""), player ?? null, {
+        source: "PureChat",
+      });
+    } catch (_) {
+      return text;
+    }
   }
 
   _getState() {

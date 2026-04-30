@@ -16,6 +16,7 @@ Idioma: [English](README.md) | **Español**
 - `plugins/MULTIWORLD_DOCUMENTATION.es.md` - MultiWorld: uso, comandos, persistencia y configuración.
 - `plugins/PUREPERMS_DOCUMENTATION.es.md` - PurePerms: uso, grupos/permisos, persistencia y configuración.
 - `plugins/PURECHAT_DOCUMENTATION.es.md` - PureChat: uso, templates/placeholders, permisos y comandos de compatibilidad.
+- `plugins/PLACEHOLDERAPI_DOCUMENTATION.es.md` - PlaceholderAPI: uso, expansiones incluidas, comandos e integración con plugins.
 
 Versiones en inglés:
 
@@ -29,6 +30,7 @@ Versiones en inglés:
 - `plugins/MULTIWORLD_DOCUMENTATION.md`
 - `plugins/PUREPERMS_DOCUMENTATION.md`
 - `plugins/PURECHAT_DOCUMENTATION.md`
+- `plugins/PLACEHOLDERAPI_DOCUMENTATION.md`
 
 ## Cobertura actual
 
@@ -40,6 +42,8 @@ Documentado en detalle:
 - Desarrollo de plugins.
 - MultiWorld.
 - PurePerms.
+- PureChat.
+- PlaceholderAPI.
 
 Pendiente (próximas versiones):
 

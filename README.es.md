@@ -66,8 +66,27 @@ Ejecuta:
 /selftest
 ```
 
-- `pmmpcore:diag`: servicios, eventos, tareas del scheduler, métricas de tick/flush
-- `pmmpcore:selftest`: prueba rápida de KV + capa relacional y muestra el resultado
+- `/diag`: servicios, eventos, tareas del scheduler, métricas de tick/flush
+- `/selftest`: prueba rápida de KV + capa relacional y muestra el resultado
+
+### SQL Shell nativo (con interruptor)
+
+PMMPCore incluye un shell SQL nativo de depuración con estado global on/off.
+
+```text
+/sqltoggle on
+/sqlseed
+/sql SELECT * FROM items
+/sql upsert items 99 {"name":"AdminBlade","power":250}
+/sql delete items 99
+/sqltoggle off
+```
+
+Notas:
+
+- `/sql select` solo acepta consultas `SELECT` del subset SQL implementado por `RelationalEngine`.
+- `/sql upsert` espera JSON inline (`<table> <id> <objeto-json>`).
+- Los comandos SQL requieren permisos SQL (`pmmpcore.sql.read`/`write`/`admin`) y respetan el toggle global.
 
 ---
 
@@ -79,6 +98,7 @@ Actualmente:
 
 - **MultiWorld**: mundos personalizados por dimensiones con comandos y persistencia
 - **PurePerms**: permisos y grupos, con contrato estable hacia el core
+- **PlaceholderAPI**: parser de `%placeholders%` con expansiones incluidas y registro runtime para plugins
 - **PureChat**: formatos de chat por grupo, prefijo/sufijo por jugador y templates de nametag
 - **ExamplePlugin**: plugin de referencia con patrones y hooks de MultiWorld
 
@@ -118,6 +138,7 @@ scripts/
   plugins/
     MultiWorld/
     PurePerms/
+    PlaceholderAPI/
     ExamplePlugin/
 docs/
   README.es.md              # índice

@@ -228,6 +228,21 @@ Placeholders soportados:
 
 Si no hay datos de facción disponibles, `{fac_name}` y `{fac_rank}` se resuelven a vacío.
 
+### 7.1 Tokens externos de PlaceholderAPI (`%...%`)
+
+PureChat también soporta tokens de PlaceholderAPI después de resolver los placeholders internos.
+
+Orden de resolución:
+
+1. Placeholders internos de PureChat (`{msg}`, `{display_name}`, etc.).
+2. Tokens de PlaceholderAPI (`%player_name%`, `%time_current%`, etc.).
+
+Ejemplo:
+
+```text
+/pchat setformat OP global "[%time_current%] %player_name% (%online_players%) > {msg}"
+```
+
 ## 8. Códigos de color
 
 PureChat soporta `&` codes en templates y mensaje de usuario:

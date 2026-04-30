@@ -9,6 +9,47 @@ import { DatabaseManager } from "./DatabaseManager.js";
 
 console.log("=== PMMPCore IMPORTS COMPLETED ===");
 
+const SQL_DEBUG_STATE_KEY = "core:sqlDebug.enabled";
+const SQL_MAX_CHAT_ROWS = 10;
+const SQL_COMMAND_DEDUP_MS = 250;
+const SQL_PERMISSIONS = {
+  read: "pmmpcore.sql.read",
+  write: "pmmpcore.sql.write",
+  admin: "pmmpcore.sql.admin",
+};
+const SQL_RECENT_EXECUTIONS = new Map();
+
+function registerCommandSafe(registry, definition, callback) {
+  let primaryRegistered = false;
+  try {
+    registry.registerCommand(definition, callback);
+    primaryRegistered = true;
+  } catch (error) {
+    const message = String(error?.message ?? error ?? "");
+    if (message.includes("cannot change parameters") && message.includes("during reload")) {
+      console.warn(`[PMMPCore] Skipping command re-register during reload: ${definition?.name}`);
+      return;
+    }
+    throw error;
+  }
+  const name = definition?.name;
+  // SQL command aliases can double-fire during runtime reload windows in Bedrock.
+  // Keep SQL commands namespaced-only; users can still call them as /sql in chat.
+  if (typeof name === "string" && name.startsWith("pmmpcore:sql")) {
+    return;
+  }
+  if (primaryRegistered && typeof name === "string" && name.includes(":")) {
+    const alias = name.split(":").slice(1).join(":");
+    if (alias) {
+      try {
+        registry.registerCommand({ ...definition, name: alias }, callback);
+      } catch (_) {
+        // Ignore runtimes that reject non-namespaced aliases.
+      }
+    }
+  }
+}
+
 console.log("=== LOADING PLUGINS ===");
 import "./plugins.js";
 console.log("=== PLUGINS LOADED ===");
@@ -40,6 +81,37 @@ system.beforeEvents.startup.subscribe((event) => {
 
   const dbManager = new DatabaseManager();
   PMMPCore.initialize(dbManager);
+  const sqlEngine = PMMPCore.createRelationalEngine();
+
+  const resolveWorldName = (dimensionId) => {
+    if (!dimensionId) return "";
+    if (dimensionId === "minecraft:overworld") return "overworld";
+    if (dimensionId === "minecraft:nether") return "nether";
+    if (dimensionId === "minecraft:the_end") return "end";
+    return dimensionId;
+  };
+
+  const hasSqlPermission = (player, node) => {
+    try {
+      const perms = PMMPCore.getPermissionService();
+      if (!perms?.has) return true;
+      return !!perms.has(player.name, node, resolveWorldName(player.dimension?.id), player);
+    } catch (_) {
+      return false;
+    }
+  };
+
+  const getSqlDebugEnabled = () => !!PMMPCore.db.get(SQL_DEBUG_STATE_KEY);
+  const setSqlDebugEnabled = (enabled) => {
+    PMMPCore.db.set(SQL_DEBUG_STATE_KEY, !!enabled);
+    PMMPCore.db.flush();
+  };
+
+  sqlEngine.setQueryObserver?.((sample) => {
+    PMMPCore.getLogger("sql-debug").debug(
+      `query mode=${sample.mode} durationMs=${sample.durationMs} rows=${sample.rowCount} sql="${sample.sql}"`
+    );
+  });
   for (const plugin of PMMPCore.getPlugins()) {
     if (plugin.onLoad && typeof plugin.onLoad === "function") {
       try {
@@ -60,7 +132,8 @@ system.beforeEvents.startup.subscribe((event) => {
     }
   }, AUTO_FLUSH_TICKS);
 
-  event.customCommandRegistry.registerCommand(
+  registerCommandSafe(
+    event.customCommandRegistry,
     {
       name: "pmmpcore:plugins",
       description: "List all loaded plugins",
@@ -116,6 +189,235 @@ system.beforeEvents.startup.subscribe((event) => {
       return { status: CustomCommandStatus.Success };
     },
   });
+
+  event.customCommandRegistry.registerEnum("pmmpcore:sql_subcommand", ["select", "upsert", "delete", "tables"]);
+  event.customCommandRegistry.registerEnum("pmmpcore:sql_toggle_state", ["on", "off"]);
+
+  registerCommandSafe(
+    event.customCommandRegistry,
+    {
+      name: "pmmpcore:sql",
+      description: "Run SQL debug commands (select/upsert/delete/tables)",
+      permissionLevel: CommandPermissionLevel.Any,
+      cheatsRequired: false,
+      mandatoryParameters: [
+        { type: CustomCommandParamType.Enum, name: "pmmpcore:sql_subcommand" },
+      ],
+      optionalParameters: [
+        { type: CustomCommandParamType.String, name: "arg1" },
+        { type: CustomCommandParamType.String, name: "arg2" },
+        { type: CustomCommandParamType.String, name: "arg3" },
+        { type: CustomCommandParamType.String, name: "arg4" },
+        { type: CustomCommandParamType.String, name: "arg5" },
+        { type: CustomCommandParamType.String, name: "arg6" },
+        { type: CustomCommandParamType.String, name: "arg7" },
+      ],
+    },
+    (origin, subcommand, arg1, arg2, arg3, arg4, arg5, arg6, arg7) => {
+      const player = origin.sourceEntity;
+      if (!player || !(player instanceof Player)) {
+        return { status: CustomCommandStatus.Failure, message: "Only players can use this command." };
+      }
+
+      const signature = [subcommand, arg1, arg2, arg3, arg4, arg5, arg6, arg7]
+        .filter((x) => x !== undefined && x !== null)
+        .join(" ")
+        .trim();
+      const now = Date.now();
+      const dedupKey = `${player.name}|${signature}`;
+      const lastAt = SQL_RECENT_EXECUTIONS.get(dedupKey) ?? 0;
+      if (now - lastAt < SQL_COMMAND_DEDUP_MS) {
+        return { status: CustomCommandStatus.Success };
+      }
+      SQL_RECENT_EXECUTIONS.set(dedupKey, now);
+
+      if (!getSqlDebugEnabled()) {
+        player.sendMessage("§e[SQL Debug] SQL shell is disabled. Use /sqltoggle on.§r");
+        return { status: CustomCommandStatus.Success };
+      }
+
+      const op = String(subcommand ?? "").trim().toLowerCase();
+      const allArgs = [arg1, arg2, arg3, arg4, arg5, arg6, arg7]
+        .filter((x) => x !== undefined && x !== null)
+        .map((x) => String(x).trim())
+        .filter((x) => x.length > 0);
+
+      if (op === "select") {
+        if (!hasSqlPermission(player, SQL_PERMISSIONS.read)) {
+          player.sendMessage(`§c[SQL Debug] Missing permission: ${SQL_PERMISSIONS.read}§r`);
+          return { status: CustomCommandStatus.Success };
+        }
+        const rawQuery = allArgs.join(" ").trim();
+        if (!rawQuery) {
+          player.sendMessage("§e[SQL Debug] Usage: /sql select * FROM items§r");
+          return { status: CustomCommandStatus.Success };
+        }
+        const query = rawQuery.toUpperCase().startsWith("SELECT ") ? rawQuery : `SELECT ${rawQuery}`;
+        const startedAt = Date.now();
+        sqlEngine.executeQueryAsync(
+          query,
+          system,
+          (error, rows = []) => {
+            if (error) {
+              player.sendMessage(`§c[SQL Debug] Error: ${error.message}§r`);
+              return;
+            }
+            player.sendMessage(`§b[SQL Debug] Executing: §7${query}§r`);
+            player.sendMessage(`§a[SQL Debug] Rows (${rows.length}) in ${Date.now() - startedAt}ms§r`);
+            rows.slice(0, SQL_MAX_CHAT_ROWS).forEach((row, i) => {
+              player.sendMessage(`§f[SQL Debug] [${i}] ${JSON.stringify(row)}`);
+            });
+            if (rows.length > SQL_MAX_CHAT_ROWS) {
+              player.sendMessage(`§7[SQL Debug] ... ${rows.length - SQL_MAX_CHAT_ROWS} more rows not shown.`);
+            }
+          },
+          75
+        );
+        return { status: CustomCommandStatus.Success };
+      }
+
+      if (op === "upsert") {
+        if (!hasSqlPermission(player, SQL_PERMISSIONS.write)) {
+          player.sendMessage(`§c[SQL Debug] Missing permission: ${SQL_PERMISSIONS.write}§r`);
+          return { status: CustomCommandStatus.Success };
+        }
+        const table = String(arg1 ?? "").trim();
+        const id = String(arg2 ?? "").trim();
+        const payloadRaw = [arg3, arg4, arg5, arg6, arg7]
+          .filter((x) => x !== undefined && x !== null)
+          .join(" ")
+          .trim();
+        if (!table || !id || !payloadRaw) {
+          player.sendMessage("§e[SQL Debug] Usage: /sql upsert <table> <id> <json>§r");
+          return { status: CustomCommandStatus.Success };
+        }
+        try {
+          const payload = JSON.parse(payloadRaw);
+          if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+            throw new Error("JSON payload must be an object.");
+          }
+          if (!sqlEngine.getMeta(table)) {
+            sqlEngine.createTable(table, {});
+          }
+          sqlEngine.upsert(table, id, payload);
+          PMMPCore.db.flush();
+          player.sendMessage(`§a[SQL Debug] Upsert ok: ${table}[${id}]§r`);
+        } catch (error) {
+          player.sendMessage(`§c[SQL Debug] Upsert error: ${error.message}§r`);
+        }
+        return { status: CustomCommandStatus.Success };
+      }
+
+      if (op === "delete") {
+        if (!hasSqlPermission(player, SQL_PERMISSIONS.write)) {
+          player.sendMessage(`§c[SQL Debug] Missing permission: ${SQL_PERMISSIONS.write}§r`);
+          return { status: CustomCommandStatus.Success };
+        }
+        const table = String(arg1 ?? "").trim();
+        const id = String(arg2 ?? "").trim();
+        if (!table || !id) {
+          player.sendMessage("§e[SQL Debug] Usage: /sql delete <table> <id>§r");
+          return { status: CustomCommandStatus.Success };
+        }
+        const deleted = sqlEngine.deleteRow(table, id);
+        PMMPCore.db.flush();
+        player.sendMessage(
+          deleted
+            ? `§a[SQL Debug] Deleted: ${table}[${id}]§r`
+            : `§e[SQL Debug] Row not found: ${table}[${id}]§r`
+        );
+        return { status: CustomCommandStatus.Success };
+      }
+
+      if (op === "tables") {
+        if (!hasSqlPermission(player, SQL_PERMISSIONS.read)) {
+          player.sendMessage(`§c[SQL Debug] Missing permission: ${SQL_PERMISSIONS.read}§r`);
+          return { status: CustomCommandStatus.Success };
+        }
+        const suffixes = PMMPCore.db.listPropertySuffixes("rtable:");
+        const tables = new Set();
+        for (const key of suffixes) {
+          const match = /^rtable:(.+):meta$/.exec(String(key));
+          if (match?.[1]) tables.add(match[1]);
+        }
+        const list = [...tables].sort((a, b) => a.localeCompare(b));
+        player.sendMessage(`§b[SQL Debug] Tables (${list.length})§r`);
+        if (list.length === 0) {
+          player.sendMessage("§7[SQL Debug] No relational tables found yet.");
+        } else {
+          list.slice(0, SQL_MAX_CHAT_ROWS).forEach((name, i) => {
+            player.sendMessage(`§f[SQL Debug] [${i}] ${name}`);
+          });
+          if (list.length > SQL_MAX_CHAT_ROWS) {
+            player.sendMessage(`§7[SQL Debug] ... ${list.length - SQL_MAX_CHAT_ROWS} more tables not shown.`);
+          }
+        }
+        return { status: CustomCommandStatus.Success };
+      }
+
+      player.sendMessage("§e[SQL Debug] Usage: /sql select <query> | /sql upsert <table> <id> <json> | /sql delete <table> <id> | /sql tables§r");
+      return { status: CustomCommandStatus.Success };
+    }
+  );
+
+  registerCommandSafe(
+    event.customCommandRegistry,
+    {
+      name: "pmmpcore:sqltoggle",
+      description: "Enable or disable global SQL debug shell",
+      permissionLevel: CommandPermissionLevel.Any,
+      cheatsRequired: false,
+      mandatoryParameters: [
+        { type: CustomCommandParamType.Enum, name: "pmmpcore:sql_toggle_state" },
+      ],
+    },
+    (origin, state) => {
+      const player = origin.sourceEntity;
+      if (!player || !(player instanceof Player)) {
+        return { status: CustomCommandStatus.Failure, message: "Only players can use this command." };
+      }
+      if (!hasSqlPermission(player, SQL_PERMISSIONS.admin)) {
+        player.sendMessage(`§c[SQL Debug] Missing permission: ${SQL_PERMISSIONS.admin}§r`);
+        return { status: CustomCommandStatus.Success };
+      }
+      const enabled = String(state ?? "").toLowerCase() === "on";
+      setSqlDebugEnabled(enabled);
+      player.sendMessage(`§b[SQL Debug] SQL shell is now ${enabled ? "§aON" : "§cOFF"}§r`);
+      return { status: CustomCommandStatus.Success };
+    }
+  );
+
+  registerCommandSafe(
+    event.customCommandRegistry,
+    {
+      name: "pmmpcore:sqlseed",
+      description: "Seed SQL debug sample data",
+      permissionLevel: CommandPermissionLevel.Any,
+      cheatsRequired: false,
+    },
+    (origin) => {
+      const player = origin.sourceEntity;
+      if (!player || !(player instanceof Player)) {
+        return { status: CustomCommandStatus.Failure, message: "Only players can use this command." };
+      }
+      if (!hasSqlPermission(player, SQL_PERMISSIONS.admin)) {
+        player.sendMessage(`§c[SQL Debug] Missing permission: ${SQL_PERMISSIONS.admin}§r`);
+        return { status: CustomCommandStatus.Success };
+      }
+      if (!getSqlDebugEnabled()) {
+        player.sendMessage("§e[SQL Debug] SQL shell is disabled. Use /sqltoggle on.§r");
+        return { status: CustomCommandStatus.Success };
+      }
+      sqlEngine.createTable("items", { name: "string", power: "number" });
+      sqlEngine.createIndex("items", "name");
+      sqlEngine.upsert("items", "1", { name: "Excalibur", power: 100 });
+      sqlEngine.upsert("items", "2", { name: "Wooden Stick", power: 5 });
+      sqlEngine.upsert("items", "3", { name: "Dragon Sword", power: 150 });
+      PMMPCore.db.flush();
+      player.sendMessage("§a[SQL Debug] Seed data loaded into table 'items'.§r");
+      return { status: CustomCommandStatus.Success };
+    }
+  );
 
   PMMPCore.getCommandBus()?.registerBedrockCommand(event.customCommandRegistry, {
     name: "pmmpcore:selftest",

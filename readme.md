@@ -66,8 +66,27 @@ Run:
 /selftest
 ```
 
-- `pmmpcore:diag`: shows services, event topics, scheduler tasks, and last tick/flush metrics
-- `pmmpcore:selftest`: smoke tests KV + relational layer and prints a summary
+- `/diag`: shows services, event topics, scheduler tasks, and last tick/flush metrics
+- `/selftest`: smoke tests KV + relational layer and prints a summary
+
+### Native SQL shell (toggleable)
+
+PMMPCore includes a native SQL debug shell with global on/off state.
+
+```text
+/sqltoggle on
+/sqlseed
+/sql SELECT * FROM items
+/sql upsert items 99 {"name":"AdminBlade","power":250}
+/sql delete items 99
+/sqltoggle off
+```
+
+Notes:
+
+- `/sql select` only accepts `SELECT` queries from the SQL subset implemented by `RelationalEngine`.
+- `/sql upsert` expects JSON inline (`<table> <id> <json-object>`).
+- SQL shell commands require SQL permissions (`pmmpcore.sql.read`/`write`/`admin`) and respect the global toggle.
 
 ---
 
@@ -79,6 +98,7 @@ Current included plugins:
 
 - **MultiWorld**: dimension-backed custom worlds with commands and persistence
 - **PurePerms**: permissions and groups, with a stable core-facing permission contract
+- **PlaceholderAPI**: dynamic `%placeholder%` parser with built-in expansions and plugin runtime registry
 - **PureChat**: group-based chat formats, player prefix/suffix, and nametag templates
 - **ExamplePlugin**: reference plugin showing MultiWorld hooks and patterns
 
@@ -118,6 +138,7 @@ scripts/
   plugins/
     MultiWorld/
     PurePerms/
+    PlaceholderAPI/
     ExamplePlugin/
 docs/
   README.md                 # documentation index
