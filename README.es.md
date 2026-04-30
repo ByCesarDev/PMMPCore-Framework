@@ -49,7 +49,7 @@ PMMPCore se distribuye como Behavior Pack (no como mod de servidor dedicado) y r
 ### Instalar / habilitar
 
 1. Copia (o mantén) esta carpeta como Behavior Pack en:
-   - `com.mojang/development_behavior_packs/creator_customdi`
+   - `com.mojang/development_behavior_packs/PMMPCore-Framework`
 2. En Minecraft, habilita el pack en tu mundo.
 3. Entra al mundo y ejecuta:
 

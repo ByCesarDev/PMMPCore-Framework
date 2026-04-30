@@ -49,7 +49,7 @@ PMMPCore is implemented as a Behavior Pack (not a dedicated server mod). It runs
 ### Install / enable
 
 1. Copy (or keep) this folder as a Behavior Pack under:
-   - `com.mojang/development_behavior_packs/creator_customdi`
+   - `com.mojang/development_behavior_packs/PMMPCore-Framework`
 2. In Minecraft, enable the pack in your world.
 3. Start the world, then open chat and run:
 
