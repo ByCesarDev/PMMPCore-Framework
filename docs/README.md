@@ -34,6 +34,7 @@ flowchart TD
 - `plugins/PURECHAT_DOCUMENTATION.md` - PureChat usage, templates/placeholders, permissions, and compatibility commands.
 - `plugins/PLACEHOLDERAPI_DOCUMENTATION.md` - PlaceholderAPI usage, built-in expansions, commands, and plugin integration.
 - `plugins/ECONOMYAPI_DOCUMENTATION.md` - EconomyAPI usage, wallet/debt/bank operations, commands, events, and integration API.
+- `plugins/ESSENTIALSTP_DOCUMENTATION.md` - EssentialsTP usage, homes/warps/spawn/back, request lifecycle, and integrations.
 
 ## Current Coverage
 
@@ -48,6 +49,7 @@ Documented in detail:
 - PureChat.
 - PlaceholderAPI.
 - EconomyAPI.
+- EssentialsTP.
 
 Pending (upcoming versions):
 
