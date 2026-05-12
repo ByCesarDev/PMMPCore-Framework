@@ -1,6 +1,19 @@
 # PMMPCore - PlaceholderAPI Documentation
 
-Language: **English**
+Language: **English** | [Español](PLACEHOLDERAPI_DOCUMENTATION.es.md)
+
+## Table of Contents
+
+1. [Purpose and Scope](#1-purpose-and-scope)
+   - [Resolution Pipeline](#11-resolution-pipeline)
+2. [Syntax and Resolution Rules](#2-syntax-and-resolution-rules)
+3. [Commands](#3-commands)
+4. [Integration Examples](#4-integration-examples)
+5. [Troubleshooting](#troubleshooting)
+6. [FAQ](#faq)
+7. [See also](#see-also)
+
+---
 
 ## 1. Purpose and Scope
 
@@ -229,3 +242,34 @@ flowchart TD
 - Some PocketMine placeholders cannot be implemented 1:1 in Bedrock runtime.
 - Network-derived values like IP/ping are exposed as safe fallbacks.
 - PlaceholderAPI follows PMMPCore lifecycle (`onEnable`, `onStartup`, `onWorldReady`, `onDisable`).
+
+---
+
+## 12. FAQ
+
+**Q: Can I create custom placeholder expansions?**  
+A: Yes, use the custom expansion contract to register your own placeholders.
+
+**Q: What placeholders are available by default?**  
+A: `%player_name%`, `%player_display%`, `%player_health%`, `%player_pos%`, `%player_world%`, `%server_name%`, `%server_online%`, `%server_tps%`, `%time_24h%`, `%time_12h%`, `%time_date%`.
+
+**Q: How do I use placeholders in other plugins?**  
+A: Get PlaceholderAPI runtime via `PMMPCore.getPluginPlaceholderAPI()` and call `parse()` or `resolve()`.
+
+**Q: Can placeholders be nested?**  
+A: Yes, but be careful with recursion limits to prevent infinite loops.
+
+**Q: What happens to unknown placeholders?**  
+A: They remain unchanged as fallback behavior.
+
+**Q: How do I debug placeholder resolution?**  
+A: Use `/papi test <expansion> <placeholder>` to test specific combinations.
+
+---
+
+## 13. See also
+
+- [PureChat Documentation](PURECHAT_DOCUMENTATION.md) - Chat integration example
+- [Public API Guide](../API_PUBLIC_GUIDE.md) - Core APIs and lifecycle
+- [Plugin Development Guide](../PLUGIN_DEVELOPMENT_GUIDE.md) - Plugin creation patterns
+- [Project Documentation](../PROJECT_DOCUMENTATION.md) - Architecture and runtime flow

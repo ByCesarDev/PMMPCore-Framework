@@ -227,28 +227,6 @@ export function registerEssentialsTPCommands(event, service, runtime) {
   registerCommandSafe(
     registry,
     {
-      name: "pmmpcore:wild",
-      description: "Teleport to a random safe location",
-      permissionLevel: CommandPermissionLevel.Any,
-      cheatsRequired: false,
-    },
-    (origin) => {
-      const sender = resolveSender(origin);
-      return withSafety(sender, service, () => {
-        if (!sender.isPlayer) throw new Error("This command can only be used by players.");
-        if (!guard(runtime, sender, ESSENTIALSTP_PERMISSIONS.wild, service)) return;
-        const row = service.teleportWild(sender.player);
-        let wildNote = "";
-        if (row.usedLandingPad) wildNote = " (pad)";
-        else if (row.usedUnsafeFallback) wildNote = " (fallback)";
-        sender.send(`${service.getPrefix()} Wild teleport: ${row.x}, ${row.y}, ${row.z}${wildNote}`);
-      });
-    }
-  );
-
-  registerCommandSafe(
-    registry,
-    {
       name: "pmmpcore:tpa",
       description: "Request teleport to another player",
       permissionLevel: CommandPermissionLevel.Any,

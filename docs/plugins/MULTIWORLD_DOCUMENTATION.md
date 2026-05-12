@@ -25,7 +25,39 @@ To provide custom worlds in dedicated dimensions, with:
 
 Location:
 
-```text
+```
+
+---
+
+## 27. FAQ
+
+**Q: Can I have unlimited custom worlds?**  
+A: No, limited by `MAX_ACTIVE_WORLDS` and `TOTAL_DIMENSIONS` configuration.
+
+**Q: What happens if a world fails to generate?**  
+A: The world enters error state and can be deleted/recreated. Check generation hooks and world type compatibility.
+
+**Q: Can players build in custom worlds?**  
+A: Yes, unless restricted by world-specific rules or external protection plugins.
+
+**Q: How do I backup custom worlds?**  
+A: Use `/mw backup <worldName>` to create snapshots, or backup entire world data folder.
+
+**Q: Can I change world type after creation?**  
+A: No, world type is fixed at creation. Create a new world with desired type.
+
+**Q: Why is my world lagging during generation?**  
+A: Reduce `CHUNKS_PER_TICK` or `GENERATION_RADIUS` in config, or use faster generation profiles.
+
+---
+
+## 28. See also
+
+- [PurePerms Documentation](PUREPERMS_DOCUMENTATION.md) - Permission integration
+- [EconomyAPI Documentation](ECONOMYAPI_DOCUMENTATION.md) - Economy system integration
+- [Public API Guide](../API_PUBLIC_GUIDE.md) - Core APIs and lifecycle
+- [Database Guide](../DATABASE_GUIDE.md) - Persistence patterns
+- [Plugin Development Guide](../PLUGIN_DEVELOPMENT_GUIDE.md) - Plugin creation patternstext
 scripts/plugins/MultiWorld/
   main.js
   config.js
@@ -34,6 +66,38 @@ scripts/plugins/MultiWorld/
   generator.js
   commands.js
 ```
+
+---
+
+## 27. FAQ
+
+**Q: Can I have unlimited custom worlds?**  
+A: No, limited by `MAX_ACTIVE_WORLDS` and `TOTAL_DIMENSIONS` configuration.
+
+**Q: What happens if a world fails to generate?**  
+A: The world enters error state and can be deleted/recreated. Check generation hooks and world type compatibility.
+
+**Q: Can players build in custom worlds?**  
+A: Yes, unless restricted by world-specific rules or external protection plugins.
+
+**Q: How do I backup custom worlds?**  
+A: Use `/mw backup <worldName>` to create snapshots, or backup entire world data folder.
+
+**Q: Can I change world type after creation?**  
+A: No, world type is fixed at creation. Create a new world with desired type.
+
+**Q: Why is my world lagging during generation?**  
+A: Reduce `CHUNKS_PER_TICK` or `GENERATION_RADIUS` in config, or use faster generation profiles.
+
+---
+
+## 28. See also
+
+- [PurePerms Documentation](PUREPERMS_DOCUMENTATION.md) - Permission integration
+- [EconomyAPI Documentation](ECONOMYAPI_DOCUMENTATION.md) - Economy system integration
+- [Public API Guide](../API_PUBLIC_GUIDE.md) - Core APIs and lifecycle
+- [Database Guide](../DATABASE_GUIDE.md) - Persistence patterns
+- [Plugin Development Guide](../PLUGIN_DEVELOPMENT_GUIDE.md) - Plugin creation patterns
 
 Responsibilities:
 
@@ -220,7 +284,39 @@ The implementation lives in:
 
 Register a rule:
 
-```js
+```
+
+---
+
+## 27. FAQ
+
+**Q: Can I have unlimited custom worlds?**  
+A: No, limited by `MAX_ACTIVE_WORLDS` and `TOTAL_DIMENSIONS` configuration.
+
+**Q: What happens if a world fails to generate?**  
+A: The world enters error state and can be deleted/recreated. Check generation hooks and world type compatibility.
+
+**Q: Can players build in custom worlds?**  
+A: Yes, unless restricted by world-specific rules or external protection plugins.
+
+**Q: How do I backup custom worlds?**  
+A: Use `/mw backup <worldName>` to create snapshots, or backup entire world data folder.
+
+**Q: Can I change world type after creation?**  
+A: No, world type is fixed at creation. Create a new world with desired type.
+
+**Q: Why is my world lagging during generation?**  
+A: Reduce `CHUNKS_PER_TICK` or `GENERATION_RADIUS` in config, or use faster generation profiles.
+
+---
+
+## 28. See also
+
+- [PurePerms Documentation](PUREPERMS_DOCUMENTATION.md) - Permission integration
+- [EconomyAPI Documentation](ECONOMYAPI_DOCUMENTATION.md) - Economy system integration
+- [Public API Guide](../API_PUBLIC_GUIDE.md) - Core APIs and lifecycle
+- [Database Guide](../DATABASE_GUIDE.md) - Persistence patterns
+- [Plugin Development Guide](../PLUGIN_DEVELOPMENT_GUIDE.md) - Plugin creation patternsjs
 import { WorldGenerator } from "./plugins/MultiWorld/generator.js";
 
 WorldGenerator.registerOreRule({
@@ -235,6 +331,38 @@ WorldGenerator.registerOreRule({
   scope: { type: "dimensionId", value: "pmmpcore:multiworld_7" },
 });
 ```
+
+---
+
+## 27. FAQ
+
+**Q: Can I have unlimited custom worlds?**  
+A: No, limited by `MAX_ACTIVE_WORLDS` and `TOTAL_DIMENSIONS` configuration.
+
+**Q: What happens if a world fails to generate?**  
+A: The world enters error state and can be deleted/recreated. Check generation hooks and world type compatibility.
+
+**Q: Can players build in custom worlds?**  
+A: Yes, unless restricted by world-specific rules or external protection plugins.
+
+**Q: How do I backup custom worlds?**  
+A: Use `/mw backup <worldName>` to create snapshots, or backup entire world data folder.
+
+**Q: Can I change world type after creation?**  
+A: No, world type is fixed at creation. Create a new world with desired type.
+
+**Q: Why is my world lagging during generation?**  
+A: Reduce `CHUNKS_PER_TICK` or `GENERATION_RADIUS` in config, or use faster generation profiles.
+
+---
+
+## 28. See also
+
+- [PurePerms Documentation](PUREPERMS_DOCUMENTATION.md) - Permission integration
+- [EconomyAPI Documentation](ECONOMYAPI_DOCUMENTATION.md) - Economy system integration
+- [Public API Guide](../API_PUBLIC_GUIDE.md) - Core APIs and lifecycle
+- [Database Guide](../DATABASE_GUIDE.md) - Persistence patterns
+- [Plugin Development Guide](../PLUGIN_DEVELOPMENT_GUIDE.md) - Plugin creation patterns
 
 Supported `scope` types:
 - `{ type: "dimensionId", value: "<dimension id>" }`
@@ -251,7 +379,39 @@ Hooks run after base terrain + ores, and before features (trees). A hook can opt
 
 Register a hook:
 
-```js
+```
+
+---
+
+## 27. FAQ
+
+**Q: Can I have unlimited custom worlds?**  
+A: No, limited by `MAX_ACTIVE_WORLDS` and `TOTAL_DIMENSIONS` configuration.
+
+**Q: What happens if a world fails to generate?**  
+A: The world enters error state and can be deleted/recreated. Check generation hooks and world type compatibility.
+
+**Q: Can players build in custom worlds?**  
+A: Yes, unless restricted by world-specific rules or external protection plugins.
+
+**Q: How do I backup custom worlds?**  
+A: Use `/mw backup <worldName>` to create snapshots, or backup entire world data folder.
+
+**Q: Can I change world type after creation?**  
+A: No, world type is fixed at creation. Create a new world with desired type.
+
+**Q: Why is my world lagging during generation?**  
+A: Reduce `CHUNKS_PER_TICK` or `GENERATION_RADIUS` in config, or use faster generation profiles.
+
+---
+
+## 28. See also
+
+- [PurePerms Documentation](PUREPERMS_DOCUMENTATION.md) - Permission integration
+- [EconomyAPI Documentation](ECONOMYAPI_DOCUMENTATION.md) - Economy system integration
+- [Public API Guide](../API_PUBLIC_GUIDE.md) - Core APIs and lifecycle
+- [Database Guide](../DATABASE_GUIDE.md) - Persistence patterns
+- [Plugin Development Guide](../PLUGIN_DEVELOPMENT_GUIDE.md) - Plugin creation patternsjs
 import { BlockPermutation } from "@minecraft/server";
 import { WorldGenerator } from "./plugins/MultiWorld/generator.js";
 
@@ -277,6 +437,38 @@ WorldGenerator.registerGenerationHook({
   },
 });
 ```
+
+---
+
+## 27. FAQ
+
+**Q: Can I have unlimited custom worlds?**  
+A: No, limited by `MAX_ACTIVE_WORLDS` and `TOTAL_DIMENSIONS` configuration.
+
+**Q: What happens if a world fails to generate?**  
+A: The world enters error state and can be deleted/recreated. Check generation hooks and world type compatibility.
+
+**Q: Can players build in custom worlds?**  
+A: Yes, unless restricted by world-specific rules or external protection plugins.
+
+**Q: How do I backup custom worlds?**  
+A: Use `/mw backup <worldName>` to create snapshots, or backup entire world data folder.
+
+**Q: Can I change world type after creation?**  
+A: No, world type is fixed at creation. Create a new world with desired type.
+
+**Q: Why is my world lagging during generation?**  
+A: Reduce `CHUNKS_PER_TICK` or `GENERATION_RADIUS` in config, or use faster generation profiles.
+
+---
+
+## 28. See also
+
+- [PurePerms Documentation](PUREPERMS_DOCUMENTATION.md) - Permission integration
+- [EconomyAPI Documentation](ECONOMYAPI_DOCUMENTATION.md) - Economy system integration
+- [Public API Guide](../API_PUBLIC_GUIDE.md) - Core APIs and lifecycle
+- [Database Guide](../DATABASE_GUIDE.md) - Persistence patterns
+- [Plugin Development Guide](../PLUGIN_DEVELOPMENT_GUIDE.md) - Plugin creation patterns
 
 Safety guidelines:
 - Keep `onChunkGenerated` fast. Prefer returning tasks instead of doing heavy synchronous loops.
@@ -491,40 +683,296 @@ If cleanup aggressiveness is lacking:
 ### 16.1 For Laggy Servers
 
 Reduce generation load:
-```javascript
+```
+
+---
+
+## 27. FAQ
+
+**Q: Can I have unlimited custom worlds?**  
+A: No, limited by `MAX_ACTIVE_WORLDS` and `TOTAL_DIMENSIONS` configuration.
+
+**Q: What happens if a world fails to generate?**  
+A: The world enters error state and can be deleted/recreated. Check generation hooks and world type compatibility.
+
+**Q: Can players build in custom worlds?**  
+A: Yes, unless restricted by world-specific rules or external protection plugins.
+
+**Q: How do I backup custom worlds?**  
+A: Use `/mw backup <worldName>` to create snapshots, or backup entire world data folder.
+
+**Q: Can I change world type after creation?**  
+A: No, world type is fixed at creation. Create a new world with desired type.
+
+**Q: Why is my world lagging during generation?**  
+A: Reduce `CHUNKS_PER_TICK` or `GENERATION_RADIUS` in config, or use faster generation profiles.
+
+---
+
+## 28. See also
+
+- [PurePerms Documentation](PUREPERMS_DOCUMENTATION.md) - Permission integration
+- [EconomyAPI Documentation](ECONOMYAPI_DOCUMENTATION.md) - Economy system integration
+- [Public API Guide](../API_PUBLIC_GUIDE.md) - Core APIs and lifecycle
+- [Database Guide](../DATABASE_GUIDE.md) - Persistence patterns
+- [Plugin Development Guide](../PLUGIN_DEVELOPMENT_GUIDE.md) - Plugin creation patternsjavascript
 // Lower chunk generation per cycle
 CHUNKS_PER_TICK = 3;           // Default: 6
 GENERATION_TICK_RATE = 20;      // Default: 10
 GENERATION_RADIUS = 6;         // Default: 10
 ```
 
+---
+
+## 27. FAQ
+
+**Q: Can I have unlimited custom worlds?**  
+A: No, limited by `MAX_ACTIVE_WORLDS` and `TOTAL_DIMENSIONS` configuration.
+
+**Q: What happens if a world fails to generate?**  
+A: The world enters error state and can be deleted/recreated. Check generation hooks and world type compatibility.
+
+**Q: Can players build in custom worlds?**  
+A: Yes, unless restricted by world-specific rules or external protection plugins.
+
+**Q: How do I backup custom worlds?**  
+A: Use `/mw backup <worldName>` to create snapshots, or backup entire world data folder.
+
+**Q: Can I change world type after creation?**  
+A: No, world type is fixed at creation. Create a new world with desired type.
+
+**Q: Why is my world lagging during generation?**  
+A: Reduce `CHUNKS_PER_TICK` or `GENERATION_RADIUS` in config, or use faster generation profiles.
+
+---
+
+## 28. See also
+
+- [PurePerms Documentation](PUREPERMS_DOCUMENTATION.md) - Permission integration
+- [EconomyAPI Documentation](ECONOMYAPI_DOCUMENTATION.md) - Economy system integration
+- [Public API Guide](../API_PUBLIC_GUIDE.md) - Core APIs and lifecycle
+- [Database Guide](../DATABASE_GUIDE.md) - Persistence patterns
+- [Plugin Development Guide](../PLUGIN_DEVELOPMENT_GUIDE.md) - Plugin creation patterns
+
 ### 16.2 For Fast Cleanup
 
 Increase deletion speed:
-```javascript
+```
+
+---
+
+## 27. FAQ
+
+**Q: Can I have unlimited custom worlds?**  
+A: No, limited by `MAX_ACTIVE_WORLDS` and `TOTAL_DIMENSIONS` configuration.
+
+**Q: What happens if a world fails to generate?**  
+A: The world enters error state and can be deleted/recreated. Check generation hooks and world type compatibility.
+
+**Q: Can players build in custom worlds?**  
+A: Yes, unless restricted by world-specific rules or external protection plugins.
+
+**Q: How do I backup custom worlds?**  
+A: Use `/mw backup <worldName>` to create snapshots, or backup entire world data folder.
+
+**Q: Can I change world type after creation?**  
+A: No, world type is fixed at creation. Create a new world with desired type.
+
+**Q: Why is my world lagging during generation?**  
+A: Reduce `CHUNKS_PER_TICK` or `GENERATION_RADIUS` in config, or use faster generation profiles.
+
+---
+
+## 28. See also
+
+- [PurePerms Documentation](PUREPERMS_DOCUMENTATION.md) - Permission integration
+- [EconomyAPI Documentation](ECONOMYAPI_DOCUMENTATION.md) - Economy system integration
+- [Public API Guide](../API_PUBLIC_GUIDE.md) - Core APIs and lifecycle
+- [Database Guide](../DATABASE_GUIDE.md) - Persistence patterns
+- [Plugin Development Guide](../PLUGIN_DEVELOPMENT_GUIDE.md) - Plugin creation patternsjavascript
 // Faster but more intensive cleanup
 CLEAR_BATCH_SIZE = 600;        // Default: 450
 CLEAR_BATCHES_PER_CYCLE = 3;   // Default: 2
 ```
 
+---
+
+## 27. FAQ
+
+**Q: Can I have unlimited custom worlds?**  
+A: No, limited by `MAX_ACTIVE_WORLDS` and `TOTAL_DIMENSIONS` configuration.
+
+**Q: What happens if a world fails to generate?**  
+A: The world enters error state and can be deleted/recreated. Check generation hooks and world type compatibility.
+
+**Q: Can players build in custom worlds?**  
+A: Yes, unless restricted by world-specific rules or external protection plugins.
+
+**Q: How do I backup custom worlds?**  
+A: Use `/mw backup <worldName>` to create snapshots, or backup entire world data folder.
+
+**Q: Can I change world type after creation?**  
+A: No, world type is fixed at creation. Create a new world with desired type.
+
+**Q: Why is my world lagging during generation?**  
+A: Reduce `CHUNKS_PER_TICK` or `GENERATION_RADIUS` in config, or use faster generation profiles.
+
+---
+
+## 28. See also
+
+- [PurePerms Documentation](PUREPERMS_DOCUMENTATION.md) - Permission integration
+- [EconomyAPI Documentation](ECONOMYAPI_DOCUMENTATION.md) - Economy system integration
+- [Public API Guide](../API_PUBLIC_GUIDE.md) - Core APIs and lifecycle
+- [Database Guide](../DATABASE_GUIDE.md) - Persistence patterns
+- [Plugin Development Guide](../PLUGIN_DEVELOPMENT_GUIDE.md) - Plugin creation patterns
+
 ### 16.3 For Memory-Constrained Servers
 
 Reduce active worlds:
-```javascript
+```
+
+---
+
+## 27. FAQ
+
+**Q: Can I have unlimited custom worlds?**  
+A: No, limited by `MAX_ACTIVE_WORLDS` and `TOTAL_DIMENSIONS` configuration.
+
+**Q: What happens if a world fails to generate?**  
+A: The world enters error state and can be deleted/recreated. Check generation hooks and world type compatibility.
+
+**Q: Can players build in custom worlds?**  
+A: Yes, unless restricted by world-specific rules or external protection plugins.
+
+**Q: How do I backup custom worlds?**  
+A: Use `/mw backup <worldName>` to create snapshots, or backup entire world data folder.
+
+**Q: Can I change world type after creation?**  
+A: No, world type is fixed at creation. Create a new world with desired type.
+
+**Q: Why is my world lagging during generation?**  
+A: Reduce `CHUNKS_PER_TICK` or `GENERATION_RADIUS` in config, or use faster generation profiles.
+
+---
+
+## 28. See also
+
+- [PurePerms Documentation](PUREPERMS_DOCUMENTATION.md) - Permission integration
+- [EconomyAPI Documentation](ECONOMYAPI_DOCUMENTATION.md) - Economy system integration
+- [Public API Guide](../API_PUBLIC_GUIDE.md) - Core APIs and lifecycle
+- [Database Guide](../DATABASE_GUIDE.md) - Persistence patterns
+- [Plugin Development Guide](../PLUGIN_DEVELOPMENT_GUIDE.md) - Plugin creation patternsjavascript
 MAX_ACTIVE_WORLDS = 5;         // Default: 10
 INACTIVE_TIMEOUT = 180000;     // 3 minutes (Default: 5 min)
 ```
 
+---
+
+## 27. FAQ
+
+**Q: Can I have unlimited custom worlds?**  
+A: No, limited by `MAX_ACTIVE_WORLDS` and `TOTAL_DIMENSIONS` configuration.
+
+**Q: What happens if a world fails to generate?**  
+A: The world enters error state and can be deleted/recreated. Check generation hooks and world type compatibility.
+
+**Q: Can players build in custom worlds?**  
+A: Yes, unless restricted by world-specific rules or external protection plugins.
+
+**Q: How do I backup custom worlds?**  
+A: Use `/mw backup <worldName>` to create snapshots, or backup entire world data folder.
+
+**Q: Can I change world type after creation?**  
+A: No, world type is fixed at creation. Create a new world with desired type.
+
+**Q: Why is my world lagging during generation?**  
+A: Reduce `CHUNKS_PER_TICK` or `GENERATION_RADIUS` in config, or use faster generation profiles.
+
+---
+
+## 28. See also
+
+- [PurePerms Documentation](PUREPERMS_DOCUMENTATION.md) - Permission integration
+- [EconomyAPI Documentation](ECONOMYAPI_DOCUMENTATION.md) - Economy system integration
+- [Public API Guide](../API_PUBLIC_GUIDE.md) - Core APIs and lifecycle
+- [Database Guide](../DATABASE_GUIDE.md) - Persistence patterns
+- [Plugin Development Guide](../PLUGIN_DEVELOPMENT_GUIDE.md) - Plugin creation patterns
+
 ### 16.4 For High-Performance Servers
 
 Increase capacity:
-```javascript
+```
+
+---
+
+## 27. FAQ
+
+**Q: Can I have unlimited custom worlds?**  
+A: No, limited by `MAX_ACTIVE_WORLDS` and `TOTAL_DIMENSIONS` configuration.
+
+**Q: What happens if a world fails to generate?**  
+A: The world enters error state and can be deleted/recreated. Check generation hooks and world type compatibility.
+
+**Q: Can players build in custom worlds?**  
+A: Yes, unless restricted by world-specific rules or external protection plugins.
+
+**Q: How do I backup custom worlds?**  
+A: Use `/mw backup <worldName>` to create snapshots, or backup entire world data folder.
+
+**Q: Can I change world type after creation?**  
+A: No, world type is fixed at creation. Create a new world with desired type.
+
+**Q: Why is my world lagging during generation?**  
+A: Reduce `CHUNKS_PER_TICK` or `GENERATION_RADIUS` in config, or use faster generation profiles.
+
+---
+
+## 28. See also
+
+- [PurePerms Documentation](PUREPERMS_DOCUMENTATION.md) - Permission integration
+- [EconomyAPI Documentation](ECONOMYAPI_DOCUMENTATION.md) - Economy system integration
+- [Public API Guide](../API_PUBLIC_GUIDE.md) - Core APIs and lifecycle
+- [Database Guide](../DATABASE_GUIDE.md) - Persistence patterns
+- [Plugin Development Guide](../PLUGIN_DEVELOPMENT_GUIDE.md) - Plugin creation patternsjavascript
 // More simultaneous worlds
 MAX_ACTIVE_WORLDS = 15;        // Default: 10
 // Faster generation
 CHUNKS_PER_TICK = 10;          // Default: 6
 GENERATION_TICK_RATE = 5;      // Default: 10
 ```
+
+---
+
+## 27. FAQ
+
+**Q: Can I have unlimited custom worlds?**  
+A: No, limited by `MAX_ACTIVE_WORLDS` and `TOTAL_DIMENSIONS` configuration.
+
+**Q: What happens if a world fails to generate?**  
+A: The world enters error state and can be deleted/recreated. Check generation hooks and world type compatibility.
+
+**Q: Can players build in custom worlds?**  
+A: Yes, unless restricted by world-specific rules or external protection plugins.
+
+**Q: How do I backup custom worlds?**  
+A: Use `/mw backup <worldName>` to create snapshots, or backup entire world data folder.
+
+**Q: Can I change world type after creation?**  
+A: No, world type is fixed at creation. Create a new world with desired type.
+
+**Q: Why is my world lagging during generation?**  
+A: Reduce `CHUNKS_PER_TICK` or `GENERATION_RADIUS` in config, or use faster generation profiles.
+
+---
+
+## 28. See also
+
+- [PurePerms Documentation](PUREPERMS_DOCUMENTATION.md) - Permission integration
+- [EconomyAPI Documentation](ECONOMYAPI_DOCUMENTATION.md) - Economy system integration
+- [Public API Guide](../API_PUBLIC_GUIDE.md) - Core APIs and lifecycle
+- [Database Guide](../DATABASE_GUIDE.md) - Persistence patterns
+- [Plugin Development Guide](../PLUGIN_DEVELOPMENT_GUIDE.md) - Plugin creation patterns
 
 ## 17. Troubleshooting Common Issues
 
@@ -659,7 +1107,39 @@ Start with `CHUNKS_PER_TICK`, then `GENERATION_TICK_RATE`, then generation/clean
 
 ### 26.1 Architecture flow
 
-```mermaid
+```
+
+---
+
+## 27. FAQ
+
+**Q: Can I have unlimited custom worlds?**  
+A: No, limited by `MAX_ACTIVE_WORLDS` and `TOTAL_DIMENSIONS` configuration.
+
+**Q: What happens if a world fails to generate?**  
+A: The world enters error state and can be deleted/recreated. Check generation hooks and world type compatibility.
+
+**Q: Can players build in custom worlds?**  
+A: Yes, unless restricted by world-specific rules or external protection plugins.
+
+**Q: How do I backup custom worlds?**  
+A: Use `/mw backup <worldName>` to create snapshots, or backup entire world data folder.
+
+**Q: Can I change world type after creation?**  
+A: No, world type is fixed at creation. Create a new world with desired type.
+
+**Q: Why is my world lagging during generation?**  
+A: Reduce `CHUNKS_PER_TICK` or `GENERATION_RADIUS` in config, or use faster generation profiles.
+
+---
+
+## 28. See also
+
+- [PurePerms Documentation](PUREPERMS_DOCUMENTATION.md) - Permission integration
+- [EconomyAPI Documentation](ECONOMYAPI_DOCUMENTATION.md) - Economy system integration
+- [Public API Guide](../API_PUBLIC_GUIDE.md) - Core APIs and lifecycle
+- [Database Guide](../DATABASE_GUIDE.md) - Persistence patterns
+- [Plugin Development Guide](../PLUGIN_DEVELOPMENT_GUIDE.md) - Plugin creation patternsmermaid
 flowchart TD
   commandInput[MultiWorldCommand] --> commandRouter[MultiWorldCommands]
   commandRouter --> serviceLayer[MultiWorldService]
@@ -669,9 +1149,73 @@ flowchart TD
   serviceLayer --> teleportFlow[TeleportAndSpawnFlow]
 ```
 
+---
+
+## 27. FAQ
+
+**Q: Can I have unlimited custom worlds?**  
+A: No, limited by `MAX_ACTIVE_WORLDS` and `TOTAL_DIMENSIONS` configuration.
+
+**Q: What happens if a world fails to generate?**  
+A: The world enters error state and can be deleted/recreated. Check generation hooks and world type compatibility.
+
+**Q: Can players build in custom worlds?**  
+A: Yes, unless restricted by world-specific rules or external protection plugins.
+
+**Q: How do I backup custom worlds?**  
+A: Use `/mw backup <worldName>` to create snapshots, or backup entire world data folder.
+
+**Q: Can I change world type after creation?**  
+A: No, world type is fixed at creation. Create a new world with desired type.
+
+**Q: Why is my world lagging during generation?**  
+A: Reduce `CHUNKS_PER_TICK` or `GENERATION_RADIUS` in config, or use faster generation profiles.
+
+---
+
+## 28. See also
+
+- [PurePerms Documentation](PUREPERMS_DOCUMENTATION.md) - Permission integration
+- [EconomyAPI Documentation](ECONOMYAPI_DOCUMENTATION.md) - Economy system integration
+- [Public API Guide](../API_PUBLIC_GUIDE.md) - Core APIs and lifecycle
+- [Database Guide](../DATABASE_GUIDE.md) - Persistence patterns
+- [Plugin Development Guide](../PLUGIN_DEVELOPMENT_GUIDE.md) - Plugin creation patterns
+
 ### 26.2 Runtime decision tree
 
-```mermaid
+```
+
+---
+
+## 27. FAQ
+
+**Q: Can I have unlimited custom worlds?**  
+A: No, limited by `MAX_ACTIVE_WORLDS` and `TOTAL_DIMENSIONS` configuration.
+
+**Q: What happens if a world fails to generate?**  
+A: The world enters error state and can be deleted/recreated. Check generation hooks and world type compatibility.
+
+**Q: Can players build in custom worlds?**  
+A: Yes, unless restricted by world-specific rules or external protection plugins.
+
+**Q: How do I backup custom worlds?**  
+A: Use `/mw backup <worldName>` to create snapshots, or backup entire world data folder.
+
+**Q: Can I change world type after creation?**  
+A: No, world type is fixed at creation. Create a new world with desired type.
+
+**Q: Why is my world lagging during generation?**  
+A: Reduce `CHUNKS_PER_TICK` or `GENERATION_RADIUS` in config, or use faster generation profiles.
+
+---
+
+## 28. See also
+
+- [PurePerms Documentation](PUREPERMS_DOCUMENTATION.md) - Permission integration
+- [EconomyAPI Documentation](ECONOMYAPI_DOCUMENTATION.md) - Economy system integration
+- [Public API Guide](../API_PUBLIC_GUIDE.md) - Core APIs and lifecycle
+- [Database Guide](../DATABASE_GUIDE.md) - Persistence patterns
+- [Plugin Development Guide](../PLUGIN_DEVELOPMENT_GUIDE.md) - Plugin creation patternsmermaid
 flowchart TD
   symptom[ObservedSymptom] --> class{SymptomClass}
   class -->|WorldNotFound| checkIndex[Check world index and normalization]
@@ -679,3 +1223,35 @@ flowchart TD
   class -->|GenerationIssue| checkHooks[Check generation hooks and type]
   class -->|DataMismatch| checkDb[Check db data and flush boundaries]
 ```
+
+---
+
+## 27. FAQ
+
+**Q: Can I have unlimited custom worlds?**  
+A: No, limited by `MAX_ACTIVE_WORLDS` and `TOTAL_DIMENSIONS` configuration.
+
+**Q: What happens if a world fails to generate?**  
+A: The world enters error state and can be deleted/recreated. Check generation hooks and world type compatibility.
+
+**Q: Can players build in custom worlds?**  
+A: Yes, unless restricted by world-specific rules or external protection plugins.
+
+**Q: How do I backup custom worlds?**  
+A: Use `/mw backup <worldName>` to create snapshots, or backup entire world data folder.
+
+**Q: Can I change world type after creation?**  
+A: No, world type is fixed at creation. Create a new world with desired type.
+
+**Q: Why is my world lagging during generation?**  
+A: Reduce `CHUNKS_PER_TICK` or `GENERATION_RADIUS` in config, or use faster generation profiles.
+
+---
+
+## 28. See also
+
+- [PurePerms Documentation](PUREPERMS_DOCUMENTATION.md) - Permission integration
+- [EconomyAPI Documentation](ECONOMYAPI_DOCUMENTATION.md) - Economy system integration
+- [Public API Guide](../API_PUBLIC_GUIDE.md) - Core APIs and lifecycle
+- [Database Guide](../DATABASE_GUIDE.md) - Persistence patterns
+- [Plugin Development Guide](../PLUGIN_DEVELOPMENT_GUIDE.md) - Plugin creation patterns

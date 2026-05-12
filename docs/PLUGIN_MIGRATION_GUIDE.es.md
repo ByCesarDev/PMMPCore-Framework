@@ -4,6 +4,20 @@ Idioma: **Español** | [English](PLUGIN_MIGRATION_GUIDE.md)
 
 Esta guía te ayuda a migrar plugins existentes (patrones legacy) al estilo PMMPCore v1 con el menor riesgo de regresiones.
 
+## Table of Contents
+
+1. [Ruta rápida de migración](#ruta-r%C3%A1pida-de-migraci%C3%B3n)
+2. [Por qué migrar](#1-por-qu%C3%A9-migrar)
+3. [Mapa rápido legacy -> v1](#2-mapa-r%C3%A1pido-legacy--v1)
+4. [Estrategia de migración (orden recomendado)](#3-estrategia-de-migraci%C3%B3n-orden-recomendado)
+   - [Mapa de riesgo por etapa de migración](#mapa-de-riesgo-por-etapa-de-migraci%C3%B3n)
+5. [Playbook paso a paso](#4-playbook-paso-a-paso)
+6. [Patrones de migración comunes](#5-patrones-de-migraci%C3%B3n-comunes)
+7. [Validación y pruebas](#6-validaci%C3%B3n-y-pruebas)
+8. [Troubleshooting](#troubleshooting)
+9. [FAQ](#faq)
+10. [Ver también](#ver-tambi%C3%A9n)
+
 ---
 
 ## Ruta rápida de migración
@@ -298,3 +312,13 @@ Prueba primera carga, prueba reinicio y prueba rollback/forward usando `/diag` m
 ### ¿Debo cambiar UX de comandos durante la migración?
 
 Mejor mantener UX estable en la migración y mejorar UX en una fase aparte para aislar regresiones.
+
+---
+
+## 10) Ver también
+
+- [Guía de API pública](API_PUBLIC_GUIDE.es.md) - APIs core y niveles de estabilidad
+- [Guía de base de datos](DATABASE_GUIDE.es.md) - Patrones de persistencia y almacenamiento
+- [Guía de desarrollo de plugins](PLUGIN_DEVELOPMENT_GUIDE.es.md) - Creación de plugins end-to-end
+- [Plantilla de documentación de plugins](PLUGIN_DOC_TEMPLATE.es.md) - Estructura estándar y requerimientos
+- [Playbook de troubleshooting](TROUBLESHOOTING_PLAYBOOK.es.md) - Debugging basado en síntomas

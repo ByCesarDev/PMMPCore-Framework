@@ -14,6 +14,29 @@ This guide teaches how to build production-ready plugins for PMMPCore:
 
 If you are new to the framework, read this guide fully once before coding your plugin.
 
+## Table of Contents
+
+1. [Purpose and audience](#1-purpose-and-audience)
+   - [First plugin in 10 minutes](#11-first-plugin-in-10-minutes)
+2. [Prerequisites](#2-prerequisites)
+3. [Plugin lifecycle explained in detail](#3-plugin-lifecycle-explained-in-detail)
+   - [`onLoad()`](#onload)
+   - [`onEnable()`](#onenable)
+   - [`onStartup(event)`](#onstartupevent)
+   - [`onWorldReady()`](#onworldready)
+   - [`onDisable()`](#ondisable)
+4. [Plugin structure and files](#4-plugin-structure-and-files)
+5. [Command registration patterns](#5-command-registration-patterns)
+6. [Permission integration](#6-permission-integration)
+7. [Persistence patterns](#7-persistence-patterns)
+8. [Migration patterns](#8-migration-patterns)
+9. [Dependency management](#9-dependency-management)
+10. [Testing and validation](#10-testing-and-validation)
+11. [Release checklist](#11-release-checklist)
+12. [Troubleshooting](#troubleshooting)
+13. [FAQ](#faq)
+14. [See also](#see-also)
+
 ---
 
 ## 1.1 First plugin in 10 minutes
@@ -44,6 +67,7 @@ flowchart TD
   - `docs/API_PUBLIC_GUIDE.md`
   - `docs/DATABASE_GUIDE.md`
   - `docs/PLUGIN_MIGRATION_GUIDE.md`
+- For player-facing UI (`ActionFormData` / `MessageFormData` / `ModalFormData`) via FormAPI: `docs/plugins/FORM_API_DOCUMENTATION.md`
 
 ---
 
@@ -451,3 +475,13 @@ Use it after critical writes and on controlled boundaries (admin actions, shutdo
 ### How detailed should plugin docs be?
 
 Detailed enough that a new dev can install, configure, run commands, understand permissions, and troubleshoot without reading source first.
+
+---
+
+## 18) See also
+
+- [Public API Guide](API_PUBLIC_GUIDE.md) - Core APIs and stability levels
+- [Database Guide](DATABASE_GUIDE.md) - Persistence and storage patterns
+- [Plugin Migration Guide](PLUGIN_MIGRATION_GUIDE.md) - Legacy to v1 patterns
+- [Plugin Documentation Template](PLUGIN_DOC_TEMPLATE.md) - Standard structure and checklist
+- [Troubleshooting Playbook](TROUBLESHOOTING_PLAYBOOK.md) - Symptom-based debugging

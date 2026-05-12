@@ -416,7 +416,29 @@ flowchart TD
 
 ---
 
-## 15. Module imports
+## 15. FAQ
+
+**Q: Can I use PMMPCore database across multiple worlds?**  
+A: No, Dynamic Properties are world-scoped. Use export/import for world migration, not live sync.
+
+**Q: What's the maximum size for a single value?**  
+A: Treat ~32,767 characters as the hard limit. Shard large data across multiple keys.
+
+**Q: Should I use RelationalEngine or just PMMPCore.db?**  
+A: Start with KV (`PMMPCore.db`). Use RelationalEngine only when you need indexing, filtering, or complex queries.
+
+**Q: When should I call flush() manually?**  
+A: After critical writes that must survive crashes, or after bulk operations before players expect immediate persistence.
+
+**Q: Is the database thread-safe?**  
+A: Yes, but all operations are synchronous. Heavy write loops should be chunked across ticks to avoid lag.
+
+**Q: Can I access Dynamic Properties directly?**  
+A: No, use `PMMPCore.db` or official APIs. Direct access bypasses caching and WAL recovery.
+
+---
+
+## 16. Module imports
 
 ```javascript
 import { DatabaseManager } from "./DatabaseManager.js";
@@ -429,3 +451,12 @@ For third-party plugins inside this pack, paths are usually relative to `scripts
 ---
 
 *This guide reflects the implementation shipped with PMMPCore. When in doubt, prefer the source of truth in `DatabaseManager.js`, `PMMPDataProvider.js`, and `db/RelationalEngine.js`.*
+
+---
+
+## 17. See also
+
+- [Public API Guide](API_PUBLIC_GUIDE.md) - How to use database APIs safely
+- [Project Documentation](PROJECT_DOCUMENTATION.md) - Architecture and runtime flow
+- [Plugin Development Guide](PLUGIN_DEVELOPMENT_GUIDE.md) - End-to-end plugin creation with persistence
+- [Troubleshooting Playbook](TROUBLESHOOTING_PLAYBOOK.md) - Symptom-based debugging

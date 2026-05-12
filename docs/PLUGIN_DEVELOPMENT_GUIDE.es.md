@@ -14,6 +14,29 @@ Esta guía enseña a construir plugins sólidos para PMMPCore:
 
 Si eres nuevo en el framework, léela completa antes de arrancar tu plugin.
 
+## Table of Contents
+
+1. [Objetivo y público](#1-objetivo-y-p%C3%BAblico)
+   - [Tu primer plugin en 10 minutos](#11-tu-primer-plugin-en-10-minutos)
+2. [Requisitos previos](#2-requisitos-previos)
+3. [Plugin lifecycle explicado en detalle](#3-plugin-lifecycle-explicado-en-detalle)
+   - [`onLoad()`](#onload)
+   - [`onEnable()`](#onenable)
+   - [`onStartup(event)`](#onstartupevent)
+   - [`onWorldReady()`](#onworldready)
+   - [`onDisable()`](#ondisable)
+4. [Estructura y archivos del plugin](#4-estructura-y-archivos-del-plugin)
+5. [Patrones de registro de comandos](#5-patrones-de-registro-de-comandos)
+6. [Integración de permisos](#6-integraci%C3%B3n-de-permisos)
+7. [Patrones de persistencia](#7-patrones-de-persistencia)
+8. [Patrones de migración](#8-patrones-de-migraci%C3%B3n)
+9. [Gestión de dependencias](#9-gesti%C3%B3n-de-dependencias)
+10. [Pruebas y validación](#10-pruebas-y-validaci%C3%B3n)
+11. [Checklist de release](#11-checklist-de-release)
+12. [Troubleshooting](#troubleshooting)
+13. [FAQ](#faq)
+14. [Ver también](#ver-tambi%C3%A9n)
+
 ---
 
 ## 1.1 Tu primer plugin en 10 minutos
@@ -44,6 +67,7 @@ flowchart TD
   - `docs/API_PUBLIC_GUIDE.es.md`
   - `docs/DATABASE_GUIDE.es.md`
   - `docs/PLUGIN_MIGRATION_GUIDE.es.md`
+- Para UI hacia el jugador (`ActionFormData` / `MessageFormData` / `ModalFormData`) con FormAPI: `docs/plugins/FORM_API_DOCUMENTATION.es.md`
 
 ---
 
@@ -451,4 +475,14 @@ Puedes, pero casi siempre es mala idea. Mantén estado en memoria y persiste por
 ### ¿Qué tan detallada debe ser la doc de un plugin?
 
 Lo suficiente para que un dev nuevo pueda instalar, configurar, usar comandos, entender permisos y resolver fallos sin leer el código primero.
+
+---
+
+## 18) Ver también
+
+- [Guía de API pública](API_PUBLIC_GUIDE.es.md) - APIs core y niveles de estabilidad
+- [Guía de base de datos](DATABASE_GUIDE.es.md) - Patrones de persistencia y almacenamiento
+- [Guía de migración de plugins](PLUGIN_MIGRATION_GUIDE.es.md) - Patrones legacy a v1
+- [Plantilla de documentación de plugins](PLUGIN_DOC_TEMPLATE.es.md) - Estructura estándar y checklist
+- [Playbook de troubleshooting](TROUBLESHOOTING_PLAYBOOK.es.md) - Debugging basado en síntomas
 

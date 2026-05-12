@@ -35,6 +35,8 @@ flowchart TD
 - `plugins/PLACEHOLDERAPI_DOCUMENTATION.es.md` - PlaceholderAPI: uso, expansiones incluidas, comandos e integración con plugins.
 - `plugins/ECONOMYAPI_DOCUMENTATION.es.md` - EconomyAPI: operaciones wallet/debt/bank, comandos, eventos e integración API.
 - `plugins/ESSENTIALSTP_DOCUMENTATION.es.md` - EssentialsTP: homes/warps/spawn/back, ciclo de requests e integraciones.
+- `plugins/SCOREHUD_DOCUMENTATION.es.md` - ScoreHud: sidebar, lineas con PlaceholderAPI, limitaciones del sidebar global en Bedrock, comandos y configuracion.
+- `plugins/FORM_API_DOCUMENTATION.es.md` - FormAPI: envolturas de `@minecraft/server-ui`, resultados unificados, cola por jugador, campos modales, comando demo.
 
 Versiones en inglés:
 
@@ -51,6 +53,8 @@ Versiones en inglés:
 - `plugins/PLACEHOLDERAPI_DOCUMENTATION.md`
 - `plugins/ECONOMYAPI_DOCUMENTATION.md`
 - `plugins/ESSENTIALSTP_DOCUMENTATION.md`
+- `plugins/SCOREHUD_DOCUMENTATION.md`
+- `plugins/FORM_API_DOCUMENTATION.md`
 
 ## Cobertura actual
 
@@ -64,8 +68,10 @@ Documentado en detalle:
 - PurePerms.
 - PureChat.
 - PlaceholderAPI.
+- FormAPI.
 - EconomyAPI.
 - EssentialsTP.
+- ScoreHud.
 
 Pendiente (próximas versiones):
 

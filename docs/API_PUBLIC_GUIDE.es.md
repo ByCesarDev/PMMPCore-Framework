@@ -4,6 +4,33 @@ Idioma: **Español** | [English](API_PUBLIC_GUIDE.md)
 
 Esta guía es la referencia canónica de la API pública de PMMPCore. Está pensada para autores de plugins que quieren construir funcionalidades sin depender de internals inestables.
 
+## Table of Contents
+
+1. [Inicio rápido para autores nuevos](#inicio-r%C3%A1pido-para-autores-nuevos)
+2. [Qué significa "API pública" en PMMPCore](#1-qui%C3%A9n-significa-api-p%C3%BAblica-en-pmmcore)
+3. [Política de estabilidad](#2-pol%C3%ADtica-de-estabilidad)
+   - [`stable`](#stable)
+   - [`experimental`](#experimental)
+   - [`internal`](#internal)
+4. [Importar APIs PMMPCore correctamente](#3-importar-apis-pmmcore-correctamente)
+5. [Contrato de lifecycle (crítico para fiabilidad)](#4-contrato-de-lifecycle-cr%C3%ADtico-para-fiabilidad)
+   - [Por qué importa `onWorldReady()`](#por-qu%C3%A9-importa-onworldready)
+   - [Matriz de lifecycle: qué hacer y qué no](#matriz-de-lifecycle-qui%C3%A9n-hacer-y-qui%C3%A9n-no)
+6. [Puntos de entrada principales que usarás](#5-puntos-de-entrada-principales-que-usar%C3%A1s)
+7. [Patrones de uso prácticos](#6-patrones-de-uso-pr%C3%A1cticos)
+   - [Plugin mínimo (lifecycle seguro)](#plugin-m%C3%ADnimo-lifecycle-seguro)
+   - [Migraciones + hidratación](#migraciones--hidrataci%C3%B3n)
+   - [Checks de permisos vía contrato estable](#checks-de-permisos-v%C3%ADa-contrato-estable)
+   - [Flujos de falla comunes](#flujos-de-falla-comunes)
+8. [Referencia de exports públicos (`scripts/api/index.js`)](#7-referencia-de-exports-p%C3%BAblicos-scriptsapiindexjs)
+9. [Anti-patrones a evitar](#8-anti-patrones-a-evitar)
+10. [Matriz de decisión rápida](#9-matriz-de-decisi%C3%B3n-r%C3%A1pida)
+    - [Referencia de flujo de datos](#referencia-de-flujo-de-datos)
+11. [Referencias cruzadas](#10-referencias-cruzadas)
+12. [FAQ](#11-faq)
+13. [Troubleshooting](#troubleshooting)
+14. [Ver también](#ver-tambi%C3%A9n)
+
 ---
 
 ## Inicio rápido para autores nuevos
@@ -316,6 +343,34 @@ flowchart TD
 
 ---
 
+## 12) Troubleshooting
+
+### Síntoma: "cannot be used in early execution"
+
+**Causa**: Intentar usar `PMMPCore.db` o Dynamic Properties en `onStartup` o fases tempranas.
+
+**Solución**: Mover todas las operaciones de DB a `onWorldReady()`. Mantener `onStartup` solo para registro de comandos/enums.
+
+### Síntoma: El plugin carga pero los comandos no funcionan
+
+**Causa**: Comandos registrados en fase incorrecta de lifecycle o falta registro de enums.
+
+**Solución**: Registrar comandos en `onStartup(event)` y asegurar sintaxis correcta de registro.
+
+### Síntoma: Los checks de permisos siempre fallan
+
+**Causa**: Usar servicio de permisos incorrecto o formato de nodo incorrecto.
+
+**Solución**: Usar `PMMPCore.getPermissionService()` y verificar que los nombres de nodo coincidan con configuración de PurePerms.
+
+### Síntoma: Los datos no persisten después de reiniciar
+
+**Causa**: Falta llamada a `flush()` después de escrituras críticas.
+
+**Solución**: Llamar a `PMMPCore.db.flush()` después de mutaciones importantes o usar servicio de migraciones.
+
+---
+
 ## 10) Lecturas relacionadas
 
 - Persistencia y durabilidad: `docs/DATABASE_GUIDE.es.md`
@@ -355,3 +410,13 @@ Como mínimo:
 - comandos + permisos,
 - errores frecuentes y troubleshooting,
 - al menos un diagrama de arquitectura/runtime.
+
+---
+
+## 13) Ver también
+
+- [Guía de base de datos](DATABASE_GUIDE.es.md) - Documentación completa de capa de persistencia
+- [Documentación del proyecto](PROJECT_DOCUMENTATION.es.md) - Arquitectura y flujo de runtime
+- [Guía de desarrollo de plugins](PLUGIN_DEVELOPMENT_GUIDE.es.md) - Creación de plugins end-to-end
+- [Guía de migración de plugins](PLUGIN_MIGRATION_GUIDE.es.md) - Patrones de migración legacy a v1
+- [Playbook de troubleshooting](TROUBLESHOOTING_PLAYBOOK.es.md) - Debugging basado en síntomas

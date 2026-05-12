@@ -369,7 +369,17 @@ Enable `enableMultiworldPerms` only when your server actually uses per-world acc
 
 ### 16.1 Permission resolution flow
 
-```mermaid
+```
+
+---
+
+## 17. See also
+
+- [MultiWorld Documentation](MULTIWORLD_DOCUMENTATION.md) - World-specific permission integration
+- [EconomyAPI Documentation](ECONOMYAPI_DOCUMENTATION.md) - Economy system integration
+- [Public API Guide](../API_PUBLIC_GUIDE.md) - Core APIs and lifecycle
+- [Database Guide](../DATABASE_GUIDE.md) - Persistence patterns
+- [Plugin Development Guide](../PLUGIN_DEVELOPMENT_GUIDE.md) - Plugin creation patternsmermaid
 flowchart TD
   permissionCheck[PermissionCheckRequest] --> loadUser[Load user and group context]
   loadUser --> worldLayer[Apply world-specific layer]
@@ -378,9 +388,29 @@ flowchart TD
   mergeRules --> finalDecision[Final allow deny decision]
 ```
 
+---
+
+## 17. See also
+
+- [MultiWorld Documentation](MULTIWORLD_DOCUMENTATION.md) - World-specific permission integration
+- [EconomyAPI Documentation](ECONOMYAPI_DOCUMENTATION.md) - Economy system integration
+- [Public API Guide](../API_PUBLIC_GUIDE.md) - Core APIs and lifecycle
+- [Database Guide](../DATABASE_GUIDE.md) - Persistence patterns
+- [Plugin Development Guide](../PLUGIN_DEVELOPMENT_GUIDE.md) - Plugin creation patterns
+
 ### 16.2 Troubleshooting tree
 
-```mermaid
+```
+
+---
+
+## 17. See also
+
+- [MultiWorld Documentation](MULTIWORLD_DOCUMENTATION.md) - World-specific permission integration
+- [EconomyAPI Documentation](ECONOMYAPI_DOCUMENTATION.md) - Economy system integration
+- [Public API Guide](../API_PUBLIC_GUIDE.md) - Core APIs and lifecycle
+- [Database Guide](../DATABASE_GUIDE.md) - Persistence patterns
+- [Plugin Development Guide](../PLUGIN_DEVELOPMENT_GUIDE.md) - Plugin creation patternsmermaid
 flowchart TD
   symptom[Observed symptom] --> class{Class}
   class -->|UnexpectedDeny| checkNegatives[Check negative nodes and inheritance]
@@ -388,3 +418,13 @@ flowchart TD
   class -->|WorldMismatch| checkWorldScope[Check world-specific settings]
   class -->|AdminLockout| checkSuperadmin[Check superadmin protections and actor type]
 ```
+
+---
+
+## 17. See also
+
+- [MultiWorld Documentation](MULTIWORLD_DOCUMENTATION.md) - World-specific permission integration
+- [EconomyAPI Documentation](ECONOMYAPI_DOCUMENTATION.md) - Economy system integration
+- [Public API Guide](../API_PUBLIC_GUIDE.md) - Core APIs and lifecycle
+- [Database Guide](../DATABASE_GUIDE.md) - Persistence patterns
+- [Plugin Development Guide](../PLUGIN_DEVELOPMENT_GUIDE.md) - Plugin creation patterns

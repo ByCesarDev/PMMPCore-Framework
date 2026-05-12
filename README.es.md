@@ -1,6 +1,6 @@
 # PMMPCore
 
-Idioma: [English](readme.md) | **Español**
+Idioma: [English](README.md) | **Español**
 
 <div align="center">
 
@@ -15,6 +15,22 @@ Idioma: [English](readme.md) | **Español**
 [Inicio rápido](#inicio-r%C3%A1pido) · [Documentación](#documentaci%C3%B3n) · [Plugins](#plugins-incluidos) · [Contribuir](#contribuir)
 
 </div>
+
+## Table of Contents
+
+1. [¿Qué es PMMPCore?](#%C2%BFqu%C3%A9-es-pmmcore)
+2. [Estado](#estado)
+3. [Inicio rápido](#inicio-r%C3%A1pido)
+   - [Requisitos](#requisitos)
+   - [Instalar / habilitar](#instalar--habilitar)
+   - [Verificar que todo funciona](#verificar-que-todo-funciona)
+   - [SQL Shell nativo (con interruptor)](#sql-shell-nativo-con-interruptor)
+4. [Plugins incluidos](#plugins-incluidos)
+5. [Documentación](#documentaci%C3%B3n)
+6. [Estructura del repo (alto nivel)](#estructura-del-repo-alto-nivel)
+7. [Contribuir](#contribuir)
+8. [FAQ](#faq)
+9. [Ver también](#ver-tambi%C3%A9n)
 
 ---
 
@@ -158,4 +174,35 @@ docs/
 - Prioriza cambios **retrocompatibles** para APIs `stable`.
 - Documenta cambios en `docs/` (y añade versión `.es.md` cuando aplique).
 - Evita usar `world.getDynamicProperty` / `world.setDynamicProperty` directamente para datos de PMMPCore; usa `PMMPCore.db`.
+
+---
+
+## FAQ
+
+**P: ¿Puedo usar PMMPCore en un servidor dedicado?**  
+R: PMMPCore está diseñado como Behavior Pack y funciona en mundos de Minecraft Bedrock Edition (incluyendo realms y servidores dedicados que soporten Behavior Packs).
+
+**P: ¿Necesito permisos especiales para usar los comandos?**  
+R: Sí, algunos comandos requieren permisos específicos. Usa PurePerms para configurar los permisos adecuados para cada grupo.
+
+**P: ¿Qué pasa si mis datos desaparecen al reiniciar?**  
+R: Asegúrate de llamar a `PMMPCore.db.flush()` después de operaciones críticas o usa comandos como `/moneysave` para forzar la persistencia.
+
+**P: ¿Puedo desactivar plugins individuales?**  
+R: Sí, puedes comentar la línea `import` correspondiente en `scripts/plugins.js` para desactivar plugins específicos.
+
+**P: ¿Cómo reporto bugs o pido nuevas features?**  
+R: Usa el sistema de issues del repositorio GitHub, proporcionando detalles del problema y pasos para reproducir.
+
+**P: ¿Es seguro usar PMMPCore en producción?**  
+R: PMMPCore está en estado de prototipo con API pública en progreso. Es funcional pero pueden haber cambios en futuras versiones.
+
+---
+
+## Ver también
+
+- [Documentación completa](docs/README.es.md) - Guías detalladas y referencias
+- [Guía de API pública](docs/API_PUBLIC_GUIDE.es.md) - Referencia de API para desarrolladores
+- [Guía de base de datos](docs/DATABASE_GUIDE.es.md) - Persistencia y almacenamiento
+- [Guía de desarrollo de plugins](docs/PLUGIN_DEVELOPMENT_GUIDE.es.md) - Cómo crear plugins
 

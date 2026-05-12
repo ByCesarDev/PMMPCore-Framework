@@ -20,32 +20,41 @@ PMMPCore.registerPlugin({
       this.service.initialize();
     });
 
-    const chatSub = world.beforeEvents.chatSend.subscribe((event) => {
-      try {
-        if (!this._ready) return;
-        const player = event.sender;
-        if (!player) return;
-        if (!this.service.hasPermissionNode(player, PURECHAT_PERMISSIONS.use)) return;
-        const line = this.service.formatChatForPlayer(player, event.message);
-        event.cancel = true;
-        world.sendMessage(line);
-      } catch (error) {
-        console.warn(`[PureChat] Chat pipeline error: ${error?.message ?? "unknown error"}`);
-      }
-    });
-    this._subs.push(chatSub);
-
-    const spawnSub = world.afterEvents.playerSpawn.subscribe((event) => {
-      if (!this._ready) return;
-      system.run(() => {
+    // Add null checks for event systems
+    if (world.beforeEvents && world.beforeEvents.chatSend) {
+      const chatSub = world.beforeEvents.chatSend.subscribe((event) => {
         try {
-          this.service.applyNametag(event.player);
+          if (!this._ready) return;
+          const player = event.sender;
+          if (!player) return;
+          if (!this.service.hasPermissionNode(player, PURECHAT_PERMISSIONS.use)) return;
+          const line = this.service.formatChatForPlayer(player, event.message);
+          event.cancel = true;
+          world.sendMessage(line);
         } catch (error) {
-          console.warn(`[PureChat] NameTag update error: ${error?.message ?? "unknown error"}`);
+          console.warn(`[PureChat] Chat pipeline error: ${error?.message ?? "unknown error"}`);
         }
       });
-    });
-    this._subs.push(spawnSub);
+      this._subs.push(chatSub);
+    } else {
+      console.warn("[PureChat] world.beforeEvents.chatSend not available - chat features disabled");
+    }
+
+    if (world.afterEvents && world.afterEvents.playerSpawn) {
+      const spawnSub = world.afterEvents.playerSpawn.subscribe((event) => {
+        if (!this._ready) return;
+        system.run(() => {
+          try {
+            this.service.applyNametag(event.player);
+          } catch (error) {
+            console.warn(`[PureChat] NameTag update error: ${error?.message ?? "unknown error"}`);
+          }
+        });
+      });
+      this._subs.push(spawnSub);
+    } else {
+      console.warn("[PureChat] world.afterEvents.playerSpawn not available - nametag features disabled");
+    }
   },
 
   onStartup(event) {

@@ -106,6 +106,26 @@ Comando recomendado para test seguro sin pelear con `%...%`:
 - `%time_datetime%`
 - `%time_timestamp%`
 
+### 5.5 Economy (`economy`) - Requiere EconomyAPI
+
+- `%economy_money%` - Balance del jugador
+- `%economy_wallet%` - Dinero en billetera
+- `%economy_bank%` - Dinero en banco
+- `%economy_debt%` - Deuda del jugador
+- `%economy_formatted%` - Balance formateado con símbolo $
+- `%economy_formatted_commas%` - Balance formateado con separadores de miles
+
+### 5.6 PurePerms (`pureperms`) - Requiere PurePerms
+
+- `%pureperms_rank%` - Rango del jugador
+- `%pureperms_group%` - Grupo principal del jugador
+- `%pureperms_groups%` - Todos los grupos del jugador (separados por comas)
+- `%pureperms_prefix%` - Prefijo del rango del jugador
+- `%pureperms_suffix%` - Sufijo del rango del jugador
+- `%pureperms_primary_group%` - Grupo principal (alias de %pureperms_group%)
+- `%pureperms_rank_display%` - Rango con prefijo
+- `%pureperms_full_display%` - Rango completo con prefijo y sufijo
+
 ## 6. Acceso al runtime desde otro plugin
 
 Usa el registro de plugins de PMMPCore para acceder al runtime:

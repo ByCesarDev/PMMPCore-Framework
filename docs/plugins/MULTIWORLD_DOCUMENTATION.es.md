@@ -566,3 +566,35 @@ flowchart TD
   class -->|DataMismatch| checkDb[Revisar data DB y límites flush]
 ```
 
+---
+
+## 24. FAQ
+
+**P: ¿Puedo tener mundos personalizados ilimitados?**  
+R: No, limitado por `MAX_ACTIVE_WORLDS` y `TOTAL_DIMENSIONS` en configuración.
+
+**P: ¿Qué pasa si un mundo falla al generarse?**  
+R: El mundo entra en estado de error y puede ser eliminado/recreado. Revisa hooks de generación y compatibilidad de tipo.
+
+**P: ¿Pueden los jugadores construir en mundos personalizados?**  
+R: Sí, a menos que esté restringido por reglas específicas del mundo o plugins de protección externos.
+
+**P: ¿Cómo hago backup de mundos personalizados?**  
+R: Usa `/mw backup <nombreMundo>` para crear snapshots, o haz backup de la carpeta completa de datos del mundo.
+
+**P: ¿Puedo cambiar el tipo de mundo después de crearlo?**  
+R: No, el tipo de mundo es fijo al crearlo. Crea un nuevo mundo con el tipo deseado.
+
+**P: ¿Por qué mi mundo laggea durante generación?**  
+R: Reduce `CHUNKS_PER_TICK` o `GENERATION_RADIUS` en configuración, o usa perfiles de generación más rápidos.
+
+---
+
+## 25. Ver también
+
+- [Documentación de PurePerms](PUREPERMS_DOCUMENTATION.es.md) - Integración de permisos
+- [Documentación de EconomyAPI](ECONOMYAPI_DOCUMENTATION.es.md) - Integración de sistema de economía
+- [Guía de API pública](../API_PUBLIC_GUIDE.es.md) - APIs core y ciclo de vida
+- [Guía de base de datos](../DATABASE_GUIDE.es.md) - Patrones de persistencia
+- [Guía de desarrollo de plugins](../PLUGIN_DEVELOPMENT_GUIDE.es.md) - Patrones de creación de plugins
+

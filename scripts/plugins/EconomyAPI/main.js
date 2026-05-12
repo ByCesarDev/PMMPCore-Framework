@@ -4,6 +4,7 @@ import { registerEconomyCommands } from "./commands.js";
 import { ECONOMY_PLUGIN_NAME, ECONOMY_SCHEMA_VERSION } from "./config.js";
 import { emitEconomyEvent } from "./events.js";
 import { EconomyService } from "./service.js";
+import { EconomyExpansion } from "../PlaceholderAPI/expansion/EconomyExpansion.js";
 
 console.log("[EconomyAPI] Loading EconomyAPI plugin...");
 
@@ -11,6 +12,7 @@ PMMPCore.registerPlugin({
   name: ECONOMY_PLUGIN_NAME,
   version: "1.0.0",
   depend: ["PMMPCore", "PurePerms"],
+  softdepend: ["PlaceholderAPI"],
 
   onEnable() {
     this.service = new EconomyService();
@@ -45,6 +47,9 @@ PMMPCore.registerPlugin({
         config: this.service.getConfig(),
       });
     });
+
+    // Register PlaceholderAPI expansion if available
+    this._registerPlaceholderExpansion();
 
     this.runtime = {
       getMoney: (playerName) => this.service.getMoney(playerName),
@@ -92,6 +97,22 @@ PMMPCore.registerPlugin({
     }
     this._intervals = [];
     PMMPCore.db.flush();
+  },
+
+  _registerPlaceholderExpansion() {
+    try {
+      const placeholderPlugin = PMMPCore.getPlugin("PlaceholderAPI");
+      if (!placeholderPlugin?.runtime) {
+        console.log("[EconomyAPI] PlaceholderAPI not available, skipping expansion registration");
+        return;
+      }
+
+      const economyExpansion = new EconomyExpansion(this.service);
+      placeholderPlugin.runtime.registerExpansion(economyExpansion);
+      console.log("[EconomyAPI] Registered PlaceholderAPI expansion with placeholders: %economy_money%, %economy_wallet%, %economy_bank%, %economy_debt%, %economy_formatted%");
+    } catch (error) {
+      console.warn("[EconomyAPI] Failed to register PlaceholderAPI expansion:", error?.message ?? error);
+    }
   },
 
   _startInterestJobs() {

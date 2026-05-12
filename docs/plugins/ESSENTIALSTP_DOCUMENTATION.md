@@ -5,7 +5,7 @@ Language: **English** | [Español](ESSENTIALSTP_DOCUMENTATION.es.md)
 ## 1. Purpose
 
 EssentialsTP is the teleport utility plugin for PMMPCore.
-It provides homes, warps, spawn, back, random wild teleports, and player-to-player request teleports.
+It provides homes, warps, spawn, back, and player-to-player request teleports.
 
 ## 1.1 Architecture
 
@@ -35,7 +35,6 @@ Player commands:
 - `/delhome [name]`
 - `/back`
 - `/spawn`
-- `/wild`
 - `/warp <name>`
 - `/tpa <player>`
 - `/tpahere <player>`
@@ -73,7 +72,7 @@ Defaults: up to **5** homes per player; name max length **24** (normalized to lo
 
 ### Back
 
-1. Use any plugin teleport (home, warp, spawn, wild, accepted tpa, etc.).
+1. Use any plugin teleport (home, warp, spawn, accepted tpa, etc.).
 2. Run `/pmmpcore:back` (or `/back`) to return to the saved `back` location.
 
 There is a **cooldown** between uses (default **5 s** for `back`; see `cooldowns.backSeconds`).
@@ -98,11 +97,6 @@ If no spawn is stored, the command reports that spawn is not configured.
 | 1 | Admin at location (`essentialstp.admin.setwarp`) | `/pmmpcore:setwarp name` |
 | 2 | Player (`essentialstp.command.warp`) | `/pmmpcore:warp name` |
 | 3 | Admin delete (`essentialstp.admin.delwarp`) | `/pmmpcore:delwarp name` |
-
-### Wild
-
-1. In the dimension you want: `/pmmpcore:wild` (or `/wild`).
-2. If it fails after several attempts, no safe spot was found; retry or tune `wild` in plugin config.
 
 ### TPA and TPAHERE (two online players)
 
@@ -132,7 +126,6 @@ If plugin data has `costs.enabled` set `true` with non-zero amounts, some comman
 - `essentialstp.command.sethome`
 - `essentialstp.command.delhome`
 - `essentialstp.command.back`
-- `essentialstp.command.wild`
 - `essentialstp.command.spawn`
 - `essentialstp.command.warp`
 - `essentialstp.command.tpa`
@@ -221,7 +214,6 @@ For the full ordered walkthrough, see **section 3.1**.
 /warp market
 /setspawn
 /spawn
-/wild
 /tpa <player>
 /tpaccept
 /tpdeny

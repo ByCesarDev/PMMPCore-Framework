@@ -2,6 +2,7 @@ import { PMMPCore, Color } from "../../PMMPCore.js";
 import { world, system } from "@minecraft/server";
 import { registerPurePermsCommands } from "./commands.js";
 import { PurePermsService } from "./service.js";
+import { PurePermsExpansion } from "../PlaceholderAPI/expansion/PurePermsExpansion.js";
 
 console.log("[PurePerms] Loading PurePerms plugin...");
 
@@ -9,6 +10,7 @@ PMMPCore.registerPlugin({
   name: "PurePerms",
   version: "1.0.0",
   depend: ["PMMPCore"],
+  softdepend: ["PlaceholderAPI"],
 
   onEnable() {
     this.service = new PurePermsService();
@@ -16,6 +18,8 @@ PMMPCore.registerPlugin({
     this._initialized = false;
     PMMPCore.registerPermissionBackend(this.service);
     PMMPCore.getMigrationService()?.register("PurePerms", 1, () => {});
+    
+    // Don't register expansion here - wait for onWorldReady
 
     const worldLoadSub = world.afterEvents.worldLoad.subscribe(() => {
       if (this._initialized) return;
@@ -70,8 +74,27 @@ PMMPCore.registerPlugin({
     try {
       PMMPCore.getMigrationService()?.run("PurePerms");
       PMMPCore.emit("permissions.ready", { provider: "PurePerms" });
+      
+      // Register PlaceholderAPI expansion now that all plugins are loaded
+      this._registerPlaceholderExpansion();
     } catch (error) {
       console.warn(`[PurePerms] Migration runner failed: ${error?.message ?? "unknown error"}`);
+    }
+  },
+
+  _registerPlaceholderExpansion() {
+    try {
+      const placeholderPlugin = PMMPCore.getPlugin("PlaceholderAPI");
+      if (!placeholderPlugin?.runtime) {
+        console.log("[PurePerms] PlaceholderAPI not available, skipping expansion registration");
+        return;
+      }
+
+      const purePermsExpansion = new PurePermsExpansion(this.service);
+      placeholderPlugin.runtime.registerExpansion(purePermsExpansion);
+      console.log("[PurePerms] Registered PlaceholderAPI expansion with placeholders: %pureperms_rank%, %pureperms_prefix%, %pureperms_suffix%, %pureperms_group%, %pureperms_groups%");
+    } catch (error) {
+      console.warn("[PurePerms] Failed to register PlaceholderAPI expansion:", error?.message ?? error);
     }
   },
 

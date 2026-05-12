@@ -4,6 +4,16 @@ Language: **English** | [Español](PLUGIN_MIGRATION_GUIDE.es.md)
 
 This guide helps you migrate existing plugins (legacy patterns) to the PMMPCore v1-style API with minimum regressions.
 
+## Table of Contents
+
+1. [Migration quick path](#migration-quick-path)
+2. [Why migrate](#1-why-migrate)
+3. [Legacy -> v1 mapping (quick table)](#2-legacy--v1-mapping-quick-table)
+4. [Migration strategy (recommended order)](#3-migration-strategy-recommended-order)
+   - [Risk map by migration stage](#31-risk-map-by-migration-stage)
+5. [Step-by-step migration playbook](#4-step-by-step-migration-playbook)
+6. [Real-world migration examples](#5-real-world-migration-examples)
+
 ---
 
 ## Migration quick path
@@ -298,3 +308,13 @@ Run a first-load test, restart test, and rollback/forward test using `/diag` plu
 ### Should I migrate command UX while migrating internals?
 
 Prefer keeping command UX stable during migration and improving UX in a separate pass, so regressions are easier to isolate.
+
+---
+
+## 10) See also
+
+- [Public API Guide](API_PUBLIC_GUIDE.md) - Core APIs and stability levels
+- [Database Guide](DATABASE_GUIDE.md) - Persistence and storage patterns
+- [Plugin Development Guide](PLUGIN_DEVELOPMENT_GUIDE.md) - End-to-end plugin creation
+- [Plugin Documentation Template](PLUGIN_DOC_TEMPLATE.md) - Standard structure and requirements
+- [Troubleshooting Playbook](TROUBLESHOOTING_PLAYBOOK.md) - Symptom-based debugging

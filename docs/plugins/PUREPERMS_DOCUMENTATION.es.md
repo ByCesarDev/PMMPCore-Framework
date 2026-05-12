@@ -385,3 +385,13 @@ flowchart TD
   class -->|WorldMismatch| checkWorldScope[Revisar alcance por mundo]
   class -->|AdminLockout| checkSuperadmin[Revisar protecciones superadmin y actor]
 ```
+
+---
+
+## 17. Ver también
+
+- [Documentación de MultiWorld](MULTIWORLD_DOCUMENTATION.es.md) - Integración de permisos por mundo
+- [Documentación de EconomyAPI](ECONOMYAPI_DOCUMENTATION.es.md) - Integración de sistema de economía
+- [Guía de API pública](../API_PUBLIC_GUIDE.es.md) - APIs core y ciclo de vida
+- [Guía de base de datos](../DATABASE_GUIDE.es.md) - Patrones de persistencia
+- [Guía de desarrollo de plugins](../PLUGIN_DEVELOPMENT_GUIDE.es.md) - Patrones de creación de plugins

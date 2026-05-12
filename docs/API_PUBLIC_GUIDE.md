@@ -2,7 +2,34 @@
 
 Language: **English** | [Español](API_PUBLIC_GUIDE.es.md)
 
-This guide is the canonical reference for PMMPCore’s public API. It is written for plugin authors who need to build features safely without depending on unstable internals.
+This guide is the canonical reference for PMMPCore's public API. It is written for plugin authors who need to build features safely without depending on unstable internals.
+
+## Table of Contents
+
+1. [Quickstart for first-time plugin authors](#quickstart-for-first-time-plugin-authors)
+2. [What "public API" means in PMMPCore](#1-what-public-api-means-in-pmmcore)
+3. [Stability policy](#2-stability-policy)
+   - [`stable`](#stable)
+   - [`experimental`](#experimental)
+   - [`internal`](#internal)
+4. [Importing PMMPCore APIs correctly](#3-importing-pmmcore-apis-correctly)
+5. [Lifecycle contract (critical for reliability)](#4-lifecycle-contract-critical-for-reliability)
+   - [Why `onWorldReady()` matters](#why-onworldready-matters)
+   - [Lifecycle do and don't matrix](#41-lifecycle-do-and-dont-matrix)
+6. [Core entrypoints you will use most](#5-core-entrypoints-you-will-use-most)
+7. [Practical usage patterns](#6-practical-usage-patterns)
+   - [Minimal plugin (safe lifecycle)](#61-minimal-plugin-safe-lifecycle)
+   - [Migrations + hydration](#62-migrations--hydration)
+   - [Permission checks via stable contract](#63-permission-checks-via-stable-contract)
+   - [Common failure flows](#64-common-failure-flows)
+8. [Public exports reference (`scripts/api/index.js`)](#7-public-exports-reference-scriptsapiindexjs)
+9. [Anti-patterns to avoid](#8-anti-patterns-to-avoid)
+10. [Quick decision matrix](#9-quick-decision-matrix)
+    - [Dataflow reference](#91-dataflow-reference)
+11. [Cross references](#10-cross-references)
+12. [FAQ](#11-faq)
+13. [Troubleshooting](#troubleshooting)
+14. [See also](#see-also)
 
 ---
 
@@ -316,6 +343,34 @@ flowchart TD
 
 ---
 
+## 12) Troubleshooting
+
+### Symptom: "cannot be used in early execution"
+
+**Cause**: Attempting to use `PMMPCore.db` or Dynamic Properties in `onStartup` or early phases.
+
+**Solution**: Move all DB operations to `onWorldReady()`. Keep `onStartup` only for command/enum registration.
+
+### Symptom: Plugin loads but commands don't work
+
+**Cause**: Commands registered in wrong lifecycle phase or missing enum registration.
+
+**Solution**: Register command enums in `onStartup(event)` and ensure proper command registration syntax.
+
+### Symptom: Permission checks always fail
+
+**Cause**: Using wrong permission service or incorrect node format.
+
+**Solution**: Use `PMMPCore.getPermissionService()` and verify node names match PurePerms configuration.
+
+### Symptom: Data doesn't persist after restart
+
+**Cause**: Missing `flush()` call after critical writes.
+
+**Solution**: Call `PMMPCore.db.flush()` after important data mutations or use migration service.
+
+---
+
 ## 10) Cross references
 
 - Storage and durability details: `docs/DATABASE_GUIDE.md`
@@ -355,3 +410,13 @@ Minimum expectation:
 - commands + permissions,
 - error cases and troubleshooting,
 - at least one architecture/runtime diagram.
+
+---
+
+## 13) See also
+
+- [Database Guide](DATABASE_GUIDE.md) - Complete persistence layer documentation
+- [Project Documentation](PROJECT_DOCUMENTATION.md) - Architecture and runtime flow
+- [Plugin Development Guide](PLUGIN_DEVELOPMENT_GUIDE.md) - End-to-end plugin creation
+- [Plugin Migration Guide](PLUGIN_MIGRATION_GUIDE.md) - Legacy to v1 migration patterns
+- [Troubleshooting Playbook](TROUBLESHOOTING_PLAYBOOK.md) - Symptom-based debugging

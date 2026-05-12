@@ -16,6 +16,22 @@ Language: **English** | [Español](README.es.md)
 
 </div>
 
+## Table of Contents
+
+1. [What is PMMPCore?](#what-is-pmmcore)
+2. [Status](#status)
+3. [Quickstart](#quickstart)
+   - [Requirements](#requirements)
+   - [Install / enable](#install--enable)
+   - [Verify everything is working](#verify-everything-is-working)
+   - [Native SQL shell (toggleable)](#native-sql-shell-toggleable)
+4. [Included plugins](#included-plugins)
+5. [Documentation](#documentation)
+6. [Repository structure (high level)](#repository-structure-high-level)
+7. [Contributing](#contributing)
+8. [FAQ](#faq)
+9. [See also](#see-also)
+
 ---
 
 ## What is PMMPCore?
@@ -158,3 +174,34 @@ docs/
 - Prefer **backwards-compatible** changes for `stable` APIs.
 - Document changes in `docs/` (and add an `.es.md` counterpart when applicable).
 - Avoid direct `world.getDynamicProperty` / `world.setDynamicProperty` usage for PMMPCore data; use `PMMPCore.db`.
+
+---
+
+## FAQ
+
+**Q: Can I use PMMPCore on a dedicated server?**  
+A: PMMPCore is designed as a Behavior Pack and works on Minecraft Bedrock Edition worlds (including realms and dedicated servers that support Behavior Packs).
+
+**Q: Do I need special permissions to use commands?**  
+A: Yes, some commands require specific permissions. Use PurePerms to configure appropriate permissions for each group.
+
+**Q: What if my data disappears after restart?**  
+A: Make sure to call `PMMPCore.db.flush()` after critical operations or use commands like `/moneysave` to force persistence.
+
+**Q: Can I disable individual plugins?**  
+A: Yes, you can comment out the corresponding `import` line in `scripts/plugins.js` to disable specific plugins.
+
+**Q: How do I report bugs or request features?**  
+A: Use the GitHub repository's issue system, providing details about the problem and steps to reproduce.
+
+**Q: Is it safe to use PMMPCore in production?**  
+A: PMMPCore is in prototype status with public API in progress. It's functional but may have breaking changes in future versions.
+
+---
+
+## See also
+
+- [Full documentation](docs/README.md) - Detailed guides and references
+- [Public API guide](docs/API_PUBLIC_GUIDE.md) - API reference for developers
+- [Database guide](docs/DATABASE_GUIDE.md) - Persistence and storage
+- [Plugin development guide](docs/PLUGIN_DEVELOPMENT_GUIDE.md) - How to create plugins

@@ -388,7 +388,29 @@ flowchart TD
 
 ---
 
-## 15. Imports de módulos
+## 15. FAQ
+
+**P: ¿Puedo usar la base de datos PMMPCore entre múltiples mundos?**  
+R: No, las Dynamic Properties tienen scope de mundo. Usa export/import para migración entre mundos, no sincronización en vivo.
+
+**P: ¿Cuál es el tamaño máximo para un solo valor?**  
+R: Trata ~32,767 caracteres como límite absoluto. Fragmenta datos grandes en múltiples claves.
+
+**P: ¿Debo usar RelationalEngine o solo PMMPCore.db?**  
+R: Empieza con KV (`PMMPCore.db`). Usa RelationalEngine solo cuando necesites indexación, filtrado o consultas complejas.
+
+**P: ¿Cuándo debo llamar flush() manualmente?**  
+R: Después de escrituras críticas que deben sobrevivir a cierres, o después de operaciones masivas antes de que los jugadores esperen persistencia inmediata.
+
+**P: ¿Es la base de datos thread-safe?**  
+R: Sí, pero todas las operaciones son síncronas. Los loops de escritura pesados deberían fragmentarse entre ticks para evitar lag.
+
+**P: ¿Puedo acceder Dynamic Properties directamente?**  
+R: No, usa `PMMPCore.db` o APIs oficiales. El acceso directo evita caché y recuperación WAL.
+
+---
+
+## 16. Imports de módulos
 
 ```javascript
 import { DatabaseManager } from "./DatabaseManager.js";
@@ -401,3 +423,12 @@ Desde `scripts/plugins/MiPlugin/` suele ser `"../../db/index.js"`.
 ---
 
 *Esta guía describe la implementación incluida en PMMPCore. Ante duda, el código fuente en `DatabaseManager.js`, `PMMPDataProvider.js` y `db/RelationalEngine.js` es la referencia definitiva.*
+
+---
+
+## 17. Ver también
+
+- [Guía de API pública](API_PUBLIC_GUIDE.es.md) - Cómo usar APIs de base de datos de forma segura
+- [Documentación del proyecto](PROJECT_DOCUMENTATION.es.md) - Arquitectura y flujo de runtime
+- [Guía de desarrollo de plugins](PLUGIN_DEVELOPMENT_GUIDE.es.md) - Creación de plugins con persistencia
+- [Playbook de troubleshooting](TROUBLESHOOTING_PLAYBOOK.es.md) - Debugging basado en síntomas

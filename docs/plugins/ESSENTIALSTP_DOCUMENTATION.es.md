@@ -5,7 +5,7 @@ Idioma: [English](ESSENTIALSTP_DOCUMENTATION.md) | **Espanol**
 ## 1. Proposito
 
 EssentialsTP es el plugin de utilidades de teletransporte para PMMPCore.
-Incluye homes, warps, spawn, back, teletransporte random (`wild`) y solicitudes entre jugadores.
+Incluye homes, warps, spawn, back y solicitudes entre jugadores.
 
 ## 1.1 Arquitectura
 
@@ -35,7 +35,6 @@ Comandos de jugador:
 - `/delhome [name]`
 - `/back`
 - `/spawn`
-- `/wild`
 - `/warp <name>`
 - `/tpa <player>`
 - `/tpahere <player>`
@@ -73,7 +72,7 @@ Por defecto: hasta **5** homes por jugador; nombre maximo **24** caracteres (se 
 
 ### Back (volver atras)
 
-1. Usa cualquier teletransporte del plugin (home, warp, spawn, wild, tpa aceptado, etc.).
+1. Usa cualquier teletransporte del plugin (home, warp, spawn, tpa aceptado, etc.).
 2. Ejecuta `/pmmpcore:back` (o `/back`) para volver a la posicion guardada como `back`.
 
 Hay **cooldown** entre usos (por defecto **5 s** para `back`; configurable en `cooldowns.backSeconds`).
@@ -98,11 +97,6 @@ Si no hay spawn configurado, el comando indicara que falta definirlo.
 | 1 | Admin en el sitio (`essentialstp.admin.setwarp`) | `/pmmpcore:setwarp nombre` |
 | 2 | Jugador (`essentialstp.command.warp`) | `/pmmpcore:warp nombre` |
 | 3 | Admin borrar (`essentialstp.admin.delwarp`) | `/pmmpcore:delwarp nombre` |
-
-### Wild (aleatorio)
-
-1. En la dimension donde quieras explorar: `/pmmpcore:wild` (o `/wild`).
-2. Si falla tras varios intentos, el mundo no encontro un punto seguro; reintenta o ajusta `wild` en la config del plugin.
 
 ### TPA y TPAHERE (dos jugadores online)
 
@@ -132,7 +126,6 @@ Si en los datos del plugin `costs.enabled` es `true` y hay montos configurados, 
 - `essentialstp.command.sethome`
 - `essentialstp.command.delhome`
 - `essentialstp.command.back`
-- `essentialstp.command.wild`
 - `essentialstp.command.spawn`
 - `essentialstp.command.warp`
 - `essentialstp.command.tpa`
@@ -221,7 +214,6 @@ Para la guia detallada ordenada por flujo, ver **seccion 3.1**.
 /warp market
 /setspawn
 /spawn
-/wild
 /tpa <player>
 /tpaccept
 /tpdeny

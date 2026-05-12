@@ -15,9 +15,9 @@ PMMPCore.registerPlugin({
   onEnable() {
     this.service = new EssentialsTPService();
     this._intervals = [];
-    PMMPCore.getMigrationService()?.register(ESSENTIALSTP_PLUGIN_NAME, ESSENTIALSTP_SCHEMA_VERSION, () => {
+    PMMPCore.getMigrationService()?.register(ESSENTIALSTP_PLUGIN_NAME, 1, () => {
       PMMPCore.db.setPluginData(ESSENTIALSTP_PLUGIN_NAME, {
-        meta: { schemaVersion: ESSENTIALSTP_SCHEMA_VERSION },
+        meta: { schemaVersion: 1 },
         config: this.service.getConfig(),
       });
     });
