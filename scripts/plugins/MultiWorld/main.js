@@ -1,6 +1,6 @@
 import { world, system } from "@minecraft/server";
 import { PMMPCore, Color } from "../../PMMPCore.js";
-import { dimensionPool, GENERATION_TICK_RATE, MW_METRICS } from "./config.js";
+import { dimensionPool, GENERATION_TICK_RATE, MW_METRICS, TOTAL_DIMENSIONS, MAX_ACTIVE_WORLDS } from "./config.js";
 import { isWorldDataDirty, getWorldNameByDimensionId, generatedChunks } from "./state.js";
 import { WorldManager, RuntimeController, requestPersistFlush } from "./manager.js";
 import { WorldGenerator } from "./generator.js";
@@ -185,6 +185,9 @@ PMMPCore.registerPlugin({
         WorldManager.loadWorldData();
         this.worldDataLoaded = true;
         console.log("[MultiWorld] World data loaded.");
+        
+        // Log dimension statistics
+        this.logDimensionStats();
       } catch (e) {
         console.warn(`[MultiWorld] World data load failed: ${e?.message ?? "unknown error"}`);
       }
@@ -196,6 +199,36 @@ PMMPCore.registerPlugin({
       } finally {
         this._mwPermissionsSeeded = true;
       }
+    }
+  },
+
+  logDimensionStats() {
+    try {
+      const allWorlds = WorldManager.getAllWorlds();
+      const activeWorlds = allWorlds.filter(w => w.loaded);
+      const usedDimensions = allWorlds.length;
+      const availableDimensions = TOTAL_DIMENSIONS - usedDimensions;
+      
+      console.log(`[MultiWorld] Dimension Statistics:`);
+      console.log(`[MultiWorld] Total dimensions available: ${TOTAL_DIMENSIONS.toLocaleString()}`);
+      console.log(`[MultiWorld] Custom dimensions in use: ${usedDimensions}/${TOTAL_DIMENSIONS.toLocaleString()}`);
+      console.log(`[MultiWorld] Available dimensions: ${availableDimensions.toLocaleString()}`);
+      console.log(`[MultiWorld] Active worlds: ${activeWorlds.length}/${MAX_ACTIVE_WORLDS}`);
+      console.log(`[MultiWorld] Total worlds (active + inactive): ${allWorlds.length}`);
+      
+      if (usedDimensions > 0) {
+        const usagePercent = ((usedDimensions / TOTAL_DIMENSIONS) * 100).toFixed(2);
+        console.log(`[MultiWorld] Dimension usage: ${usagePercent}%`);
+        
+        // Show dimension IDs in use
+        const dimensionIds = allWorlds.map(w => w.dimensionId.replace("pmmpcore:multiworld_", ""));
+        console.log(`[MultiWorld] Dimension IDs in use: [${dimensionIds.join(", ")}]`);
+      }
+      
+      console.log(`[MultiWorld] Vanilla dimensions: 3 (overworld, nether, end)`);
+      console.log(`[MultiWorld] Total possible dimensions: ${(TOTAL_DIMENSIONS + 3).toLocaleString()}`);
+    } catch (e) {
+      console.warn(`[MultiWorld] Failed to log dimension stats: ${e?.message ?? "unknown error"}`);
     }
   },
 

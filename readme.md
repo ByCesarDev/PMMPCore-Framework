@@ -117,6 +117,9 @@ Current included plugins:
 - **PlaceholderAPI**: dynamic `%placeholder%` parser with built-in expansions and plugin runtime registry
 - **EconomyAPI**: full economy suite (wallet, debt, bank, ranking, commands, and runtime API for plugins)
 - **PureChat**: group-based chat formats, player prefix/suffix, and nametag templates
+- **EssentialsTP**: teleportation system with homes, warps and back functionality
+- **FormAPI**: Bedrock forms system with interactive menu support
+- **ScoreHud**: custom score and statistics display
 - **ExamplePlugin**: reference plugin showing MultiWorld hooks and patterns
 
 See each plugin’s documentation under `docs/plugins/`.
@@ -157,6 +160,9 @@ scripts/
     PurePerms/
     PlaceholderAPI/
     EconomyAPI/
+    EssentialsTP/
+    FormAPI/
+    ScoreHud/
     ExamplePlugin/
 docs/
   README.md                 # documentation index

@@ -1,6 +1,6 @@
 // ============== TIPOS Y CONSTANTES ==============
 
-export const MAX_ACTIVE_WORLDS      = 10;
+export const MAX_ACTIVE_WORLDS      = 500;
 export const INACTIVE_TIMEOUT       = 300000;  // 5 min en ms
 export const GENERATION_RADIUS      = 10;       // radio de generación alrededor del jugador (chunks)
 export const CHUNKS_PER_TICK        = 6;        // presupuesto por jugador/ciclo (equilibrio rendimiento)
@@ -13,7 +13,7 @@ export const DELETE_SAFETY_SWEEP    = true;     // ademas de tracked chunks, bar
 export const DELETE_SAFETY_RADIUS   = 220;      // miles de chunks extra (lineal: 441, area: 194,481)
 export const DELETE_SAFETY_RADIUS_WHEN_TRACKED = 40; // sweep corto cuando ya hay tracking (rapido)
 export const FLAT_WORLD_TOP_Y       = -53;      // Cesped en -53, bedrock queda en -64
-export const TOTAL_DIMENSIONS       = 50;
+export const TOTAL_DIMENSIONS       = 10000;
 export const MW_DEBUG               = true;
 export const MW_METRICS             = true;
 
