@@ -2,7 +2,6 @@ import { PMMPCore, Color } from "../../PMMPCore.js";
 import { world, system } from "@minecraft/server";
 import { registerPurePermsCommands } from "./commands.js";
 import { PurePermsService } from "./service.js";
-import { PurePermsExpansion } from "../PlaceholderAPI/expansion/PurePermsExpansion.js";
 
 console.log("[PurePerms] Loading PurePerms plugin...");
 
@@ -84,14 +83,51 @@ PMMPCore.registerPlugin({
 
   _registerPlaceholderExpansion() {
     try {
-      const placeholderPlugin = PMMPCore.getPlugin("PlaceholderAPI");
+      const isEnabled = PMMPCore.getPluginState("PlaceholderAPI")?.enabled;
+      const placeholderPlugin = isEnabled ? PMMPCore.getPlugin("PlaceholderAPI") : null;
       if (!placeholderPlugin?.runtime) {
         console.log("[PurePerms] PlaceholderAPI not available, skipping expansion registration");
         return;
       }
 
-      const purePermsExpansion = new PurePermsExpansion(this.service);
-      placeholderPlugin.runtime.registerExpansion(purePermsExpansion);
+      placeholderPlugin.runtime.registerExpansion({
+        identifier: "pureperms",
+        version: "1.0.0",
+        author: "PMMPCore Team",
+        onPlaceholderRequest: (player, key) => {
+          if (!player || !this.service) return null;
+          const id = String(key ?? "").toLowerCase();
+          const playerName = player.name;
+          try {
+            const userInfo = this.service.getUserInfo(playerName);
+            const effectiveGroup = userInfo?.effectiveGroup || "Default";
+            if (id === "rank" || id === "group" || id === "primary_group") return String(effectiveGroup);
+            if (id === "groups") return String(effectiveGroup);
+            if (id === "prefix") {
+              const groupInfo = this.service.getGroupInfo(effectiveGroup);
+              return String(groupInfo?.prefix || "");
+            }
+            if (id === "suffix") {
+              const groupInfo = this.service.getGroupInfo(effectiveGroup);
+              return String(groupInfo?.suffix || "");
+            }
+            if (id === "rank_display") {
+              const groupInfo = this.service.getGroupInfo(effectiveGroup);
+              const prefix = groupInfo?.prefix || "";
+              return prefix ? `${prefix}${effectiveGroup}` : effectiveGroup;
+            }
+            if (id === "full_display") {
+              const groupInfo = this.service.getGroupInfo(effectiveGroup);
+              const prefix = groupInfo?.prefix || "";
+              const suffix = groupInfo?.suffix || "";
+              return `${prefix}${effectiveGroup}${suffix}`;
+            }
+          } catch (error) {
+            return "Default";
+          }
+          return null;
+        },
+      });
       console.log("[PurePerms] Registered PlaceholderAPI expansion with placeholders: %pureperms_rank%, %pureperms_prefix%, %pureperms_suffix%, %pureperms_group%, %pureperms_groups%");
     } catch (error) {
       console.warn("[PurePerms] Failed to register PlaceholderAPI expansion:", error?.message ?? error);

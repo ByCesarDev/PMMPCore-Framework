@@ -4,6 +4,7 @@ import {
   worldsData, activeWorlds, lastActivity, generatedChunks,
   markWorldDataDirty, clearDirtyFlag, isWorldDataDirty,
   indexWorldDimension, unindexWorldDimension, rebuildDimensionIndex, getDimensionCleanupLock,
+  experimentalRegionCache, dirtyRegionsQueue, encodeRegionBitset, decodeRegionBitset,
 } from "./state.js";
 import {
   dimensionPool, WORLD_TYPES, FLAT_WORLD_TOP_Y, TOTAL_DIMENSIONS,
@@ -390,6 +391,7 @@ export class WorldManager {
 
     const defaultSpawnByType = {
       [WORLD_TYPES.NORMAL]: { x: 0, y: 72, z: 0 },
+      [WORLD_TYPES.EXPERIMENTAL]: { x: 0, y: 75, z: 0 },
       [WORLD_TYPES.FLAT]: { x: 0, y: FLAT_WORLD_TOP_Y + 1, z: 0 },
       [WORLD_TYPES.SKYBLOCK]: { x: 0, y: 101, z: 0 },
       [WORLD_TYPES.VOID]: { x: 0, y: 64, z: 0 },
@@ -455,6 +457,35 @@ export class WorldManager {
     }
   }
 
+  /** Volcado por lotes de regiones dirty estilo PocketMC (UnsavedChunkList) */
+  static flushDirtyRegionsBatch(maxCount = 4) {
+    if (!PMMPCore.db || dirtyRegionsQueue.size === 0) return 0;
+
+    const itemsToFlush = Array.from(dirtyRegionsQueue).slice(0, maxCount);
+    const affectedWorlds = new Set();
+
+    for (const item of itemsToFlush) {
+      dirtyRegionsQueue.delete(item);
+      const pipeIdx = item.indexOf("|");
+      if (pipeIdx === -1) continue;
+      const worldName = item.slice(0, pipeIdx);
+      affectedWorlds.add(worldName);
+    }
+
+    for (const worldName of affectedWorlds) {
+      const worldMap = experimentalRegionCache.get(worldName);
+      if (!worldMap) continue;
+
+      const obj = {};
+      for (const [rKey, bitset] of worldMap.entries()) {
+        obj[rKey] = encodeRegionBitset(bitset);
+      }
+      PMMPCore.db.set(`mw:regions:${worldName}`, obj);
+    }
+
+    return itemsToFlush.length;
+  }
+
   /** Carga mundos y chunks desde DynamicProperties (sharded). */
   static loadWorldData() {
     const names = PMMPCore.db?.getWorldIndex();
@@ -462,6 +493,7 @@ export class WorldManager {
 
     worldsData.clear();
     generatedChunks.clear();
+    experimentalRegionCache.clear();
 
     for (const name of names) {
       const data = PMMPCore.db.getWorld(name);
@@ -470,7 +502,7 @@ export class WorldManager {
       if (!data.spawn) {
         if (data.type === WORLD_TYPES.FLAT) data.spawn = { x: 0, y: FLAT_WORLD_TOP_Y + 1, z: 0 };
         else if (data.type === WORLD_TYPES.SKYBLOCK) data.spawn = { x: 0, y: 101, z: 0 };
-        else if (data.type === WORLD_TYPES.NORMAL) data.spawn = { x: 0, y: 72, z: 0 };
+        else if (data.type === WORLD_TYPES.NORMAL || data.type === WORLD_TYPES.EXPERIMENTAL) data.spawn = { x: 0, y: 75, z: 0 };
         else data.spawn = { x: 0, y: 64, z: 0 };
       }
       // Migrar mundos flat antiguos con spawn alto a la nueva altura negativa.
@@ -481,8 +513,21 @@ export class WorldManager {
       const dim = dimensionPool.find((d) => d.id === data.dimensionId);
       if (dim) dim.used = true;
 
-      const chunks = PMMPCore.db.getChunks(name);
-      generatedChunks.set(name, new Set(Array.isArray(chunks) ? chunks : []));
+      if (data.type === WORLD_TYPES.EXPERIMENTAL) {
+        const regionsData = PMMPCore.db.get(`mw:regions:${name}`) ?? {};
+        const regionMap = new Map();
+        for (const [rKey, b64] of Object.entries(regionsData)) {
+          if (typeof b64 === "string") {
+            try {
+              regionMap.set(rKey, decodeRegionBitset(b64));
+            } catch (_) {}
+          }
+        }
+        experimentalRegionCache.set(name, regionMap);
+      } else {
+        const chunks = PMMPCore.db.getChunks(name);
+        generatedChunks.set(name, new Set(Array.isArray(chunks) ? chunks : []));
+      }
     }
     rebuildDimensionIndex();
     console.log(`[MultiWorld] Loaded ${worldsData.size} worlds.`);

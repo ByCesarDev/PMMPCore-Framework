@@ -211,7 +211,8 @@ export class PureChatService {
 
   _applyExternalPlaceholders(text, player) {
     try {
-      const placeholderPlugin = PMMPCore.getPlugin?.("PlaceholderAPI");
+      const isEnabled = PMMPCore.getPluginState("PlaceholderAPI")?.enabled;
+      const placeholderPlugin = isEnabled ? PMMPCore.getPlugin?.("PlaceholderAPI") : null;
       const runtime = placeholderPlugin?.runtime ?? null;
       if (!runtime?.parse) return text;
       return runtime.parse(String(text ?? ""), player ?? null, {

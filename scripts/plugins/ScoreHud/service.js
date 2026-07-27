@@ -1,6 +1,5 @@
 import { DisplaySlotId, ObjectiveSortOrder, world } from "@minecraft/server";
 import { PMMPCore } from "../../PMMPCore.js";
-import { getPlaceholderApiRuntime } from "../PlaceholderAPI/runtime.js";
 import { SCOREHUD_DEFAULTS, SCOREHUD_DEFAULTS_HASH, SCOREHUD_PLUGIN_NAME, SCOREHUD_SCHEMA_VERSION } from "./config.js";
 import { asObject, clone, normalizePlayerName } from "./state.js";
 
@@ -208,7 +207,8 @@ export class ScoreHudService {
   }
 
   parseLine(template, contextPlayer) {
-    const rt = getPlaceholderApiRuntime();
+    const isEnabled = PMMPCore.getPluginState("PlaceholderAPI")?.enabled;
+    const rt = isEnabled ? PMMPCore.getPlugin("PlaceholderAPI")?.runtime : null;
     if (rt?.parse) {
       try {
         return rt.parse(String(template ?? ""), contextPlayer, {});

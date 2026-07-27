@@ -4,7 +4,6 @@ import { registerEconomyCommands } from "./commands.js";
 import { ECONOMY_PLUGIN_NAME, ECONOMY_SCHEMA_VERSION } from "./config.js";
 import { emitEconomyEvent } from "./events.js";
 import { EconomyService } from "./service.js";
-import { EconomyExpansion } from "../PlaceholderAPI/expansion/EconomyExpansion.js";
 
 console.log("[EconomyAPI] Loading EconomyAPI plugin...");
 
@@ -101,14 +100,49 @@ PMMPCore.registerPlugin({
 
   _registerPlaceholderExpansion() {
     try {
-      const placeholderPlugin = PMMPCore.getPlugin("PlaceholderAPI");
+      const isEnabled = PMMPCore.getPluginState("PlaceholderAPI")?.enabled;
+      const placeholderPlugin = isEnabled ? PMMPCore.getPlugin("PlaceholderAPI") : null;
       if (!placeholderPlugin?.runtime) {
         console.log("[EconomyAPI] PlaceholderAPI not available, skipping expansion registration");
         return;
       }
 
-      const economyExpansion = new EconomyExpansion(this.service);
-      placeholderPlugin.runtime.registerExpansion(economyExpansion);
+      placeholderPlugin.runtime.registerExpansion({
+        identifier: "economy",
+        version: "1.0.0",
+        author: "PMMPCore Team",
+        onPlaceholderRequest: (player, key) => {
+          if (!player || !this.service) return null;
+          const id = String(key ?? "").toLowerCase();
+          const playerName = player.name;
+          try {
+            if (id === "money" || id === "balance" || id === "wallet") {
+              const money = this.service.getMoney(playerName);
+              return String(Math.round(money * 100) / 100);
+            }
+            if (id === "bank") {
+              const bankMoney = this.service.getBankMoney(playerName);
+              return String(Math.round(bankMoney * 100) / 100);
+            }
+            if (id === "debt") {
+              const debt = this.service.getDebt(playerName);
+              return String(Math.round(debt * 100) / 100);
+            }
+            if (id === "formatted") {
+              const money = this.service.getMoney(playerName);
+              return `$${Math.round(money * 100) / 100}`;
+            }
+            if (id === "formatted_commas") {
+              const money = this.service.getMoney(playerName);
+              const rounded = Math.round(money * 100) / 100;
+              return `$${rounded.toLocaleString()}`;
+            }
+          } catch (error) {
+            return "0";
+          }
+          return null;
+        },
+      });
       console.log("[EconomyAPI] Registered PlaceholderAPI expansion with placeholders: %economy_money%, %economy_wallet%, %economy_bank%, %economy_debt%, %economy_formatted%");
     } catch (error) {
       console.warn("[EconomyAPI] Failed to register PlaceholderAPI expansion:", error?.message ?? error);

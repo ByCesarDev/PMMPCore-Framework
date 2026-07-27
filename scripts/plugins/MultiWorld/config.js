@@ -3,8 +3,8 @@
 export const MAX_ACTIVE_WORLDS      = 500;
 export const INACTIVE_TIMEOUT       = 300000;  // 5 min en ms
 export const GENERATION_RADIUS      = 10;       // radio de generación alrededor del jugador (chunks)
-export const CHUNKS_PER_TICK        = 6;        // presupuesto por jugador/ciclo (equilibrio rendimiento)
-export const GENERATION_TICK_RATE   = 10;       // cada 10 ticks (~0.5s) para que se sienta fluido
+export const CHUNKS_PER_TICK        = 3;        // presupuesto por ciclo (3 chunks por tick = ~60 chunks/seg sin tirones)
+export const GENERATION_TICK_RATE   = 1;        // cada 1 tick (1/20s) para respuesta inmediata al volar
 export const CLEAR_RADIUS           = 150;      // radio de borrado desde spawn (en chunks)
 export const CLEAR_BATCH_SIZE       = 450;      // columnas por lote de borrado (mas rapido)
 export const CLEAR_TICKS_PER_BATCH  = 1;        // ticks entre lotes (1 = max velocidad)
@@ -45,10 +45,11 @@ export function resolveCleanupPolicy(mode = "delete") {
 }
 
 export const WORLD_TYPES = {
-  NORMAL:   "normal",
-  FLAT:     "flat",
-  VOID:     "void",
-  SKYBLOCK: "skyblock",
+  NORMAL:       "normal",
+  FLAT:         "flat",
+  VOID:         "void",
+  SKYBLOCK:     "skyblock",
+  EXPERIMENTAL: "experimental",
 };
 
 export const VANILLA_WORLDS = {

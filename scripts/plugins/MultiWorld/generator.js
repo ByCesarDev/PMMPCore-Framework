@@ -1,6 +1,9 @@
 import { world as mcWorld, system, BlockPermutation } from "@minecraft/server";
 import { Color } from "../../PMMPCore.js";
-import { worldsData, generatedChunks, markWorldDataDirty } from "./state.js";
+import {
+  worldsData, generatedChunks, markWorldDataDirty,
+  isExperimentalChunkGenerated, markExperimentalChunkGenerated,
+} from "./state.js";
 import { WorldManager } from "./manager.js";
 import {
   WORLD_TYPES, FLAT_WORLD_TOP_Y, GENERATION_RADIUS, CHUNKS_PER_TICK,
@@ -8,8 +11,336 @@ import {
   DELETE_SAFETY_RADIUS_WHEN_TRACKED, CLEAR_BATCHES_PER_CYCLE, MW_DEBUG, MW_METRICS,
 } from "./config.js";
 
+// ============== PERLIN NOISE 3D (POCKETMC ENGINE) ==============
+class PerlinNoise3D {
+  constructor(seed = 0) {
+    this.p = new Int32Array(512);
+    this._initPermutation(seed);
+  }
+
+  _initPermutation(seed) {
+    let x = (seed | 0) || 123456789;
+    const rand = () => {
+      x ^= x << 13;
+      x ^= x >>> 17;
+      x ^= x << 5;
+      return ((x >>> 0) % 0xFFFFFFFF) / 0xFFFFFFFF;
+    };
+    const p256 = new Int32Array(256);
+    for (let i = 0; i < 256; i++) p256[i] = i;
+    for (let i = 255; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      const tmp = p256[i];
+      p256[i] = p256[j];
+      p256[j] = tmp;
+    }
+    for (let i = 0; i < 512; i++) {
+      this.p[i] = p256[i & 255];
+    }
+  }
+
+  grad(hash, x, y, z) {
+    const h = hash & 15;
+    const u = h < 8 ? x : y;
+    const v = h < 4 ? y : (h === 12 || h === 14 ? x : z);
+    return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
+  }
+
+  noise(x, y, z) {
+    const fx = Math.floor(x);
+    const fy = Math.floor(y);
+    const fz = Math.floor(z);
+
+    const X = fx & 255;
+    const Y = fy & 255;
+    const Z = fz & 255;
+
+    x -= fx;
+    y -= fy;
+    z -= fz;
+
+    const u = x * x * x * (x * (x * 6 - 15) + 10);
+    const v = y * y * y * (y * (y * 6 - 15) + 10);
+    const w = z * z * z * (z * (z * 6 - 15) + 10);
+
+    const p = this.p;
+    const A = p[X] + Y, AA = p[A] + Z, AB = p[A + 1] + Z;
+    const B = p[X + 1] + Y, BA = p[B] + Z, BB = p[B + 1] + Z;
+
+    const g000 = this.grad(p[AA], x, y, z);
+    const g100 = this.grad(p[BA], x - 1, y, z);
+    const g010 = this.grad(p[AB], x, y - 1, z);
+    const g110 = this.grad(p[BB], x - 1, y - 1, z);
+    const g001 = this.grad(p[AA + 1], x, y, z - 1);
+    const g101 = this.grad(p[BA + 1], x - 1, y, z - 1);
+    const g011 = this.grad(p[AB + 1], x, y - 1, z - 1);
+    const g111 = this.grad(p[BB + 1], x - 1, y - 1, z - 1);
+
+    const i00 = g000 + u * (g100 - g000);
+    const i01 = g001 + u * (g101 - g001);
+    const i10 = g010 + u * (g110 - g010);
+    const i11 = g011 + u * (g111 - g011);
+
+    const i0 = i00 + v * (i10 - i00);
+    const i1 = i01 + v * (i11 - i01);
+
+    return i0 + w * (i1 - i0);
+  }
+}
+
+class OctavePerlinNoise3D {
+  constructor(octaves = 4, seed = 0) {
+    this.octaves = [];
+    for (let i = 0; i < octaves; i++) {
+      this.octaves.push(new PerlinNoise3D(seed + i * 31));
+    }
+  }
+
+  getValue(x, y, z) {
+    let total = 0;
+    let freq = 1;
+    let amp = 1;
+    let maxAmp = 0;
+    for (let i = 0; i < this.octaves.length; i++) {
+      total += this.octaves[i].noise(x * freq, y * freq, z * freq) * amp;
+      maxAmp += amp;
+      amp *= 0.5;
+      freq *= 2.0;
+    }
+    return total / maxAmp;
+  }
+}
+
+// ============== POCKETMC WORM CAVE CARVER ENGINE ==============
+class PocketMCCaveCarver {
+  static _makePRNG(seed) {
+    let s = (seed | 0) || 123456789;
+    return {
+      nextFloat: () => {
+        s = (s * 1664525 + 1013904223) | 0;
+        return ((s >>> 0) % 65536) / 65536;
+      },
+      nextInt: (max) => {
+        if (max <= 0) return 0;
+        s = (s * 1664525 + 1013904223) | 0;
+        return Math.abs(s) % max;
+      }
+    };
+  }
+
+  static carveCaves(targetChunkX, targetChunkZ, worldSeed, chunkBlocks) {
+    const radius = 4; // Radio de 4 chunks alrededor (9x9 chunks)
+    const originX = targetChunkX * 16;
+    const originZ = targetChunkZ * 16;
+
+    for (let cx = targetChunkX - radius; cx <= targetChunkX + radius; cx++) {
+      for (let cz = targetChunkZ - radius; cz <= targetChunkZ + radius; cz++) {
+        const seed = (cx * 341873128712) ^ (cz * 132897987541) ^ worldSeed;
+        const rand = this._makePRNG(seed);
+
+        // Generación de Cuevas en Túnel (LargeCaveFeature)
+        let caves = rand.nextInt(rand.nextInt(rand.nextInt(40) + 1) + 1);
+        if (rand.nextInt(15) !== 0) caves = 0;
+
+        for (let c = 0; c < caves; c++) {
+          const xCave = cx * 16 + rand.nextInt(16);
+          const yCave = rand.nextInt(rand.nextInt(110) + 8) - 50; // Y: -50 a 60
+          const zCave = cz * 16 + rand.nextInt(16);
+
+          let tunnels = 1;
+          if (rand.nextInt(4) === 0) {
+            // Room esférico
+            this._carveTunnel(targetChunkX, targetChunkZ, originX, originZ, chunkBlocks, rand, xCave, yCave, zCave, 1 + rand.nextFloat() * 6, 0, 0, -1, -1, 0.5);
+            tunnels += rand.nextInt(4);
+          }
+
+          for (let i = 0; i < tunnels; i++) {
+            const yRot = rand.nextFloat() * Math.PI * 2;
+            const xRot = ((rand.nextFloat() - 0.5) * 2) / 8;
+            const thickness = rand.nextFloat() * 2.0 + rand.nextFloat();
+            this._carveTunnel(targetChunkX, targetChunkZ, originX, originZ, chunkBlocks, rand, xCave, yCave, zCave, thickness, yRot, xRot, 0, 0, 1.0);
+          }
+        }
+
+        // Generación de Cañones / Barrancos Profundos (CanyonFeature de PocketMC)
+        if (rand.nextInt(50) === 0) {
+          const xCanyon = cx * 16 + rand.nextInt(16);
+          const yCanyon = rand.nextInt(rand.nextInt(110) + 8) - 50;
+          const zCanyon = cz * 16 + rand.nextInt(16);
+
+          const yRot = rand.nextFloat() * Math.PI * 2;
+          const xRot = ((rand.nextFloat() - 0.5) * 2) / 8;
+          const thickness = (rand.nextFloat() * 2.0 + rand.nextFloat()) + 1.2;
+
+          // yScale = 4.5 crea la fisura vertical alta del barranco
+          this._carveTunnel(targetChunkX, targetChunkZ, originX, originZ, chunkBlocks, rand, xCanyon, yCanyon, zCanyon, thickness, yRot, xRot, 0, 0, 4.5);
+        }
+      }
+    }
+  }
+
+  static _carveTunnel(targetChunkX, targetChunkZ, originX, originZ, chunkBlocks, rand, xCave, yCave, zCave, thickness, yRot, xRot, step, dist, yScale) {
+    const xMid = targetChunkX * 16 + 8;
+    const zMid = targetChunkZ * 16 + 8;
+
+    if (dist <= 0) {
+      const max = 64;
+      dist = max - rand.nextInt(max / 4);
+    }
+    let singleStep = false;
+    if (step === -1) {
+      step = Math.floor(dist / 2);
+      singleStep = true;
+    }
+
+    const splitPoint = rand.nextInt(dist / 2) + Math.floor(dist / 4);
+    const steep = rand.nextInt(6) === 0;
+
+    let xRota = 0;
+    let yRota = 0;
+
+    const minY = -64;
+    const LAVA = "minecraft:lava";
+    const AIR = "minecraft:air";
+    const WATER = "minecraft:water";
+    const STONE = "minecraft:stone";
+    const DEEPSLATE = "minecraft:deepslate";
+    const DIRT = "minecraft:dirt";
+    const GRASS = "minecraft:grass_block";
+
+    for (; step < dist; step++) {
+      const rad = 1.5 + (Math.sin((step * Math.PI) / dist) * thickness);
+      const yRad = rad * yScale;
+
+      const xc = Math.cos(xRot);
+      const xs = Math.sin(xRot);
+      xCave += Math.cos(yRot) * xc;
+      yCave += xs;
+      zCave += Math.sin(yRot) * xc;
+
+      if (steep) {
+        xRot *= 0.92;
+      } else {
+        xRot *= 0.7;
+      }
+      xRot += xRota * 0.1;
+      yRot += yRota * 0.1;
+
+      xRota *= 0.90;
+      yRota *= 0.75;
+      xRota += (rand.nextFloat() - rand.nextFloat()) * rand.nextFloat() * 2;
+      yRota += (rand.nextFloat() - rand.nextFloat()) * rand.nextFloat() * 4;
+
+      if (!singleStep && step === splitPoint && thickness > 1) {
+        this._carveTunnel(targetChunkX, targetChunkZ, originX, originZ, chunkBlocks, rand, xCave, yCave, zCave, rand.nextFloat() * 0.5 + 0.5, yRot - Math.PI / 2, xRot / 3, step, dist, 1.0);
+        this._carveTunnel(targetChunkX, targetChunkZ, originX, originZ, chunkBlocks, rand, xCave, yCave, zCave, rand.nextFloat() * 0.5 + 0.5, yRot + Math.PI / 2, xRot / 3, step, dist, 1.0);
+        return;
+      }
+
+      if (!singleStep && rand.nextInt(4) === 0) continue;
+
+      const xd = xCave - xMid;
+      const zd = zCave - zMid;
+      const remaining = dist - step;
+      const rr = thickness + 18;
+      if (xd * xd + zd * zd - remaining * remaining > rr * rr) continue;
+
+      if (xCave < originX - 16 - rad * 2 || zCave < originZ - 16 - rad * 2 || xCave > originX + 32 + rad * 2 || zCave > originZ + 32 + rad * 2) {
+        continue;
+      }
+
+      const x0 = Math.max(0, Math.floor(xCave - rad) - originX);
+      const x1 = Math.min(16, Math.floor(xCave + rad) - originX + 1);
+
+      const y0 = Math.max(-63, Math.floor(yCave - yRad));
+      const y1 = Math.min(120, Math.floor(yCave + yRad) + 1);
+
+      const z0 = Math.max(0, Math.floor(zCave - rad) - originZ);
+      const z1 = Math.min(16, Math.floor(zCave + rad) - originZ + 1);
+
+      // Water Guard check
+      let hasWater = false;
+      for (let lx = x0; lx < x1 && !hasWater; lx++) {
+        for (let lz = z0; lz < z1 && !hasWater; lz++) {
+          const col = chunkBlocks[lx][lz];
+          for (let y = y0; y <= y1; y++) {
+            const yIdx = y - minY;
+            if (col[yIdx] === WATER) {
+              hasWater = true;
+              break;
+            }
+          }
+        }
+      }
+      if (hasWater) continue; // Protección de agua: no vaciar océanos o ríos
+
+      // Excavación de volumen esférico sobre la rejilla en memoria chunkBlocks
+      for (let lx = x0; lx < x1; lx++) {
+        const wx = originX + lx + 0.5;
+        const dxNorm = (wx - xCave) / rad;
+        const dx2 = dxNorm * dxNorm;
+        if (dx2 >= 1.0) continue;
+
+        for (let lz = z0; lz < z1; lz++) {
+          const wz = originZ + lz + 0.5;
+          const dzNorm = (wz - zCave) / rad;
+          const dz2 = dzNorm * dzNorm;
+          if (dx2 + dz2 >= 1.0) continue;
+
+          const col = chunkBlocks[lx][lz];
+
+          for (let y = y0; y <= y1; y++) {
+            const dyNorm = (y + 0.5 - yCave) / yRad;
+            const dy2 = dyNorm * dyNorm;
+
+            if (dx2 + dy2 + dz2 < 1.0) {
+              const yIdx = y - minY;
+              if (yIdx <= 0 || yIdx >= 192) continue;
+
+              const currentBlock = col[yIdx];
+              if (currentBlock === STONE || currentBlock === DEEPSLATE || currentBlock === DIRT || currentBlock === GRASS) {
+                if (y < -54) {
+                  col[yIdx] = LAVA;
+                } else {
+                  col[yIdx] = AIR;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      if (singleStep) break;
+    }
+  }
+}
+
 // ============== WORLD GENERATOR ==============
 export class WorldGenerator {
+  static _noiseCache = new Map();
+
+  static _stringHash(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) - hash) + str.charCodeAt(i);
+      hash |= 0;
+    }
+    return hash;
+  }
+
+  static _getOrCreateNoiseForWorld(worldName) {
+    if (this._noiseCache.has(worldName)) {
+      return this._noiseCache.get(worldName);
+    }
+    const seed = this._stringHash(worldName);
+    const noiseMain = new OctavePerlinNoise3D(4, seed + 1001);
+    const noiseCave = new OctavePerlinNoise3D(3, seed + 2002);
+    const noiseBeach = new OctavePerlinNoise3D(2, seed + 3003);
+    const noise = { noiseMain, noiseCave, noiseBeach };
+    this._noiseCache.set(worldName, noise);
+    return noise;
+  }
+
   static _debugWarn(message, context = null) {
     if (!MW_DEBUG) return;
     if (context) {
@@ -566,6 +897,273 @@ export class WorldGenerator {
     return true;
   }
 
+  // ── PocketMC 3D Overworld Generator (Perlin Noise 3D + Sub-chunk Trilinear Interpolation) ──
+  static generatePocketMCChunk(dimension, chunkX, chunkZ, worldName) {
+    if (!worldsData.has(worldName)) return false;
+    this._initChunks(worldName);
+    const key = `${chunkX},${chunkZ}`;
+    if (isExperimentalChunkGenerated(worldName, chunkX, chunkZ)) return true;
+    if (generatedChunks.get(worldName).has(key)) return true;
+
+    const originX = chunkX * 16;
+    const originZ = chunkZ * 16;
+
+    // Probe block at center of chunk at Y=64 to check chunk readiness
+    const probe = dimension.getBlock({ x: originX + 8, y: 64, z: originZ + 8 });
+    if (probe === undefined) return false; // Chunk not loaded in Bedrock engine yet
+
+    const BEDROCK = "minecraft:bedrock";
+    const DEEPSLATE = "minecraft:deepslate";
+    const STONE = "minecraft:stone";
+    const DIRT = "minecraft:dirt";
+    const GRASS = "minecraft:grass_block";
+    const SAND = "minecraft:sand";
+    const GRAVEL = "minecraft:gravel";
+    const WATER = "minecraft:water";
+    const AIR = "minecraft:air";
+
+    const oakLog = BlockPermutation.resolve("minecraft:oak_log");
+    const oakLeaves = BlockPermutation.resolve("minecraft:oak_leaves");
+    const birchLog = BlockPermutation.resolve("minecraft:birch_log");
+    const birchLeaves = BlockPermutation.resolve("minecraft:birch_leaves");
+
+    // Obtener generadores de ruido deterministas compartidos por todo el mundo (continuidad sin cortes entre chunks)
+    const { noiseMain, noiseCave, noiseBeach } = this._getOrCreateNoiseForWorld(worldName);
+
+    const minY = -64;
+    const waterHeight = 62;
+
+    // Malla de densidad 5 x 25 x 5 (425 puntos de densidad por chunk)
+    const densityGrid = new Float32Array(5 * 25 * 5);
+    for (let xc = 0; xc <= 4; xc++) {
+      for (let zc = 0; zc <= 4; zc++) {
+        const wx = originX + xc * 4;
+        const wz = originZ + zc * 4;
+        for (let yc = 0; yc <= 24; yc++) {
+          const wy = minY + yc * 8;
+          // Curva de altura del terreno estilo MCPE PocketMC
+          const targetY = 66 + noiseMain.getValue(wx * 0.008, wy * 0.008, wz * 0.008) * 28;
+          let density = noiseMain.getValue(wx * 0.02, wy * 0.03, wz * 0.02) - ((wy - targetY) / 32);
+
+          // Cueva 3D PocketMC (tallado de túneles bajo nivel del agua)
+          if (wy < waterHeight - 4 && wy > -55) {
+            const caveVal = noiseCave.getValue(wx * 0.045, wy * 0.05, wz * 0.045);
+            if (caveVal > 0.46) {
+              density = -1.0; // hueco de cueva
+            }
+          }
+
+          densityGrid[(xc * 25 + yc) * 5 + zc] = density;
+        }
+      }
+    }
+
+    // Estructurar rejilla de memoria 16x16 para los 193 bloques de altura del chunk
+    const chunkBlocks = new Array(16);
+    for (let lx = 0; lx < 16; lx++) {
+      chunkBlocks[lx] = new Array(16);
+      for (let lz = 0; lz < 16; lz++) {
+        chunkBlocks[lx][lz] = new Array(193);
+      }
+    }
+
+    // 1) Interpolación trilineal del terreno base sobre la memoria RAM
+    for (let lx = 0; lx < 16; lx++) {
+      for (let lz = 0; lz < 16; lz++) {
+        const worldX = originX + lx;
+        const worldZ = originZ + lz;
+        const col = chunkBlocks[lx][lz];
+        const xc = Math.floor(lx / 4);
+        const zc = Math.floor(lz / 4);
+        const fx = (lx % 4) / 4.0;
+        const fz = (lz % 4) / 4.0;
+
+        for (let yc = 0; yc < 24; yc++) {
+          const d000 = densityGrid[(xc * 25 + yc) * 5 + zc];
+          const d001 = densityGrid[(xc * 25 + yc) * 5 + (zc + 1)];
+          const d010 = densityGrid[(xc * 25 + (yc + 1)) * 5 + zc];
+          const d011 = densityGrid[(xc * 25 + (yc + 1)) * 5 + (zc + 1)];
+          const d100 = densityGrid[((xc + 1) * 25 + yc) * 5 + zc];
+          const d101 = densityGrid[((xc + 1) * 25 + yc) * 5 + (zc + 1)];
+          const d110 = densityGrid[((xc + 1) * 25 + (yc + 1)) * 5 + zc];
+          const d111 = densityGrid[((xc + 1) * 25 + (yc + 1)) * 5 + (zc + 1)];
+
+          for (let ly = 0; ly < 8; ly++) {
+            const fy = ly / 8.0;
+            const yIndex = yc * 8 + ly;
+            const absoluteY = minY + yIndex;
+
+            const i00 = d000 + (d100 - d000) * fx;
+            const i01 = d001 + (d101 - d001) * fx;
+            const i10 = d010 + (d110 - d010) * fx;
+            const i11 = d011 + (d111 - d011) * fx;
+
+            const i0 = i00 + (i01 - i00) * fz;
+            const i1 = i10 + (i11 - i10) * fz;
+
+            const density = i0 + (i1 - i0) * fy;
+
+            if (absoluteY === -64) {
+              col[yIndex] = BEDROCK;
+            } else if (density > 0) {
+              // Ruido 3D para la transición orgánica entre Piedra y Deepslate (elimina la línea plana)
+              const deepslateNoise = noiseBeach.getValue(worldX * 0.04, absoluteY * 0.08, worldZ * 0.04) * 9.0;
+              const deepslateThreshold = -16 + deepslateNoise;
+
+              if (absoluteY < deepslateThreshold) {
+                col[yIndex] = DEEPSLATE;
+              } else {
+                col[yIndex] = STONE;
+              }
+            } else {
+              if (absoluteY <= waterHeight) {
+                col[yIndex] = WATER;
+              } else {
+                col[yIndex] = AIR;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // 2) Excavación de Cuevas de Gusano estilo PocketMC (Worm Carvers + Salones + Lava + Anti-Agua)
+    const worldSeed = this._stringHash(worldName);
+    PocketMCCaveCarver.carveCaves(chunkX, chunkZ, worldSeed, chunkBlocks);
+
+    // 3) Determinar superficie de bioma, césped y playas (PocketMC buildSurfaces)
+    for (let lx = 0; lx < 16; lx++) {
+      for (let lz = 0; lz < 16; lz++) {
+        const worldX = originX + lx;
+        const worldZ = originZ + lz;
+        const col = chunkBlocks[lx][lz];
+
+        let highestSolidY = -64;
+        for (let yIndex = 192; yIndex >= 0; yIndex--) {
+          const b = col[yIndex];
+          if (b === STONE || b === DEEPSLATE) {
+            highestSolidY = minY + yIndex;
+            break;
+          }
+        }
+
+        if (highestSolidY > -64) {
+          const beachVal = noiseBeach.getValue(worldX * 0.03, 0, worldZ * 0.03);
+          const isBeach = highestSolidY >= waterHeight - 3 && highestSolidY <= waterHeight + 4;
+          const isSubmerged = highestSolidY <= waterHeight;
+
+          // Profundidad de tierra variable que oscila suavemente entre 5 y 9 bloques para tierra firme
+          const dirtDepth = Math.floor(5 + Math.abs(noiseBeach.getValue(worldX * 0.05, 12, worldZ * 0.05)) * 4.9);
+
+          // Determinar si la columna pertenece a playa o lecho acuático (arena/grava)
+          const useSandBed = isSubmerged ? (beachVal > -0.45) : (isBeach && beachVal > -0.15);
+          const useGravelBed = isSubmerged ? (beachVal > 0.55) : (isBeach && beachVal > 0.45);
+
+          const surfaceDepth = (useSandBed || useGravelBed) ? Math.min(4, dirtDepth) : dirtDepth;
+
+          for (let depth = 0; depth < surfaceDepth; depth++) {
+            const currentY = highestSolidY - depth;
+            const yIdx = currentY - minY;
+            if (yIdx < 0 || yIdx > 192) continue;
+
+            if (useGravelBed) {
+              col[yIdx] = GRAVEL;
+            } else if (useSandBed) {
+              col[yIdx] = SAND;
+            } else if (depth === 0) {
+              col[yIdx] = GRASS;
+            } else {
+              col[yIdx] = DIRT;
+            }
+          }
+        }
+
+        // 4) Relleno optimizado por rangos verticales (fillBlocks batch)
+        let segStart = 0;
+        let currentBlock = col[0];
+
+        for (let i = 1; i <= 192; i++) {
+          const nextBlock = col[i];
+          if (nextBlock !== currentBlock || i === 192) {
+            const yFrom = minY + segStart;
+            const yTo = minY + (i === 192 && nextBlock === currentBlock ? i : i - 1);
+            if (currentBlock !== AIR) {
+              this._fillColumnRange(dimension, worldX, worldZ, yFrom, yTo, currentBlock);
+            }
+            segStart = i;
+            currentBlock = nextBlock;
+          }
+        }
+      }
+    }
+
+    // Minerales vanilla (OreRules)
+    this.generateOresForChunk(dimension, chunkX, chunkZ, {
+      worldName,
+      dimensionId: dimension.id,
+      worldType: WORLD_TYPES.EXPERIMENTAL,
+    });
+
+    // Custom Generation Hooks
+    this.runGenerationHooksForChunk({
+      dimension,
+      chunkX,
+      chunkZ,
+      worldName,
+      dimensionId: dimension.id,
+      worldType: WORLD_TYPES.EXPERIMENTAL,
+      originX,
+      originZ,
+    });
+
+    // Decorador de Árboles (Oak y Birch estilo PocketMC)
+    for (let lx = 2; lx < 14; lx += 4) {
+      for (let lz = 2; lz < 14; lz += 4) {
+        const x = originX + lx;
+        const z = originZ + lz;
+        const treeHash = this._hash2(x, z, 909);
+        if (treeHash < 0.72) continue;
+
+        let groundY = -64;
+        for (let y = 120; y >= 60; y--) {
+          const b = dimension.getBlock({ x, y, z });
+          if (b && b.typeId === GRASS) {
+            groundY = y;
+            break;
+          }
+        }
+        if (groundY < 62) continue; // no plantamos árboles bajo agua
+
+        const isBirch = treeHash > 0.88;
+        const logPerm = isBirch ? birchLog : oakLog;
+        const leafPerm = isBirch ? birchLeaves : oakLeaves;
+        const trunkHeight = 4 + Math.floor(this._hash2(x, z, 123) * 3);
+
+        for (let h = 1; h <= trunkHeight; h++) {
+          try { dimension.getBlock({ x, y: groundY + h, z })?.setPermutation(logPerm); } catch (_) {}
+        }
+
+        const leafCenter = groundY + trunkHeight;
+        for (let ax = x - 2; ax <= x + 2; ax++) {
+          for (let az = z - 2; az <= z + 2; az++) {
+            for (let ay = leafCenter - 1; ay <= leafCenter + 2; ay++) {
+              if (Math.abs(ax - x) + Math.abs(az - z) + Math.abs(ay - leafCenter) > 4) continue;
+              const lb = dimension.getBlock({ x: ax, y: ay, z: az });
+              if (lb?.typeId === AIR) {
+                try { lb.setPermutation(leafPerm); } catch (_) {}
+              }
+            }
+          }
+        }
+      }
+    }
+
+    generatedChunks.get(worldName).add(key);
+    markExperimentalChunkGenerated(worldName, chunkX, chunkZ);
+    markWorldDataDirty();
+    return true;
+  }
+
     // ── Generación continua ───────────────────────────────────────────────────
   
     static generateAroundPlayer(player, worldName) {
@@ -594,12 +1192,20 @@ export class WorldGenerator {
       const chunkX = playerChunkX + dx;
       const chunkZ = playerChunkZ + dz;
       const chunkKey = `${chunkX},${chunkZ}`;
-      if (chunkSet.has(chunkKey)) continue;
+
+      if (worldData.type === WORLD_TYPES.EXPERIMENTAL) {
+        if (isExperimentalChunkGenerated(worldName, chunkX, chunkZ)) continue;
+      } else {
+        if (chunkSet.has(chunkKey)) continue;
+      }
 
       let ok = false;
       switch (worldData.type) {
         case WORLD_TYPES.NORMAL:
           ok = this.generateNormalChunk(dimension, chunkX, chunkZ, worldName);
+          break;
+        case WORLD_TYPES.EXPERIMENTAL:
+          ok = this.generatePocketMCChunk(dimension, chunkX, chunkZ, worldName);
           break;
         case WORLD_TYPES.FLAT:
           ok = this.generateFlatChunk(dimension, chunkX, chunkZ, worldName);
@@ -615,6 +1221,9 @@ export class WorldGenerator {
       // Solo cuenta trabajo realmente aplicado/confirmado.
       if (ok) generatedThisCycle++;
     }
+
+    // Volcado de regiones dirty estilo PocketMC (UnsavedChunkList)
+    WorldManager.flushDirtyRegionsBatch(2);
   }
 
 
@@ -792,6 +1401,7 @@ export class WorldGenerator {
           if (index >= totalChunks) {
             system.clearRun(intervalId);
             generatedChunks.delete(worldName);
+            this._noiseCache.delete(worldName);
             markWorldDataDirty();
             const elapsedMs = Date.now() - startedAt;
             const result = {

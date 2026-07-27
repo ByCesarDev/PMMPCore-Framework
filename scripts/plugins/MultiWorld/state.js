@@ -73,3 +73,72 @@ export function getDimensionCleanupLock(dimensionId) {
   if (typeof dimensionId !== "string" || !dimensionId.length) return null;
   return cleanupDimensionLocks.get(dimensionId) ?? null;
 }
+
+// ============== POCKETMC REGION BUCKETING (32x32 CHUNKS) ==============
+export const experimentalRegionCache = new Map(); // Map<worldName, Map<regionKey, Uint8Array(128)>>
+export const dirtyRegionsQueue = new Set(); // Set<"<worldName>|<regionKey>">
+
+export function getRegionKey(chunkX, chunkZ) {
+  const rX = (chunkX >> 5);
+  const rZ = (chunkZ >> 5);
+  return `${rX}_${rZ}`;
+}
+
+export function getChunkBitIndex(chunkX, chunkZ) {
+  const localX = (chunkX % 32 + 32) % 32;
+  const localZ = (chunkZ % 32 + 32) % 32;
+  return localX + (localZ * 32); // 0 .. 1023
+}
+
+export function isExperimentalChunkGenerated(worldName, chunkX, chunkZ) {
+  const worldMap = experimentalRegionCache.get(worldName);
+  if (!worldMap) return false;
+  const regionKey = getRegionKey(chunkX, chunkZ);
+  const bitset = worldMap.get(regionKey);
+  if (!bitset) return false;
+  const bitIdx = getChunkBitIndex(chunkX, chunkZ);
+  const byteIdx = Math.floor(bitIdx / 8);
+  const bitPos = bitIdx % 8;
+  return (bitset[byteIdx] & (1 << bitPos)) !== 0;
+}
+
+export function markExperimentalChunkGenerated(worldName, chunkX, chunkZ) {
+  let worldMap = experimentalRegionCache.get(worldName);
+  if (!worldMap) {
+    worldMap = new Map();
+    experimentalRegionCache.set(worldName, worldMap);
+  }
+  const regionKey = getRegionKey(chunkX, chunkZ);
+  let bitset = worldMap.get(regionKey);
+  if (!bitset) {
+    bitset = new Uint8Array(128); // 128 bytes = 1024 bits
+    worldMap.set(regionKey, bitset);
+  }
+  const bitIdx = getChunkBitIndex(chunkX, chunkZ);
+  const byteIdx = Math.floor(bitIdx / 8);
+  const bitPos = bitIdx % 8;
+
+  if ((bitset[byteIdx] & (1 << bitPos)) === 0) {
+    bitset[byteIdx] |= (1 << bitPos);
+    dirtyRegionsQueue.add(`${worldName}|${regionKey}`);
+  }
+}
+
+export function encodeRegionBitset(uint8Array) {
+  let hex = "";
+  for (let i = 0; i < uint8Array.length; i++) {
+    const byte = uint8Array[i];
+    hex += (byte < 16 ? "0" : "") + byte.toString(16);
+  }
+  return hex;
+}
+
+export function decodeRegionBitset(hexStr) {
+  if (typeof hexStr !== "string") return new Uint8Array(128);
+  const len = Math.floor(hexStr.length / 2);
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = parseInt(hexStr.substring(i * 2, i * 2 + 2), 16) || 0;
+  }
+  return bytes;
+}

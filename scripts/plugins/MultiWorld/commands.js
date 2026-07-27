@@ -125,7 +125,7 @@ export class CommandHandlers {
   static handleCreate(player, worldName, worldType, dimensionNumber = undefined) {
     if (!worldName) {
       player.sendMessage(`${Color.red}Usage: /pmmpcore:mw create <name> [type] [dimension]${Color.reset}`);
-      player.sendMessage(`${Color.yellow}Types: normal (default), flat, void, skyblock — Dimensions: 1-50 (optional)${Color.reset}`);
+      player.sendMessage(`${Color.yellow}Types: normal (default), flat, void, skyblock, experimental — Dimensions: 1-50 (optional)${Color.reset}`);
       return { status: CustomCommandStatus.Success };
     }
 
@@ -133,7 +133,7 @@ export class CommandHandlers {
     const dim  = dimensionNumber === undefined ? null : dimensionNumber;
 
     if (!Object.values(WORLD_TYPES).includes(type)) {
-      player.sendMessage(`${Color.red}Invalid type. Use: normal, flat, void, skyblock${Color.reset}`);
+      player.sendMessage(`${Color.red}Invalid type. Use: normal, flat, void, skyblock, experimental${Color.reset}`);
       return { status: CustomCommandStatus.Success };
     }
     if (dim !== null && (Number.isNaN(dim) || dim < 1 || dim > 50)) {
