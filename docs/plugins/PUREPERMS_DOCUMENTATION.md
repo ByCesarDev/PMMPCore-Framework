@@ -412,11 +412,11 @@ flowchart TD
 - [Database Guide](../DATABASE_GUIDE.md) - Persistence patterns
 - [Plugin Development Guide](../PLUGIN_DEVELOPMENT_GUIDE.md) - Plugin creation patternsmermaid
 flowchart TD
-  symptom[Observed symptom] --> class{Class}
-  class -->|UnexpectedDeny| checkNegatives[Check negative nodes and inheritance]
-  class -->|UnexpectedAllow| checkWildcard[Check wildcard and group defaults]
-  class -->|WorldMismatch| checkWorldScope[Check world-specific settings]
-  class -->|AdminLockout| checkSuperadmin[Check superadmin protections and actor type]
+  symptom[Observed symptom] --> symptomClass{Class}
+  symptomClass -->|UnexpectedDeny| checkNegatives[Check negative nodes and inheritance]
+  symptomClass -->|UnexpectedAllow| checkWildcard[Check wildcard and group defaults]
+  symptomClass -->|WorldMismatch| checkWorldScope[Check world-specific settings]
+  symptomClass -->|AdminLockout| checkSuperadmin[Check superadmin protections and actor type]
 ```
 
 ---

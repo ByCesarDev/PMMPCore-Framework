@@ -1236,11 +1236,11 @@ A: Reduce `CHUNKS_PER_TICK` or `GENERATION_RADIUS` in config, or use faster gene
 - [Database Guide](../DATABASE_GUIDE.md) - Persistence patterns
 - [Plugin Development Guide](../PLUGIN_DEVELOPMENT_GUIDE.md) - Plugin creation patternsmermaid
 flowchart TD
-  symptom[ObservedSymptom] --> class{SymptomClass}
-  class -->|WorldNotFound| checkIndex[Check world index and normalization]
-  class -->|SpawnIssue| checkSpawn[Check main world and spawn routing]
-  class -->|GenerationIssue| checkHooks[Check generation hooks and type]
-  class -->|DataMismatch| checkDb[Check db data and flush boundaries]
+  symptom[ObservedSymptom] --> symptomClass{SymptomClass}
+  symptomClass -->|WorldNotFound| checkIndex[Check world index and normalization]
+  symptomClass -->|SpawnIssue| checkSpawn[Check main world and spawn routing]
+  symptomClass -->|GenerationIssue| checkHooks[Check generation hooks and type]
+  symptomClass -->|DataMismatch| checkDb[Check db data and flush boundaries]
 ```
 
 ---

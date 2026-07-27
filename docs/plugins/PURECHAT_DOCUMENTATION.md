@@ -331,9 +331,9 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  symptom[ObservedSymptom] --> class{Class}
-  class -->|WrongGroupFormat| checkGroup[Check effective group from PurePerms]
-  class -->|PlaceholderNotResolved| checkPapi[Check PlaceholderAPI availability and token syntax]
-  class -->|NoColor| checkColorPerm[Check coloredMessages permission]
-  class -->|NoIntercept| checkUseNode[Check pchat permission and chat hook state]
+  symptom[ObservedSymptom] --> symptomClass{Class}
+  symptomClass -->|WrongGroupFormat| checkGroup[Check effective group from PurePerms]
+  symptomClass -->|PlaceholderNotResolved| checkPapi[Check PlaceholderAPI availability and token syntax]
+  symptomClass -->|NoColor| checkColorPerm[Check coloredMessages permission]
+  symptomClass -->|NoIntercept| checkUseNode[Check pchat permission and chat hook state]
 ```

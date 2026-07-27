@@ -379,11 +379,11 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  symptom[Sintoma observado] --> class{Clase}
-  class -->|UnexpectedDeny| checkNegatives[Revisar nodos negativos y herencia]
-  class -->|UnexpectedAllow| checkWildcard[Revisar wildcard y defaults]
-  class -->|WorldMismatch| checkWorldScope[Revisar alcance por mundo]
-  class -->|AdminLockout| checkSuperadmin[Revisar protecciones superadmin y actor]
+  symptom[Sintoma observado] --> symptomClass{Clase}
+  symptomClass -->|UnexpectedDeny| checkNegatives[Revisar nodos negativos y herencia]
+  symptomClass -->|UnexpectedAllow| checkWildcard[Revisar wildcard y defaults]
+  symptomClass -->|WorldMismatch| checkWorldScope[Revisar alcance por mundo]
+  symptomClass -->|AdminLockout| checkSuperadmin[Revisar protecciones superadmin y actor]
 ```
 
 ---

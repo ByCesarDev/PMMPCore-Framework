@@ -578,11 +578,11 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  symptom[SintomaObservado] --> class{ClaseSintoma}
-  class -->|WorldNotFound| checkIndex[Revisar índice y normalización]
-  class -->|SpawnIssue| checkSpawn[Revisar mundo principal y routing spawn]
-  class -->|GenerationIssue| checkHooks[Revisar hooks de generación y tipo]
-  class -->|DataMismatch| checkDb[Revisar data DB y límites flush]
+  symptom[SintomaObservado] --> symptomClass{ClaseSintoma}
+  symptomClass -->|WorldNotFound| checkIndex[Revisar índice y normalización]
+  symptomClass -->|SpawnIssue| checkSpawn[Revisar mundo principal y routing spawn]
+  symptomClass -->|GenerationIssue| checkHooks[Revisar hooks de generación y tipo]
+  symptomClass -->|DataMismatch| checkDb[Revisar data DB y límites flush]
 ```
 
 ---
