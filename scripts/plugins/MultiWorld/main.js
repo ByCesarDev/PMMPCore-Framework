@@ -35,6 +35,8 @@ const MW_PERMISSION_SEED = {
     "pperms.command.mw.delete",
     "pperms.command.mw.purgechunks",
     "pperms.command.mw.setmain",
+    "pperms.command.mw.export",
+    "pperms.command.mw.load",
   ],
 };
 

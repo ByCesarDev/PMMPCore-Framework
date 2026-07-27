@@ -49,6 +49,8 @@ const MW_PERMISSION_NODES = {
   main: "pperms.command.mw.main",
   info: "pperms.command.mw.info",
   locatebiome: "pperms.command.mw.locatebiome",
+  export: "pperms.command.mw.export",
+  load: "pperms.command.mw.load",
   help: "pperms.command.mw.help",
 };
 
@@ -224,6 +226,205 @@ export class CommandHandlers {
     } catch (e) {
       player.sendMessage(`${Color.red}Error: ${e.message}${Color.reset}`);
     }
+    return { status: CustomCommandStatus.Success };
+  }
+
+  static handleExport(player, mapName, param1, param2, param3, param4, param5, param6) {
+    if (!mapName || param4 === undefined) {
+      player.sendMessage(`${Color.red}Usage: /pmmpcore:mw export <map_name> <x1> <z1> <x2> <z2>${Color.reset}`);
+      player.sendMessage(`${Color.red}   Or: /pmmpcore:mw export <map_name> <x1> <y1> <z1> <x2> <y2> <z2>${Color.reset}`);
+      return { status: CustomCommandStatus.Success };
+    }
+
+    let x1, y1, z1, x2, y2, z2;
+
+    if (param6 !== undefined) {
+      // 6 coordinates: x1, y1, z1, x2, y2, z2
+      x1 = parseInt(param1); y1 = parseInt(param2); z1 = parseInt(param3);
+      x2 = parseInt(param4); y2 = parseInt(param5); z2 = parseInt(param6);
+    } else {
+      // 4 coordinates: x1, z1, x2, z2
+      x1 = parseInt(param1); y1 = -64; z1 = parseInt(param2);
+      x2 = parseInt(param3); y2 = 319; z2 = parseInt(param4);
+    }
+    
+    if (isNaN(x1) || isNaN(y1) || isNaN(z1) || isNaN(x2) || isNaN(y2) || isNaN(z2)) {
+      player.sendMessage(`${Color.red}Coordinates must be valid numbers.${Color.reset}`);
+      return { status: CustomCommandStatus.Success };
+    }
+
+    const minX = Math.min(x1, x2);
+    const minY = Math.max(-64, Math.min(y1, y2));
+    const minZ = Math.min(z1, z2);
+    const maxX = Math.max(x1, x2);
+    const maxY = Math.min(319, Math.max(y1, y2));
+    const maxZ = Math.max(z1, z2);
+    
+    const chunksX = Math.ceil((maxX - minX + 1) / 64);
+    const chunksZ = Math.ceil((maxZ - minZ + 1) / 64);
+    
+    player.sendMessage(`${Color.yellow}Starting export of '${mapName}'. Area: ${chunksX}x${chunksZ} blocks of 64x64, Y: ${minY} to ${maxY}...${Color.reset}`);
+
+    let currentX = 0;
+    let currentZ = 0;
+    let successCount = 0;
+    
+    const processNextChunk = () => {
+      if (currentX >= chunksX) {
+        console.warn(`[MultiWorld] Export of map '${mapName}' completed! (${successCount}/${chunksX * chunksZ} structures saved)`);
+        player.sendMessage(`${Color.green}Export of map '${mapName}' completed! (${successCount}/${chunksX * chunksZ} structures saved to world database)${Color.reset}`);
+        return;
+      }
+      
+      const startX = minX + (currentX * 64);
+      const startZ = minZ + (currentZ * 64);
+      let endX = startX + 63;
+      let endZ = startZ + 63;
+      
+      if (endX > maxX) endX = maxX;
+      if (endZ > maxZ) endZ = maxZ;
+      
+      const structName = `${mapName}_${currentX}_${currentZ}`;
+      const cmd = `structure save "${structName}" ${startX} ${minY} ${startZ} ${endX} ${maxY} ${endZ} disk`;
+      
+      try {
+        player.dimension.runCommand(cmd);
+        successCount++;
+        const total = chunksX * chunksZ;
+        const currentProgress = ((successCount / total) * 100).toFixed(1);
+        console.warn(`[MultiWorld] Exporting '${mapName}': Saved ${structName} (${successCount}/${total} - ${currentProgress}%)`);
+        
+        currentZ++;
+        if (currentZ >= chunksZ) { currentZ = 0; currentX++; }
+        system.runTimeout(processNextChunk, 2);
+      } catch (err) {
+        player.sendMessage(`${Color.red}Error saving structure ${structName}: ${err}${Color.reset}`);
+        currentZ++;
+        if (currentZ >= chunksZ) { currentZ = 0; currentX++; }
+        system.runTimeout(processNextChunk, 2);
+      }
+    };
+    
+    system.run(processNextChunk);
+    return { status: CustomCommandStatus.Success };
+  }
+
+  static handleLoad(player, worldName, mapName, paramWidth, paramLength, paramY) {
+    if (!worldName || paramLength === undefined) {
+      player.sendMessage(`${Color.red}Usage: /pmmpcore:mw load <world_name> <map_name> <chunks_width> <chunks_length> [y_coord]${Color.reset}`);
+      return { status: CustomCommandStatus.Success };
+    }
+
+    const width = parseInt(paramWidth);
+    const length = parseInt(paramLength);
+    const startY = paramY !== undefined ? parseInt(paramY) : -64;
+    
+    if (isNaN(width) || isNaN(length) || width <= 0 || length <= 0 || isNaN(startY)) {
+      player.sendMessage(`${Color.red}Width, length, and Y must be valid numbers.${Color.reset}`);
+      return { status: CustomCommandStatus.Success };
+    }
+
+    try {
+      const wd = WorldManager.createWorld(worldName, "void", player.name);
+      requestPersistFlush("load");
+      
+      const dim = mcWorld.getDimension(wd.dimensionId);
+      player.sendMessage(`${Color.yellow}Creating world '${worldName}' and assembling map '${mapName}' (${width}x${length} chunks)...${Color.reset}`);
+      
+      let currentX = 0;
+      let currentZ = 0;
+      let successCount = 0;
+      
+      const placeNextChunk = () => {
+        if (currentX >= width) {
+          player.sendMessage(`${Color.green}Map '${mapName}' successfully assembled into '${worldName}'! (${successCount}/${width * length} structures loaded)${Color.reset}`);
+          player.sendMessage(`${Color.aqua}Use /pmmpcore:mw tp ${worldName} to teleport.${Color.reset}`);
+          
+          // Set spawn point to center of map
+          const centerX = Math.floor((width * 64) / 2);
+          const centerZ = Math.floor((length * 64) / 2);
+          wd.spawn = { x: centerX, y: 100, z: centerZ };
+          requestPersistFlush("load_spawn");
+          return;
+        }
+        
+        const structName = `${mapName}_${currentX}_${currentZ}`;
+        const startX = currentX * 64;
+        const startZ = currentZ * 64;
+        
+        const cmd = `structure load "${structName}" ${startX} ${startY} ${startZ}`;
+        
+        try {
+          dim.runCommand(cmd);
+          successCount++;
+          currentZ++;
+          if (currentZ >= length) { currentZ = 0; currentX++; }
+          system.runTimeout(placeNextChunk, 2);
+        } catch (err) {
+          player.sendMessage(`${Color.red}Warning: Could not load structure ${structName}${Color.reset}`);
+          currentZ++;
+          if (currentZ >= length) { currentZ = 0; currentX++; }
+          system.runTimeout(placeNextChunk, 2);
+        }
+      };
+      
+      system.run(placeNextChunk);
+    } catch (e) {
+      player.sendMessage(`${Color.red}Error creating world: ${e.message}${Color.reset}`);
+    }
+
+    return { status: CustomCommandStatus.Success };
+  }
+
+  static handleDeleteMap(player, mapName) {
+    if (!mapName) {
+      player.sendMessage(`${Color.red}Usage: /pmmpcore:delete_map <map_name>${Color.reset}`);
+      return { status: CustomCommandStatus.Success };
+    }
+
+    player.sendMessage(`${Color.yellow}Scanning and deleting map '${mapName}'...${Color.reset}`);
+    let successCount = 0;
+    let currentX = 0;
+    let currentZ = 0;
+
+    const processNextChunk = () => {
+      const structName = `${mapName}_${currentX}_${currentZ}`;
+      const cmd = `structure delete "${structName}"`;
+      
+      let deleted = false;
+      try {
+        player.dimension.runCommand(cmd);
+        deleted = true;
+      } catch (err) {
+        deleted = false;
+      }
+
+      if (deleted) {
+        successCount++;
+        console.warn(`[MultiWorld] Deleting '${mapName}': Removed ${structName}`);
+        currentZ++;
+        system.runTimeout(processNextChunk, 1);
+      } else {
+        // Failed to delete. This means we reached the end of a row or the end of the map.
+        if (currentZ === 0) {
+          // We reached an X column that has no Z=0 structure. This means we are completely done!
+          if (successCount === 0) {
+            player.sendMessage(`${Color.red}No structures found for map '${mapName}'.${Color.reset}`);
+          } else {
+            console.warn(`[MultiWorld] Deletion of map '${mapName}' completed! (${successCount} structures removed)`);
+            player.sendMessage(`${Color.green}Deletion of map '${mapName}' completed! (${successCount} structures removed from world database)${Color.reset}`);
+          }
+          return;
+        } else {
+          // We reached the end of the Z row, move to the next X column
+          currentX++;
+          currentZ = 0;
+          system.runTimeout(processNextChunk, 1);
+        }
+      }
+    };
+    
+    system.run(processNextChunk);
     return { status: CustomCommandStatus.Success };
   }
 
@@ -924,7 +1125,16 @@ export class CommandHandlers {
       `  ${Color.white}/pmmpcore:mw main                         ${Color.gray}— Show current main world`,
     );
     player.sendMessage(
-      `  ${Color.white}/pmmpcore:mw info   ${Color.yellow}<name>              ${Color.gray}— Show world details`,
+      `  ${Color.white}/pmmpcore:mw locatebiome ${Color.yellow}<name>         ${Color.gray}— Find a biome`,
+    );
+    player.sendMessage(
+      `  ${Color.white}/pmmpcore:export ${Color.yellow}<name> <x1> <z1> <x2> <z2> ${Color.gray}— Export map`,
+    );
+    player.sendMessage(
+      `  ${Color.white}/pmmpcore:load   ${Color.yellow}<world> <name> <w> <l>   ${Color.gray}— Load map`,
+    );
+    player.sendMessage(
+      `  ${Color.white}/pmmpcore:delete_map ${Color.yellow}<name>       ${Color.gray}— Delete exported map`,
     );
     player.sendMessage(
       `  ${Color.white}/pmmpcore:mw help                         ${Color.gray}— Show this message`,
@@ -1045,6 +1255,7 @@ export class CommandHandlers {
 
 // ============== COMMAND REGISTRATION ==============
 export function setupCommands(event) {
+  // 1. Enums
   event.customCommandRegistry.registerEnum("pmmpcore:mw_subcommand", [
     "create",
     "tp",
@@ -1123,27 +1334,105 @@ export function setupCommands(event) {
     }
   };
 
-  const mwCommandDefinition = {
-    description: "MultiWorld commands",
-    permissionLevel: CommandPermissionLevel.Any,
-    cheatsRequired: false,
-    mandatoryParameters: [
-      { type: CustomCommandParamType.Enum, name: "pmmpcore:mw_subcommand" },
-    ],
-    optionalParameters: [
-      { type: CustomCommandParamType.String, name: "name" },
-      { type: CustomCommandParamType.Enum, name: "pmmpcore:mw_world_type" },
-      { type: CustomCommandParamType.Integer, name: "dimension" },
-      { type: CustomCommandParamType.Enum, name: "pmmpcore:mw_toggle" },
-    ],
-  };
-
   event.customCommandRegistry.registerCommand(
     {
       name: "pmmpcore:mw",
-      ...mwCommandDefinition,
+      description: "MultiWorld main commands",
+      permissionLevel: CommandPermissionLevel.Any,
+      cheatsRequired: false,
+      mandatoryParameters: [
+        { type: CustomCommandParamType.Enum, name: "pmmpcore:mw_subcommand" },
+      ],
+      optionalParameters: [
+        { type: CustomCommandParamType.String, name: "name" },
+        { type: CustomCommandParamType.Enum, name: "pmmpcore:mw_world_type" },
+        { type: CustomCommandParamType.Integer, name: "dimension" },
+        { type: CustomCommandParamType.Enum, name: "pmmpcore:mw_toggle" },
+      ],
     },
     mwCommandHandler,
+  );
+
+  // 3. Export Command (Standalone)
+  event.customCommandRegistry.registerCommand(
+    {
+      name: "pmmpcore:export",
+      description: "Export a map area to multiple structures",
+      permissionLevel: CommandPermissionLevel.Any,
+      cheatsRequired: false,
+      mandatoryParameters: [
+        { type: CustomCommandParamType.String, name: "mapName" },
+        { type: CustomCommandParamType.Integer, name: "arg1" },
+        { type: CustomCommandParamType.Integer, name: "arg2" },
+        { type: CustomCommandParamType.Integer, name: "arg3" },
+        { type: CustomCommandParamType.Integer, name: "arg4" },
+      ],
+      optionalParameters: [
+        { type: CustomCommandParamType.Integer, name: "arg5" },
+        { type: CustomCommandParamType.Integer, name: "arg6" },
+      ],
+    },
+    (origin, mapName, arg1, arg2, arg3, arg4, arg5, arg6) => {
+      const player = origin.initiator ?? origin.sourceEntity;
+      if (!player) return { status: CustomCommandStatus.Success };
+      if (!CommandHandlers._guardMWPermission(player, MW_PERMISSION_NODES.export)) {
+        return { status: CustomCommandStatus.Success };
+      }
+      
+      if (arg5 === undefined || arg6 === undefined) {
+        return CommandHandlers.handleExport(player, mapName, arg1, arg2, arg3, arg4, undefined, undefined);
+      } else {
+        return CommandHandlers.handleExport(player, mapName, arg1, arg2, arg3, arg4, arg5, arg6);
+      }
+    },
+  );
+
+  // 4. Load Command (Standalone)
+  event.customCommandRegistry.registerCommand(
+    {
+      name: "pmmpcore:load",
+      description: "Load a multi-structure map into a void world",
+      permissionLevel: CommandPermissionLevel.Any,
+      cheatsRequired: false,
+      mandatoryParameters: [
+        { type: CustomCommandParamType.String, name: "worldName" },
+        { type: CustomCommandParamType.String, name: "mapName" },
+        { type: CustomCommandParamType.Integer, name: "width" },
+        { type: CustomCommandParamType.Integer, name: "length" },
+      ],
+      optionalParameters: [
+        { type: CustomCommandParamType.Integer, name: "yCoord" },
+      ],
+    },
+    (origin, worldName, mapName, width, length, yCoord) => {
+      const player = origin.initiator ?? origin.sourceEntity;
+      if (!player) return { status: CustomCommandStatus.Success };
+      if (!CommandHandlers._guardMWPermission(player, MW_PERMISSION_NODES.load)) {
+        return { status: CustomCommandStatus.Success };
+      }
+      return CommandHandlers.handleLoad(player, worldName, mapName, width, length, yCoord);
+    },
+  );
+
+  // 5. Delete Map Command (Standalone)
+  event.customCommandRegistry.registerCommand(
+    {
+      name: "pmmpcore:delete_map",
+      description: "Delete an exported multi-structure map from the world database",
+      permissionLevel: CommandPermissionLevel.Any,
+      cheatsRequired: false,
+      mandatoryParameters: [
+        { type: CustomCommandParamType.String, name: "mapName" },
+      ],
+    },
+    (origin, mapName) => {
+      const player = origin.initiator ?? origin.sourceEntity;
+      if (!player) return { status: CustomCommandStatus.Success };
+      if (!CommandHandlers._guardMWPermission(player, MW_PERMISSION_NODES.export)) {
+        return { status: CustomCommandStatus.Success };
+      }
+      return CommandHandlers.handleDeleteMap(player, mapName);
+    },
   );
 
   console.log("[MultiWorld] Commands registered.");
