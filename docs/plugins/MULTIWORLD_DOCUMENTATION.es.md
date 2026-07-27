@@ -31,6 +31,19 @@ scripts/plugins/MultiWorld/
   manager.js
   generator.js
   commands.js
+  generators/
+    normalGenerator.js
+    flatGenerator.js
+    voidGenerator.js
+    skyblockGenerator.js
+    experimental/
+      experimentalGenerator.js
+      biomes.js
+      noise.js
+      carvers.js
+      features.js
+      surface.js
+      biomeLocator.js
 ```
 
 Responsabilidades:
@@ -39,7 +52,8 @@ Responsabilidades:
 - `config.js`: constantes y tipos.
 - `state.js`: estado compartido en memoria.
 - `manager.js`: CRUD de mundos, flush/load y control runtime.
-- `generator.js`: generación y limpieza de chunks.
+- `generator.js`: orquestador de generación y limpieza de chunks.
+- `generators/`: implementaciones específicas por tipo de mundo.
 - `commands.js`: handlers y registro de comandos.
 
 ## 3.1 Referencia de configuración (`scripts/plugins/MultiWorld/config.js`)
@@ -97,6 +111,7 @@ MultiWorld puede hacer un “barrido de seguridad” adicional más allá de los
 - `flat`: mundo plano configurable.
 - `void`: dimensión vacía.
 - `skyblock`: isla inicial tipo skyblock.
+- `experimental`: terreno procedural avanzado (con biomas, ruido 3D y carvers).
 
 ## 5. Comandos disponibles
 
@@ -112,7 +127,7 @@ Autocompletado:
 
 Subcomandos:
 
-- `create <name> [type] [dimension]`
+- `create <name> [type] [dimension] [seed]`
 - `tp <name>`
 - `list`
 - `delete <name>`
@@ -122,6 +137,8 @@ Subcomandos:
 - `setmain <name>`
 - `setspawn <name>`
 - `setlobby <name> <on|off>`
+- `locatebiome <biome>`
+- `load <name>`
 - `main`
 - `help`
 
@@ -129,6 +146,8 @@ Notas:
 
 - `type` por defecto en `create`: `normal`.
 - `dimension` opcional entre 1 y 50.
+- `seed` opcional para generación de mundos custom.
+- Nuevos permisos añadidos: `pmmpcore.command.mw.locatebiome`, `pmmpcore.command.mw.load`.
 - `delete` y `purgechunks`: solo owner del mundo.
 - `keepmode` se guarda por jugador y define si el ejecutor intenta quedarse en dimensión durante delete/purge.
 - Con cleanup lock activo, `keepmode` se ignora y se evacua a los jugadores de la dimensión objetivo por seguridad.

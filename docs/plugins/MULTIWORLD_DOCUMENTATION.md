@@ -65,6 +65,19 @@ scripts/plugins/MultiWorld/
   manager.js
   generator.js
   commands.js
+  generators/
+    normalGenerator.js
+    flatGenerator.js
+    voidGenerator.js
+    skyblockGenerator.js
+    experimental/
+      experimentalGenerator.js
+      biomes.js
+      noise.js
+      carvers.js
+      features.js
+      surface.js
+      biomeLocator.js
 ```
 
 ---
@@ -105,7 +118,8 @@ Responsibilities:
 - `config.js`: constants and types.
 - `state.js`: shared in-memory state.
 - `manager.js`: world CRUD, flush/load, runtime control.
-- `generator.js`: chunk generation and cleanup.
+- `generator.js`: chunk generation and cleanup orchestrator.
+- `generators/`: specific implementations by world type.
 - `commands.js`: handlers and command registration.
 
 ## 3.1 Configuration reference (`scripts/plugins/MultiWorld/config.js`)
@@ -165,6 +179,7 @@ Currently:
 - `flat`: configurable flat terrain at height.
 - `void`: empty dimension.
 - `skyblock`: initial L-shaped island, with tree and chest.
+- `experimental`: advanced procedural terrain (with biomes, 3D noise, and carvers).
 
 ## 5. Available Commands
 
@@ -180,7 +195,7 @@ Autocomplete support:
 
 Subcommands:
 
-- `create <name> [type] [dimension]`
+- `create <name> [type] [dimension] [seed]`
 - `tp <name>`
 - `list`
 - `delete <name>`
@@ -190,6 +205,8 @@ Subcommands:
 - `setmain <name>`
 - `setspawn <name>`
 - `setlobby <name> <on|off>`
+- `locatebiome <biome>`
+- `load <name>`
 - `main`
 - `help`
 
@@ -197,6 +214,8 @@ Notes:
 
 - `type` default in `create` is `normal`.
 - `dimension` optional between 1 and 50.
+- `seed` optional for custom world generation.
+- New permissions added: `pmmpcore.command.mw.locatebiome`, `pmmpcore.command.mw.load`.
 - `delete` and `purgechunks` only for the world owner.
 - `keepmode` is stored per-player and controls whether the caller is kept in-dimension during delete/purge.
 - During active cleanup lock, keepmode is ignored and players are evacuated from target dimension for safety.
