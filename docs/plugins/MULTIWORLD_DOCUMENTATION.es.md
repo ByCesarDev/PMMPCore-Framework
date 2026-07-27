@@ -138,9 +138,13 @@ Subcomandos:
 - `setspawn <name>`
 - `setlobby <name> <on|off>`
 - `locatebiome <biome>`
-- `load <name>`
 - `main`
 - `help`
+
+Comandos independientes (Mapas y Exportación):
+- `/export <map_name> <x1> <z1> <x2> <z2>` (o con `y`)
+- `/load <world> <map_name> <w> <l> [y]`
+- `/delete_map <map_name>`
 
 Notas:
 
