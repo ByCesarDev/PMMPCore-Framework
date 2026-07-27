@@ -1,8 +1,22 @@
 import { world, system } from "@minecraft/server";
 import { PMMPCore, Color } from "../../PMMPCore.js";
-import { dimensionPool, GENERATION_TICK_RATE, MW_METRICS, TOTAL_DIMENSIONS, MAX_ACTIVE_WORLDS } from "./config.js";
-import { isWorldDataDirty, getWorldNameByDimensionId, generatedChunks } from "./state.js";
-import { WorldManager, RuntimeController, requestPersistFlush } from "./manager.js";
+import {
+  dimensionPool,
+  GENERATION_TICK_RATE,
+  MW_METRICS,
+  TOTAL_DIMENSIONS,
+  MAX_ACTIVE_WORLDS,
+} from "./config.js";
+import {
+  isWorldDataDirty,
+  getWorldNameByDimensionId,
+  generatedChunks,
+} from "./state.js";
+import {
+  WorldManager,
+  RuntimeController,
+  requestPersistFlush,
+} from "./manager.js";
 import { WorldGenerator } from "./generator.js";
 import { setupCommands } from "./commands.js";
 
@@ -11,6 +25,7 @@ const MW_PERMISSION_SEED = {
     "pperms.command.mw.help",
     "pperms.command.mw.list",
     "pperms.command.mw.info",
+    "pperms.command.mw.locatebiome",
     "pperms.command.mw.main",
     "pperms.command.mw.tp",
     "pperms.command.mw.setspawn",
@@ -33,7 +48,9 @@ PMMPCore.registerPlugin({
   onEnable() {
     console.log("[MultiWorld] Enabling modular runtime...");
     if (this._isRuntimeRunning) {
-      console.log("[MultiWorld] Runtime already enabled, skipping duplicate setup.");
+      console.log(
+        "[MultiWorld] Runtime already enabled, skipping duplicate setup.",
+      );
       return;
     }
 
@@ -80,11 +97,22 @@ PMMPCore.registerPlugin({
       this._metricsState = { lastChunkCount: 0, lastSampleAt: Date.now() };
       const metricsIntervalId = system.runInterval(() => {
         const now = Date.now();
-        const currentChunkCount = Array.from(generatedChunks.values()).reduce((acc, set) => acc + set.size, 0);
-        const deltaChunks = Math.max(0, currentChunkCount - this._metricsState.lastChunkCount);
-        const elapsedMin = Math.max((now - this._metricsState.lastSampleAt) / 60000, 1 / 60000);
+        const currentChunkCount = Array.from(generatedChunks.values()).reduce(
+          (acc, set) => acc + set.size,
+          0,
+        );
+        const deltaChunks = Math.max(
+          0,
+          currentChunkCount - this._metricsState.lastChunkCount,
+        );
+        const elapsedMin = Math.max(
+          (now - this._metricsState.lastSampleAt) / 60000,
+          1 / 60000,
+        );
         const chunksPerMin = Math.floor(deltaChunks / elapsedMin);
-        console.log(`[MultiWorld][metrics] generated_chunks_per_min=${chunksPerMin} total_tracked_chunks=${currentChunkCount}`);
+        console.log(
+          `[MultiWorld][metrics] generated_chunks_per_min=${chunksPerMin} total_tracked_chunks=${currentChunkCount}`,
+        );
         this._metricsState.lastChunkCount = currentChunkCount;
         this._metricsState.lastSampleAt = now;
       }, 1200);
@@ -92,54 +120,62 @@ PMMPCore.registerPlugin({
     }
 
     // En primer ingreso, o respawn sin spawnpoint personal, mover al mundo principal configurado.
-    const playerSpawnSubscription = world.afterEvents.playerSpawn.subscribe((event) => {
-      const player = event.player;
-      let hasPersonalSpawn = false;
-      try {
-        const spawnPoint = player.getSpawnPoint?.();
-        hasPersonalSpawn = !!spawnPoint;
-      } catch (_) {}
+    const playerSpawnSubscription = world.afterEvents.playerSpawn.subscribe(
+      (event) => {
+        const player = event.player;
+        let hasPersonalSpawn = false;
+        try {
+          const spawnPoint = player.getSpawnPoint?.();
+          hasPersonalSpawn = !!spawnPoint;
+        } catch (_) {}
 
-      // Do not override normal respawn behavior. Routing should only happen on first join.
-      // The previous condition (`initialSpawn || !hasPersonalSpawn`) forced players without
-      // a personal spawnpoint (no bed/anchor) into main-world fallback each respawn.
-      const shouldRouteToMain = !!event.initialSpawn;
-      if (!shouldRouteToMain) return;
+        // Do not override normal respawn behavior. Routing should only happen on first join.
+        // The previous condition (`initialSpawn || !hasPersonalSpawn`) forced players without
+        // a personal spawnpoint (no bed/anchor) into main-world fallback each respawn.
+        const shouldRouteToMain = !!event.initialSpawn;
+        if (!shouldRouteToMain) return;
 
-      const tryRouteToMain = (attempt = 0) => {
-        // Wait until world metadata is available; otherwise main-world resolution
-        // can fallback incorrectly to overworld spawn.
-        if (!this.worldDataLoaded && attempt < 40) {
-          system.runTimeout(() => tryRouteToMain(attempt + 1), 1);
-          return;
-        }
+        const tryRouteToMain = (attempt = 0) => {
+          // Wait until world metadata is available; otherwise main-world resolution
+          // can fallback incorrectly to overworld spawn.
+          if (!this.worldDataLoaded && attempt < 40) {
+            system.runTimeout(() => tryRouteToMain(attempt + 1), 1);
+            return;
+          }
 
-        if (!this.worldDataLoaded) {
-          try {
-            WorldManager.loadWorldData();
-            this.worldDataLoaded = true;
-          } catch (_) {}
-        }
+          if (!this.worldDataLoaded) {
+            try {
+              WorldManager.loadWorldData();
+              this.worldDataLoaded = true;
+            } catch (_) {}
+          }
 
-        const restored = WorldManager.teleportPlayerToPreferredJoinLocation(player);
-        if (restored.ok) return;
+          const restored =
+            WorldManager.teleportPlayerToPreferredJoinLocation(player);
+          if (restored.ok) return;
 
-        // Important: when main destination is vanilla overworld, do not force a teleport on first join.
-        // Bedrock already resolves a proper spawnpoint (world spawn / safe spawn rules), and forcing
-        // an early teleport can fallback to 0,64,0 while chunks/spawn metadata are still warming up.
-        const mainDestination = WorldManager.resolveMainWorldDestination();
-        if (!mainDestination?.isCustom && mainDestination?.id === "minecraft:overworld") {
-          return;
-        }
+          // Important: when main destination is vanilla overworld, do not force a teleport on first join.
+          // Bedrock already resolves a proper spawnpoint (world spawn / safe spawn rules), and forcing
+          // an early teleport can fallback to 0,64,0 while chunks/spawn metadata are still warming up.
+          const mainDestination = WorldManager.resolveMainWorldDestination();
+          if (
+            !mainDestination?.isCustom &&
+            mainDestination?.id === "minecraft:overworld"
+          ) {
+            return;
+          }
 
-        const moved = WorldManager.teleportPlayerToMainWorld(player);
-        if (!moved.ok) {
-          player.sendMessage(`${Color.red}[MW] Could not move you to main world: ${moved.error?.message ?? "unknown error"}${Color.reset}`);
-        }
-      };
+          const moved = WorldManager.teleportPlayerToMainWorld(player);
+          if (!moved.ok) {
+            player.sendMessage(
+              `${Color.red}[MW] Could not move you to main world: ${moved.error?.message ?? "unknown error"}${Color.reset}`,
+            );
+          }
+        };
 
-      system.runTimeout(() => tryRouteToMain(), 1);
-    });
+        system.runTimeout(() => tryRouteToMain(), 1);
+      },
+    );
     this._subscriptions.push(playerSpawnSubscription);
 
     console.log("[MultiWorld] Modular runtime enabled.");
@@ -159,25 +195,91 @@ PMMPCore.registerPlugin({
       const existing = WorldGenerator.getOreRules();
       if (!existing.length) {
         const normalScope = { type: "worldType", value: "normal" };
-        WorldGenerator.registerOreRule({ id: "coal", blockId: "minecraft:coal_ore", minY: -64, maxY: 128, veinsPerChunk: 12, veinSize: 10, seed: 1, scope: normalScope });
-        WorldGenerator.registerOreRule({ id: "iron", blockId: "minecraft:iron_ore", minY: -64, maxY: 72, veinsPerChunk: 7, veinSize: 9, seed: 2, scope: normalScope });
-        WorldGenerator.registerOreRule({ id: "copper", blockId: "minecraft:copper_ore", minY: -16, maxY: 96, veinsPerChunk: 6, veinSize: 10, seed: 3, scope: normalScope });
-        WorldGenerator.registerOreRule({ id: "gold", blockId: "minecraft:gold_ore", minY: -64, maxY: 32, veinsPerChunk: 2, veinSize: 8, seed: 4, scope: normalScope });
-        WorldGenerator.registerOreRule({ id: "redstone", blockId: "minecraft:redstone_ore", minY: -64, maxY: 16, veinsPerChunk: 3, veinSize: 8, seed: 5, scope: normalScope });
-        WorldGenerator.registerOreRule({ id: "lapis", blockId: "minecraft:lapis_ore", minY: -32, maxY: 64, veinsPerChunk: 1, veinSize: 7, seed: 6, scope: normalScope });
-        WorldGenerator.registerOreRule({ id: "diamond", blockId: "minecraft:diamond_ore", minY: -64, maxY: 16, veinsPerChunk: 1, veinSize: 6, seed: 7, scope: normalScope });
+        WorldGenerator.registerOreRule({
+          id: "coal",
+          blockId: "minecraft:coal_ore",
+          minY: -64,
+          maxY: 128,
+          veinsPerChunk: 12,
+          veinSize: 10,
+          seed: 1,
+          scope: normalScope,
+        });
+        WorldGenerator.registerOreRule({
+          id: "iron",
+          blockId: "minecraft:iron_ore",
+          minY: -64,
+          maxY: 72,
+          veinsPerChunk: 7,
+          veinSize: 9,
+          seed: 2,
+          scope: normalScope,
+        });
+        WorldGenerator.registerOreRule({
+          id: "copper",
+          blockId: "minecraft:copper_ore",
+          minY: -16,
+          maxY: 96,
+          veinsPerChunk: 6,
+          veinSize: 10,
+          seed: 3,
+          scope: normalScope,
+        });
+        WorldGenerator.registerOreRule({
+          id: "gold",
+          blockId: "minecraft:gold_ore",
+          minY: -64,
+          maxY: 32,
+          veinsPerChunk: 2,
+          veinSize: 8,
+          seed: 4,
+          scope: normalScope,
+        });
+        WorldGenerator.registerOreRule({
+          id: "redstone",
+          blockId: "minecraft:redstone_ore",
+          minY: -64,
+          maxY: 16,
+          veinsPerChunk: 3,
+          veinSize: 8,
+          seed: 5,
+          scope: normalScope,
+        });
+        WorldGenerator.registerOreRule({
+          id: "lapis",
+          blockId: "minecraft:lapis_ore",
+          minY: -32,
+          maxY: 64,
+          veinsPerChunk: 1,
+          veinSize: 7,
+          seed: 6,
+          scope: normalScope,
+        });
+        WorldGenerator.registerOreRule({
+          id: "diamond",
+          blockId: "minecraft:diamond_ore",
+          minY: -64,
+          maxY: 16,
+          veinsPerChunk: 1,
+          veinSize: 6,
+          seed: 7,
+          scope: normalScope,
+        });
       }
     } catch (e) {
-      console.warn(`[MultiWorld] Ore rules init failed: ${e?.message ?? "unknown error"}`);
+      console.warn(
+        `[MultiWorld] Ore rules init failed: ${e?.message ?? "unknown error"}`,
+      );
     }
-
   },
 
   onWorldReady() {
     try {
       PMMPCore.getMigrationService()?.run("MultiWorld");
     } catch (e) {
-      console.warn(`[MultiWorld] Migration runner failed: ${e?.message ?? "unknown error"}`);
+      console.warn(
+        `[MultiWorld] Migration runner failed: ${e?.message ?? "unknown error"}`,
+      );
     }
 
     if (!this.worldDataLoaded) {
@@ -185,11 +287,13 @@ PMMPCore.registerPlugin({
         WorldManager.loadWorldData();
         this.worldDataLoaded = true;
         console.log("[MultiWorld] World data loaded.");
-        
+
         // Log dimension statistics
         this.logDimensionStats();
       } catch (e) {
-        console.warn(`[MultiWorld] World data load failed: ${e?.message ?? "unknown error"}`);
+        console.warn(
+          `[MultiWorld] World data load failed: ${e?.message ?? "unknown error"}`,
+        );
       }
     }
 
@@ -205,37 +309,66 @@ PMMPCore.registerPlugin({
   logDimensionStats() {
     try {
       const allWorlds = WorldManager.getAllWorlds();
-      const activeWorlds = allWorlds.filter(w => w.loaded);
+      const activeWorlds = allWorlds.filter((w) => w.loaded);
       const usedDimensions = allWorlds.length;
       const availableDimensions = TOTAL_DIMENSIONS - usedDimensions;
-      
+
       console.log(`[MultiWorld] Dimension Statistics:`);
-      console.log(`[MultiWorld] Total dimensions available: ${TOTAL_DIMENSIONS.toLocaleString()}`);
-      console.log(`[MultiWorld] Custom dimensions in use: ${usedDimensions}/${TOTAL_DIMENSIONS.toLocaleString()}`);
-      console.log(`[MultiWorld] Available dimensions: ${availableDimensions.toLocaleString()}`);
-      console.log(`[MultiWorld] Active worlds: ${activeWorlds.length}/${MAX_ACTIVE_WORLDS}`);
-      console.log(`[MultiWorld] Total worlds (active + inactive): ${allWorlds.length}`);
-      
+      console.log(
+        `[MultiWorld] Total dimensions available: ${TOTAL_DIMENSIONS.toLocaleString()}`,
+      );
+      console.log(
+        `[MultiWorld] Custom dimensions in use: ${usedDimensions}/${TOTAL_DIMENSIONS.toLocaleString()}`,
+      );
+      console.log(
+        `[MultiWorld] Available dimensions: ${availableDimensions.toLocaleString()}`,
+      );
+      console.log(
+        `[MultiWorld] Active worlds: ${activeWorlds.length}/${MAX_ACTIVE_WORLDS}`,
+      );
+      console.log(
+        `[MultiWorld] Total worlds (active + inactive): ${allWorlds.length}`,
+      );
+
       if (usedDimensions > 0) {
-        const usagePercent = ((usedDimensions / TOTAL_DIMENSIONS) * 100).toFixed(2);
+        const usagePercent = (
+          (usedDimensions / TOTAL_DIMENSIONS) *
+          100
+        ).toFixed(2);
         console.log(`[MultiWorld] Dimension usage: ${usagePercent}%`);
-        
+
         // Show dimension IDs in use
-        const dimensionIds = allWorlds.map(w => w.dimensionId.replace("pmmpcore:multiworld_", ""));
-        console.log(`[MultiWorld] Dimension IDs in use: [${dimensionIds.join(", ")}]`);
+        const dimensionIds = allWorlds.map((w) =>
+          w.dimensionId.replace("pmmpcore:multiworld_", ""),
+        );
+        console.log(
+          `[MultiWorld] Dimension IDs in use: [${dimensionIds.join(", ")}]`,
+        );
       }
-      
-      console.log(`[MultiWorld] Vanilla dimensions: 3 (overworld, nether, end)`);
-      console.log(`[MultiWorld] Total possible dimensions: ${(TOTAL_DIMENSIONS + 3).toLocaleString()}`);
+
+      console.log(
+        `[MultiWorld] Vanilla dimensions: 3 (overworld, nether, end)`,
+      );
+      console.log(
+        `[MultiWorld] Total possible dimensions: ${(TOTAL_DIMENSIONS + 3).toLocaleString()}`,
+      );
     } catch (e) {
-      console.warn(`[MultiWorld] Failed to log dimension stats: ${e?.message ?? "unknown error"}`);
+      console.warn(
+        `[MultiWorld] Failed to log dimension stats: ${e?.message ?? "unknown error"}`,
+      );
     }
   },
 
   seedPermissions() {
     const perms = PMMPCore.getPermissionService?.() ?? null;
-    if (!perms || typeof perms.getGroupInfo !== "function" || typeof perms.setGroupPermission !== "function") {
-      console.log("[MultiWorld] PermissionService not ready, skipping permission seed.");
+    if (
+      !perms ||
+      typeof perms.getGroupInfo !== "function" ||
+      typeof perms.setGroupPermission !== "function"
+    ) {
+      console.log(
+        "[MultiWorld] PermissionService not ready, skipping permission seed.",
+      );
       return;
     }
     let added = 0;
@@ -249,7 +382,7 @@ PMMPCore.registerPlugin({
       const existingNormalized = new Set(
         existing
           .filter((perm) => typeof perm === "string")
-          .map((perm) => perm.trim().replace(/^-/, "").toLowerCase())
+          .map((perm) => perm.trim().replace(/^-/, "").toLowerCase()),
       );
       for (const node of nodes) {
         if (existingNormalized.has(node.toLowerCase())) continue;
@@ -259,7 +392,8 @@ PMMPCore.registerPlugin({
         } catch (_) {}
       }
     }
-    if (added > 0) console.log(`[MultiWorld] Seeded ${added} default permission node(s).`);
+    if (added > 0)
+      console.log(`[MultiWorld] Seeded ${added} default permission node(s).`);
     else console.log("[MultiWorld] Permission seed already up to date.");
   },
 

@@ -370,7 +370,7 @@ export class WorldManager {
     }
   }
 
-  static createWorld(name, type, owner, dimensionNumber = null) {
+  static createWorld(name, type, owner, dimensionNumber = null, seed = null) {
     if (worldsData.has(name)) throw new Error(`World '${name}' already exists`);
     if (!Object.values(WORLD_TYPES).includes(type)) throw new Error(`World type '${type}' is not supported`);
 
@@ -397,10 +397,15 @@ export class WorldManager {
       [WORLD_TYPES.VOID]: { x: 0, y: 64, z: 0 },
     };
 
+    const parsedSeed = (seed !== null && seed !== undefined && !Number.isNaN(Number(seed)))
+      ? Number(seed)
+      : null;
+
     const worldData = {
       id: name,
       type,
       owner,
+      seed: parsedSeed,
       loaded: false,
       dimensionId: targetDimension.id,
       dimensionNumber: targetDimension.number,
