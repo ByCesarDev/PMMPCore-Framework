@@ -1,6 +1,6 @@
-﻿# PMMPCore
+# PMMPCore
 
-Language: **English** | [EspaÃ±ol](README.es.md)
+Language: **English** | [Español](README.es.md)
 
 <div align="center">
 
@@ -12,7 +12,7 @@ Language: **English** | [EspaÃ±ol](README.es.md)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE.md)
 [![Minecraft](https://img.shields.io/badge/Minecraft-Bedrock%20Edition-green)](https://www.minecraft.net/en-us/download/bedrock-edition)
 
-[Quick Start](#quick-start) Â· [Documentation](#documentation) Â· [Ecosystem](#standalone-addons-ecosystem) Â· [Contributing](#contributing)
+[Quick Start](#quick-start) · [Documentation](#documentation) · [Ecosystem](#standalone-addons-ecosystem) · [Contributing](#contributing)
 
 </div>
 
@@ -55,7 +55,7 @@ PMMPCore is distributed as a **Behavior Pack** and operates strictly within the 
 
 ### Requirements
 
-- Minecraft Bedrock 1.26.40+ with **Beta APIs** enabled if you wish to use Addons like PureChat.
+- Minecraft Bedrock 1.21.40+ with **Beta APIs** enabled if you wish to use Addons like PureChat.
 
 ### Install / Enable
 
@@ -138,4 +138,3 @@ A: Bedrock implements native chat interception under script experiments. You mus
 
 **Q: What happens if I remove the PMMPCore Behavior Pack?**  
 A: The independent Addons will detect the IPC engine failure and safely disable themselves, but your data saved in the world (KV) will not be lost.
-
