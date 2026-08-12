@@ -19,6 +19,45 @@ const SQL_PERMISSIONS = {
 };
 const SQL_RECENT_EXECUTIONS = new Map();
 
+function formatDate(ts) {
+  try {
+    const d = new Date(ts);
+    if (isNaN(d.getTime())) return String(ts);
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  } catch {
+    return String(ts);
+  }
+}
+
+function formatSqlRow(row, index) {
+  if (!row || typeof row !== "object") return `§7[SQL Debug] §e[#${index + 1}] §f${row}`;
+
+  const entries = Object.entries(row);
+  const formattedPairs = entries.map(([key, val]) => {
+    let valStr = "";
+    if (val === null || val === undefined) {
+      valStr = "§7null";
+    } else if (typeof val === "number") {
+      const isTimestampKey = /(?:at|date|time|timestamp)$/i.test(key);
+      if (isTimestampKey && val > 100000000000) {
+        valStr = `§e${formatDate(val)}`;
+      } else {
+        valStr = `§a${val}`;
+      }
+    } else if (typeof val === "boolean") {
+      valStr = `§e${val}`;
+    } else if (typeof val === "object") {
+      valStr = `§d${JSON.stringify(val)}`;
+    } else {
+      valStr = `§f"${val}"`;
+    }
+    return `§b${key}: ${valStr}`;
+  }).join(" §8| ");
+
+  return `§7[SQL Debug] §e[#${index + 1}] ${formattedPairs}`;
+}
+
 function registerCommandSafe(registry, definition, callback) {
   let primaryRegistered = false;
   try {
@@ -50,9 +89,10 @@ function registerCommandSafe(registry, definition, callback) {
   }
 }
 
-console.log("=== LOADING PLUGINS ===");
-import "./plugins.js";
-console.log("=== PLUGINS LOADED ===");
+import { pluginList } from "./plugins.js";
+if (Array.isArray(pluginList) && pluginList.length > 0) {
+  console.log(`[PMMPCore] Internal plugins initialized (${pluginList.length} plugins active)`);
+}
 
 world.afterEvents.worldLoad.subscribe(() => {
   try {
@@ -190,14 +230,14 @@ system.beforeEvents.startup.subscribe((event) => {
     },
   });
 
-  event.customCommandRegistry.registerEnum("pmmpcore:sql_subcommand", ["select", "upsert", "delete", "tables"]);
+  event.customCommandRegistry.registerEnum("pmmpcore:sql_subcommand", ["select", "insert", "upsert", "delete", "tables"]);
   event.customCommandRegistry.registerEnum("pmmpcore:sql_toggle_state", ["on", "off"]);
 
   registerCommandSafe(
     event.customCommandRegistry,
     {
       name: "pmmpcore:sql",
-      description: "Run SQL debug commands (select/upsert/delete/tables)",
+      description: "Run SQL debug commands (select/insert/upsert/delete/tables)",
       permissionLevel: CommandPermissionLevel.Any,
       cheatsRequired: false,
       mandatoryParameters: [
@@ -242,6 +282,27 @@ system.beforeEvents.startup.subscribe((event) => {
         .map((x) => String(x).trim())
         .filter((x) => x.length > 0);
 
+      if (op === "insert") {
+        if (!hasSqlPermission(player, SQL_PERMISSIONS.write)) {
+          player.sendMessage(`§c[SQL Debug] Missing permission: ${SQL_PERMISSIONS.write}§r`);
+          return { status: CustomCommandStatus.Success };
+        }
+        const rawInsert = allArgs.join(" ").trim();
+        if (!rawInsert) {
+          player.sendMessage("§e[SQL Debug] Usage: /sql insert INTO <table> (col1, ...) VALUES (val1, ...)§r");
+          return { status: CustomCommandStatus.Success };
+        }
+        const insertSql = rawInsert.toUpperCase().startsWith("INSERT ") ? rawInsert : `INSERT ${rawInsert}`;
+        try {
+          const row = sqlEngine.executeInsert(insertSql);
+          PMMPCore.db.flush();
+          player.sendMessage(`§a[SQL Debug] Insert SQL ok: row[${row.id}]§r`);
+        } catch (error) {
+          player.sendMessage(`§c[SQL Debug] Insert error: ${error.message}§r`);
+        }
+        return { status: CustomCommandStatus.Success };
+      }
+
       if (op === "select") {
         if (!hasSqlPermission(player, SQL_PERMISSIONS.read)) {
           player.sendMessage(`§c[SQL Debug] Missing permission: ${SQL_PERMISSIONS.read}§r`);
@@ -265,7 +326,7 @@ system.beforeEvents.startup.subscribe((event) => {
             player.sendMessage(`§b[SQL Debug] Executing: §7${query}§r`);
             player.sendMessage(`§a[SQL Debug] Rows (${rows.length}) in ${Date.now() - startedAt}ms§r`);
             rows.slice(0, SQL_MAX_CHAT_ROWS).forEach((row, i) => {
-              player.sendMessage(`§f[SQL Debug] [${i}] ${JSON.stringify(row)}`);
+              player.sendMessage(formatSqlRow(row, i));
             });
             if (rows.length > SQL_MAX_CHAT_ROWS) {
               player.sendMessage(`§7[SQL Debug] ... ${rows.length - SQL_MAX_CHAT_ROWS} more rows not shown.`);
@@ -473,11 +534,6 @@ system.beforeEvents.startup.subscribe((event) => {
     }
   );
 
-  const pluginEnumValues = PMMPCore.getPlugins().map((plugin) => plugin.name);
-  if (pluginEnumValues.length > 0) {
-    event.customCommandRegistry.registerEnum("pmmpcore:plugin_name", pluginEnumValues);
-  }
-
   event.customCommandRegistry.registerCommand(
     {
       name: "pmmpcore:pluginstatus",
@@ -485,7 +541,7 @@ system.beforeEvents.startup.subscribe((event) => {
       permissionLevel: CommandPermissionLevel.Any,
       cheatsRequired: false,
       mandatoryParameters: [
-        { type: CustomCommandParamType.Enum, name: "pmmpcore:plugin_name" },
+        { type: CustomCommandParamType.String, name: "pluginName" },
       ],
     },
     (origin, pluginName) => {

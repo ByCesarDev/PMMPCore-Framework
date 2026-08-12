@@ -173,7 +173,13 @@ class RelationalEngine {
   upsert(table, id, data) {
     this._invalidateQueryCache();
     const oldRow = this.getRow(table, id);
-    const row = { id, ...data };
+    const now = Date.now();
+    const row = {
+      id,
+      createdAt: oldRow?.createdAt ?? data?.createdAt ?? now,
+      updatedAt: now,
+      ...data,
+    };
     const json = JSON.stringify(row);
 
     if (json.length > ROW_THRESHOLD) {
@@ -764,6 +770,123 @@ class RelationalEngine {
     if (!v?.sql) return;
     const data = this.executeQuery(v.sql);
     this.db.set(`${P}view:${name}`, { ...v, data, ts: Date.now() });
+  }
+
+  /**
+   * Parsea y ejecuta sentencias SQL del tipo:
+   * INSERT INTO <table> (col1, col2, ...) VALUES (val1, val2, ...)
+   * @param {string} sql
+   * @returns {Record<string, unknown>}
+   */
+  executeInsert(sql) {
+    const rawTokens = tokenizeSql(sql);
+    const tokens = rawTokens.map((t) => t.replace(/^[()]+|[()]+$/g, "")).filter(Boolean);
+
+    if (tokens.length < 3) {
+      throw new Error("Invalid INSERT syntax");
+    }
+
+    // Caso A: Formato rápido clave=valor o clave:valor (ej: /sql insert example_pl_data item_105 name=Pantalones damage=180)
+    let isKeyValueFormat = false;
+    let kvTable = "";
+    let kvId = null;
+
+    if (tokens[0].toUpperCase() !== "INSERT") {
+      kvTable = tokens[0];
+      kvId = tokens[1];
+      isKeyValueFormat = tokens.slice(2).some((t) => t.includes(":") || t.includes("="));
+    } else if (tokens[1] && tokens[1].toUpperCase() !== "INTO" && tokens[1] !== "VALUES") {
+      kvTable = tokens[1];
+      kvId = tokens[2];
+      isKeyValueFormat = tokens.slice(3).some((t) => t.includes(":") || t.includes("="));
+    }
+
+    if (isKeyValueFormat && kvTable && kvId) {
+      const rowData = {};
+      const pairs = tokens.filter((t) => t.includes(":") || t.includes("="));
+      for (const pair of pairs) {
+        const sep = pair.includes("=") ? "=" : ":";
+        const parts = pair.split(sep);
+        const k = parts[0];
+        const v = parts.slice(1).join(sep);
+        let parsedVal = v;
+        if (!isNaN(v) && v.trim() !== "") parsedVal = Number(v);
+        else if (v === "true" || v === "false") parsedVal = v === "true";
+        rowData[k] = parsedVal;
+      }
+      if (!this.getMeta(kvTable)) this.createTable(kvTable, {});
+      return this.upsert(kvTable, kvId, rowData);
+    }
+
+    // Caso B: Sintaxis SQL estándar (INSERT INTO <table> ...)
+    let i = 0;
+    if (tokens[i].toUpperCase() === "INSERT") i++;
+    if (tokens[i] && tokens[i].toUpperCase() === "INTO") i++;
+
+    const table = tokens[i++];
+    if (!table) throw new Error("Expected table name in INSERT statement");
+
+    const columns = [];
+    while (i < tokens.length && tokens[i].toUpperCase() !== "VALUES") {
+      columns.push(tokens[i++]);
+    }
+
+    if (i < tokens.length && tokens[i].toUpperCase() === "VALUES") {
+      i++;
+    }
+
+    const values = [];
+    while (i < tokens.length) {
+      values.push(tokens[i++]);
+    }
+
+    if (values.length === 0) {
+      throw new Error("No values provided in INSERT statement");
+    }
+
+    const rowData = {};
+    let rowId = null;
+
+    if (columns.length > 0) {
+      if (columns.length !== values.length) {
+        throw new Error(`Column count (${columns.length}) does not match value count (${values.length})`);
+      }
+      for (let k = 0; k < columns.length; k++) {
+        const col = columns[k];
+        let val = values[k];
+        if (!isNaN(val) && val.trim() !== "") {
+          val = Number(val);
+        } else if (val === "true" || val === "false") {
+          val = val === "true";
+        }
+        if (col.toLowerCase() === "id") {
+          rowId = String(val);
+        } else {
+          rowData[col] = val;
+        }
+      }
+    } else {
+      rowId = String(values[0]);
+      for (let k = 1; k < values.length; k++) {
+        let val = values[k];
+        if (!isNaN(val) && val.trim() !== "") {
+          val = Number(val);
+        } else if (val === "true" || val === "false") {
+          val = val === "true";
+        }
+        rowData[`col_${k}`] = val;
+      }
+    }
+
+    if (!rowId) {
+      rowId = `row_${Date.now()}`;
+    }
+
+    if (!this.getMeta(table)) {
+      this.createTable(table, {});
+    }
+
+    return this.upsert(table, rowId, rowData);
   }
 }
 

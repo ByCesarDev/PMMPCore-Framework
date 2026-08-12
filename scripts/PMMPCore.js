@@ -9,6 +9,7 @@ import { TaskScheduler } from "./core/scheduler/TaskScheduler.js";
 import { TickCoordinator } from "./core/TickCoordinator.js";
 import { ObservabilityService } from "./core/observability/ObservabilityService.js";
 import { PurePermsPermissionService } from "./core/permissions/PurePermsPermissionService.js";
+import { InterAddonBridge } from "./core/interop/InterAddonBridge.js";
 
 const Color = {
   red: "\xA7c",
@@ -30,7 +31,7 @@ class PMMPCore {
   static db = null;
   static initialized = false;
   static services = null;
-  static apiVersion = "1.0.0";
+  static apiVersion = "1.1.5";
   static apiSurface = Object.freeze({
     db: "stable",
     dataProvider: "stable",
@@ -61,6 +62,48 @@ class PMMPCore {
     });
     console.log(`${Color.green}[PMMPCore] Plugin ${plugin.name} v${plugin.version || '1.0.0'} registered${Color.reset}`);
     return true;
+  }
+
+  static registerExternalPlugin(manifest, isFinalPass = false) {
+    if (!manifest || !manifest.name) {
+      return { success: false, error: "Invalid manifest" };
+    }
+    if (this.plugins.has(manifest.name)) {
+      const existingState = this.pluginStates.get(manifest.name);
+      if (existingState && existingState.enabled) {
+        return { success: true };
+      }
+    }
+    const pluginObj = {
+      name: manifest.name,
+      version: manifest.version || "1.0.0",
+      description: manifest.description || "External Behavior Pack Addon",
+      depend: manifest.depend || [],
+      softdepend: manifest.softdepend || [],
+      isExternal: true,
+    };
+
+    const hasDependencies = this.validateDependencies(pluginObj, isFinalPass);
+    if (!hasDependencies) {
+      if (isFinalPass) {
+        this.plugins.set(manifest.name, pluginObj);
+        this.pluginStates.set(manifest.name, {
+          enabled: false,
+          reason: "Dependency validation failed",
+        });
+        return { success: false, error: "Dependency validation failed" };
+      }
+      return { success: false, error: "Pending dependencies" };
+    }
+
+    this.plugins.set(manifest.name, pluginObj);
+    this.pluginStates.set(manifest.name, {
+      enabled: true,
+      reason: "Registered via InterAddonBridge (.mcpack)",
+    });
+    console.log(`${Color.green}[PMMPCore] Plugin ${manifest.name} v${manifest.version || '1.0.0'} registered (External Addon)${Color.reset}`);
+    this.emit("plugin.enabled", { pluginName: manifest.name, version: manifest.version || "1.0.0", isExternal: true });
+    return { success: true };
   }
 
   static getPlugin(name) {
@@ -99,6 +142,11 @@ class PMMPCore {
 
     for (const plugin of this.plugins.values()) {
       try {
+        if (plugin.isExternal) {
+          enabledCount++;
+          continue;
+        }
+
         if (!this.validateDependencies(plugin)) {
           this.pluginStates.set(plugin.name, {
             enabled: false,
@@ -135,7 +183,9 @@ class PMMPCore {
       }
     }
 
-    console.log(`${Color.aqua}[PMMPCore] Plugin loading complete: ${enabledCount} enabled, ${errorCount} errors${Color.reset}`);
+    if (enabledCount > 0 || errorCount > 0) {
+      console.log(`${Color.aqua}[PMMPCore] Internal plugins loaded: ${enabledCount} enabled, ${errorCount} errors${Color.reset}`);
+    }
   }
 
   static disableAll() {
@@ -173,10 +223,12 @@ class PMMPCore {
     const eventBus = this.services.register("eventBus", new EventBus(observability), { stability: "experimental" });
     const commandBus = this.services.register("commandBus", new CommandBus(observability), { stability: "experimental" });
     const scheduler = this.services.register("scheduler", new TaskScheduler(observability), { stability: "experimental" });
-    this.services.register("permissionService", new PurePermsPermissionService(), { stability: "stable" });
+    this.services.register("permissionService", new PurePermsPermissionService(null, databaseManager), { stability: "stable" });
     this.services.register("migrationService", new MigrationService(databaseManager, observability), { stability: "experimental" });
     this.services.register("tickCoordinator", new TickCoordinator({ scheduler, observability, db: databaseManager }), { stability: "internal" });
     this.services.register("storage", databaseManager, { stability: "stable" });
+    const interAddonBridge = this.services.register("interAddonBridge", new InterAddonBridge(this), { stability: "experimental" });
+    interAddonBridge.listen();
     this.initialized = true;
     console.log(`${Color.green}[PMMPCore] Core system initialized${Color.reset}`);
   }
@@ -264,7 +316,7 @@ class PMMPCore {
     this.getPermissionService()?.setBackend?.(service);
   }
 
-  static validateDependencies(plugin) {
+  static validateDependencies(plugin, isFinalPass = false) {
     if (!plugin.depend && !plugin.softdepend) return true;
 
     const errors = [];
@@ -284,7 +336,7 @@ class PMMPCore {
       }
     }
 
-    if (plugin.softdepend) {
+    if (isFinalPass && plugin.softdepend) {
       for (const dep of plugin.softdepend) {
         if (dep === "PMMPCore") {
           continue;
@@ -296,11 +348,13 @@ class PMMPCore {
     }
 
     if (errors.length > 0) {
-      console.error(`${Color.red}[PMMPCore] ${plugin.name} failed dependency check: ${errors.join(', ')}${Color.reset}`);
+      if (isFinalPass) {
+        console.error(`${Color.red}[PMMPCore] ${plugin.name} failed dependency check: ${errors.join(', ')}${Color.reset}`);
+      }
       return false;
     }
 
-    if (warnings.length > 0) {
+    if (isFinalPass && warnings.length > 0) {
       console.warn(`${Color.yellow}[PMMPCore] ${plugin.name} warnings: ${warnings.join(', ')}${Color.reset}`);
     }
 

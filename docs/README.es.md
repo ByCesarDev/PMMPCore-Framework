@@ -27,6 +27,7 @@ flowchart TD
 - `API_PUBLIC_GUIDE.es.md` - superficie de API pública, lifecycle, niveles de estabilidad y puntos de entrada.
 - `PLUGIN_MIGRATION_GUIDE.es.md` - guía de migración para plugins legacy hacia PMMPCore API v1.
 - `PLUGIN_DEVELOPMENT_GUIDE.es.md` - guía completa para crear plugins compatibles.
+- `INTER_ADDON_DEVELOPMENT_GUIDE.es.md` - guía para empaquetar y crear Addons independientes (.mcpack).
 - `TROUBLESHOOTING_PLAYBOOK.es.md` - playbook de diagnóstico por síntomas (lifecycle, DB, comandos, permisos, migraciones).
 - `PLUGIN_DOC_TEMPLATE.es.md` - plantilla oficial/checklist para documentar plugins nuevos.
 - `plugins/MULTIWORLD_DOCUMENTATION.es.md` - MultiWorld: uso, comandos, persistencia y configuración.
