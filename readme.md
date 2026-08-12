@@ -6,208 +6,135 @@ Language: **English** | [Español](README.es.md)
 
 ![PMMPCore Logo](images/PMMPCore.png)
 
-**Modular framework for Minecraft Bedrock Edition (Behavior Packs)**
+**Modular Framework for Minecraft Bedrock Edition (Behavior Packs)**
 
-[![Status](https://img.shields.io/badge/Status-Prototype%20%2F%20Public%20API%20in%20progress-orange)](#status)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Status](https://img.shields.io/badge/Status-Stable%20v1.1.5-brightgreen)](#status)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE.md)
 [![Minecraft](https://img.shields.io/badge/Minecraft-Bedrock%20Edition-green)](https://www.minecraft.net/en-us/download/bedrock-edition)
 
-[Quickstart](#quickstart) · [Documentation](#documentation) · [Plugins](#included-plugins) · [Contributing](#contributing)
+[Quick Start](#quick-start) · [Documentation](#documentation) · [Ecosystem](#standalone-addons-ecosystem) · [Contributing](#contributing)
 
 </div>
 
 ## Table of Contents
 
-1. [What is PMMPCore?](#what-is-pmmcore)
+1. [What is PMMPCore?](#what-is-pmmpcore)
 2. [Status](#status)
-3. [Quickstart](#quickstart)
-   - [Requirements](#requirements)
-   - [Install / enable](#install--enable)
-   - [Verify everything is working](#verify-everything-is-working)
-   - [Native SQL shell (toggleable)](#native-sql-shell-toggleable)
-4. [Included plugins](#included-plugins)
+3. [Quick Start](#quick-start)
+4. [Standalone Addons Ecosystem](#standalone-addons-ecosystem)
 5. [Documentation](#documentation)
-6. [Repository structure (high level)](#repository-structure-high-level)
+6. [Repository Structure (High Level)](#repository-structure-high-level)
 7. [Contributing](#contributing)
 8. [FAQ](#faq)
-9. [See also](#see-also)
 
 ---
 
 ## What is PMMPCore?
 
-PMMPCore is a modular framework for Bedrock Script API projects, inspired by PocketMine-style plugin ecosystems.
+PMMPCore is a powerful modular framework for Bedrock Script API projects, inspired by the PocketMine plugin ecosystem. It acts as the central communication hub and database core for a whole family of external Addons.
 
-It provides:
+Includes:
 
-- **A predictable plugin lifecycle** (`onLoad`, `onEnable`, `onStartup`, `onWorldReady`, `onDisable`)
-- **A shared persistence layer** built on **world Dynamic Properties** (`DatabaseManager`, `PMMPDataProvider`, optional `RelationalEngine`)
-- **A unified services layer** (events, commands, scheduler, permissions, migrations)
-- **Diagnostics** to keep the platform observable as it grows
+- **Communication Bus (InterAddonBridge v1)**: Synchronous network interface for external Addons to interact with the framework via `scriptevent`.
+- **Dual Permission Engine**: Logical in-memory permission system (`PurePermsPermissionService`) tightly bound to native Operator commands (`commandPermissionLevel`).
+- **Centralized Persistence (KV and SQL)**: Unified safe read/write access for all Addons featuring relational engines, buffers, and Write-Ahead Logging (`DatabaseManager`).
+- **Predictable Lifecycle**: Controlled component loading and hooks.
 
-PMMPCore is implemented as a Behavior Pack (not a dedicated server mod). It runs inside the limitations of the Bedrock Script API.
+PMMPCore is distributed as a **Behavior Pack** and operates strictly within the limitations and standards of the Bedrock Script API Sandbox.
 
 ---
 
 ## Status
 
-- **Project state**: functional prototype with an expanding public API
-- **Target**: a stable core usable by third-party plugins inside this repository-based ecosystem
+- **Project Status**: Stable `v1.1.5`.
+- **Goal**: To provide an ultra-fluid central core (0ms ram query latency) so the official Addon suite and third parties can build advanced mechanics in Bedrock.
 
 ---
 
-## Quickstart
+## Quick Start
 
 ### Requirements
 
-- Minecraft Bedrock (Preview) with Script API enabled (the repo is already placed under a `development_behavior_packs/` path).
+- Minecraft Bedrock 1.21.0+ with **Beta APIs** enabled if you wish to use Addons like PureChat.
 
-### Install / enable
+### Install / Enable
 
-1. Copy (or keep) this folder as a Behavior Pack under:
-   - `com.mojang/development_behavior_packs/PMMPCore-Framework`
-2. In Minecraft, enable the pack in your world.
-3. Start the world, then open chat and run:
+1. Download the `PMMPCore-Framework.mcpack` file.
+2. Import the file into Minecraft Bedrock.
+3. Activate the Behavior Pack in your world.
+4. Join the world and run `/diag` to validate core integrity.
 
-```text
-/info
-```
+### Verification
 
-### Verify everything is working
-
-Run:
-
-```text
-/diag
-/selftest
-```
-
-- `/diag`: shows services, event topics, scheduler tasks, and last tick/flush metrics
-- `/selftest`: smoke tests KV + relational layer and prints a summary
-
-### Native SQL shell (toggleable)
-
-PMMPCore includes a native SQL debug shell with global on/off state.
-
-```text
-/sqltoggle on
-/sqlseed
-/sql SELECT * FROM items
-/sql upsert items 99 {"name":"AdminBlade","power":250}
-/sql delete items 99
-/sqltoggle off
-```
-
-Notes:
-
-- `/sql select` only accepts `SELECT` queries from the SQL subset implemented by `RelationalEngine`.
-- `/sql upsert` expects JSON inline (`<table> <id> <json-object>`).
-- SQL shell commands require SQL permissions (`pmmpcore.sql.read`/`write`/`admin`) and respect the global toggle.
+- `/diag`: Verifies services, event bus, scheduler tasks, and memory metrics.
+- `/selftest`: Tests KV relational read/write capabilities and the IPC protocol.
 
 ---
 
-## Included plugins
+## Standalone Addons Ecosystem
 
-PMMPCore is a framework plus a curated set of core plugins living under `scripts/plugins/`.
+In previous versions, plugins were embedded within the framework's repository. As of **v1.1.5**, **ALL plugins are autonomous** and are distributed in their own repositories / `.mcpack` files.
 
-Current included plugins:
+For the complete experience, you must download the Addons you need and enable them alongside PMMPCore:
 
-- **MultiWorld**: dimension-backed custom worlds with commands and persistence
-- **PurePerms**: permissions and groups, with a stable core-facing permission contract
-- **PlaceholderAPI**: dynamic `%placeholder%` parser with built-in expansions and plugin runtime registry
-- **EconomyAPI**: full economy suite (wallet, debt, bank, ranking, commands, and runtime API for plugins)
-- **PureChat**: group-based chat formats, player prefix/suffix, and nametag templates
-- **EssentialsTP**: teleportation system with homes, warps and back functionality
-- **FormAPI**: Bedrock forms system with interactive menu support
-- **ScoreHud**: custom score and statistics display
-- **ExamplePlugin**: reference plugin showing MultiWorld hooks and patterns
+- **MultiWorld**: Custom dynamic worlds and dimensions.
+- **PurePerms**: The master ranks and permissions engine, emitting hierarchies to RAM.
+- **PureChat**: Real-time chat formatting, nametags, and prefixes (requires Beta APIs).
+- **ScoreHud**: Fluid 100ms (2 ticks) scoreboard integrating TPS, CPU %, money, and ranks.
+- **EconomyAPI**: Transactions and virtual currency engine.
+- **PlaceholderAPI**: `%...%` placeholders extensibility for all Addons.
+- **EssentialsTP**: TPA, homes, and warps system.
+- **FormAPI**: Complex GUI construction in Bedrock.
 
-See each plugin’s documentation under `docs/plugins/`.
+*(Note: Each of these Addons contains its own technical manual `docs/` and license inside its package).*
 
 ---
 
 ## Documentation
 
-Start here:
+Start with:
 
-- **Docs index**: `docs/README.md`
+- **Docs Index**: `docs/README.md`
 
 Core references:
 
-- **Public API (core services, lifecycle, stability levels)**: `docs/API_PUBLIC_GUIDE.md`
-- **Database layer (KV, WAL, DataProvider, RelationalEngine + SQL subset)**: `docs/DATABASE_GUIDE.md`
-- **Project architecture and runtime pipeline**: `docs/PROJECT_DOCUMENTATION.md`
-
-Plugin authors:
-
-- **Plugin development guide**: `docs/PLUGIN_DEVELOPMENT_GUIDE.md`
-- **Plugin migration guide (legacy → API v1 patterns)**: `docs/PLUGIN_MIGRATION_GUIDE.md`
+- **Public API (services and IPC bridge)**: `docs/API_PUBLIC_GUIDE.md`
+- **Database (KV, RelationalEngine + SQL)**: `docs/DATABASE_GUIDE.md`
+- **Addon Development Guide V1 (Standalone)**: `docs/INTER_ADDON_DEVELOPMENT_GUIDE.md`
 
 ---
 
-## Repository structure (high level)
+## Repository Structure (High Level)
 
 ```text
 scripts/
-  main.js                  # boot pipeline (worldLoad-safe init + diagnostics)
-  PMMPCore.js               # core facade + service registry
-  DatabaseManager.js        # persistence: cache + dirty buffer + flush + WAL hook
-  api/                      # public export surface for third-party plugins
-  core/                     # events, scheduler, permissions, observability, etc.
-  db/                       # relational engine, codecs, migrations, WAL
-  plugins/
-    MultiWorld/
-    PurePerms/
-    PlaceholderAPI/
-    EconomyAPI/
-    EssentialsTP/
-    FormAPI/
-    ScoreHud/
-    ExamplePlugin/
+  main.js                  # Safe initialization pipeline
+  PMMPCore.js              # Core and service registry
+  client/                  # SDK client modules
+  core/                    # IPC bridge (InterAddonBridge), events, permissions
+  db/                      # RelationalEngine, Codecs, Storage
 docs/
-  README.md                 # documentation index
-  DATABASE_GUIDE.md
-  API_PUBLIC_GUIDE.md
-  PROJECT_DOCUMENTATION.md
-  plugins/                  # plugin manuals (usage + configuration)
+  README.md                # Central index
+  INTER_ADDON...md         # Addon creation protocol
+  ...
 ```
 
 ---
 
 ## Contributing
 
-- Keep compatibility with the Bedrock Script API version used by this repo.
-- Prefer **backwards-compatible** changes for `stable` APIs.
-- Document changes in `docs/` (and add an `.es.md` counterpart when applicable).
-- Avoid direct `world.getDynamicProperty` / `world.setDynamicProperty` usage for PMMPCore data; use `PMMPCore.db`.
+- Always prioritize **backward-compatible** changes in the public API.
+- Use the IPC bridge's `bus_event` system to connect decoupled modules.
 
 ---
 
 ## FAQ
 
-**Q: Can I use PMMPCore on a dedicated server?**  
-A: PMMPCore is designed as a Behavior Pack and works on Minecraft Bedrock Edition worlds (including realms and dedicated servers that support Behavior Packs).
+**Q: Where is the `scripts/plugins/` folder?**  
+A: It has been removed. Starting with v1.1.5, the architecture is 100% modular. You must download the official plugins separately and activate them as additional packs in your world.
 
-**Q: Do I need special permissions to use commands?**  
-A: Yes, some commands require specific permissions. Use PurePerms to configure appropriate permissions for each group.
+**Q: Why doesn't PureChat show prefixes on my server?**  
+A: Bedrock implements native chat interception under script experiments. You must activate **Beta APIs** in your world settings and ensure you have PurePerms loaded.
 
-**Q: What if my data disappears after restart?**  
-A: Make sure to call `PMMPCore.db.flush()` after critical operations or use commands like `/moneysave` to force persistence.
-
-**Q: Can I disable individual plugins?**  
-A: Yes, you can comment out the corresponding `import` line in `scripts/plugins.js` to disable specific plugins.
-
-**Q: How do I report bugs or request features?**  
-A: Use the GitHub repository's issue system, providing details about the problem and steps to reproduce.
-
-**Q: Is it safe to use PMMPCore in production?**  
-A: PMMPCore is in prototype status with public API in progress. It's functional but may have breaking changes in future versions.
-
----
-
-## See also
-
-- [Full documentation](docs/README.md) - Detailed guides and references
-- [Public API guide](docs/API_PUBLIC_GUIDE.md) - API reference for developers
-- [Database guide](docs/DATABASE_GUIDE.md) - Persistence and storage
-- [Plugin development guide](docs/PLUGIN_DEVELOPMENT_GUIDE.md) - How to create plugins
+**Q: What happens if I remove the PMMPCore Behavior Pack?**  
+A: The independent Addons will detect the IPC engine failure and safely disable themselves, but your data saved in the world (KV) will not be lost.
